@@ -40,6 +40,7 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
 ];
 
 export default function LanguageSelectScreen() {
+  const [isBackgroundLoaded, setIsBackgroundLoaded] = useState(false);
   const [selectedLanguageValue, setSelectedLanguageValue] = useState<LanguageValue | null>(null);
 
   const selectedLanguage = useMemo(() => {
@@ -72,59 +73,64 @@ export default function LanguageSelectScreen() {
       source={require('@/assets/images/language-bg.png')}
       style={styles.background}
       resizeMode="cover"
+      onLoadEnd={() => setIsBackgroundLoaded(true)}
     >
       <View style={styles.overlay}>
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.content}>
-            <Text style={styles.title}>{displayTitle}</Text>
+        {isBackgroundLoaded ? (
+          <SafeAreaView style={styles.safeArea}>
+            <View style={styles.content}>
+              <Text style={styles.title}>{displayTitle}</Text>
 
-            <View style={styles.languageRow}>
-              {LANGUAGE_OPTIONS.map((language) => {
-                const isSelected = language.value === selectedLanguageValue;
+              <View style={styles.languageRow}>
+                {LANGUAGE_OPTIONS.map((language) => {
+                  const isSelected = language.value === selectedLanguageValue;
 
-                return (
-                  <Pressable
-                    key={language.value}
-                    style={({ pressed }) => [
-                      styles.languageButton,
-                      pressed && styles.languageButtonPressed,
-                    ]}
-                    onPress={() => handleSelectLanguage(language)}
-                  >
-                    {isSelected ? (
-                      <ImageBackground
-                        source={require('@/assets/images/language-slc-btn-bg.png')}
-                        style={styles.languageButtonImage}
-                        imageStyle={styles.languageButtonImageStyle}
-                        resizeMode="cover"
-                      >
-                        <Text style={styles.languageText}>{language.label}</Text>
-                      </ImageBackground>
-                    ) : (
-                      <View style={styles.languageButtonInner}>
-                        <Text style={styles.languageText}>{language.label}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                );
-              })}
+                  return (
+                    <Pressable
+                      key={language.value}
+                      style={({ pressed }) => [
+                        styles.languageButton,
+                        pressed && styles.languageButtonPressed,
+                      ]}
+                      onPress={() => handleSelectLanguage(language)}
+                    >
+                      {isSelected ? (
+                        <ImageBackground
+                          source={require('@/assets/images/language-slc-btn-bg.png')}
+                          style={styles.languageButtonImage}
+                          imageStyle={styles.languageButtonImageStyle}
+                          resizeMode="cover"
+                        >
+                          <Text style={styles.languageText}>{language.label}</Text>
+                        </ImageBackground>
+                      ) : (
+                        <View style={styles.languageButtonInner}>
+                          <Text style={styles.languageText}>{language.label}</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {selectedLanguage ? (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.confirmButton,
+                    pressed && styles.confirmButtonPressed,
+                  ]}
+                  onPress={handleConfirm}
+                >
+                  <Text style={styles.confirmButtonText}>{selectedLanguage.confirmText}</Text>
+                </Pressable>
+              ) : (
+                <View style={styles.confirmButtonPlaceholder} />
+              )}
             </View>
-
-            {selectedLanguage ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.confirmButton,
-                  pressed && styles.confirmButtonPressed,
-                ]}
-                onPress={handleConfirm}
-              >
-                <Text style={styles.confirmButtonText}>{selectedLanguage.confirmText}</Text>
-              </Pressable>
-            ) : (
-              <View style={styles.confirmButtonPlaceholder} />
-            )}
-          </View>
-        </SafeAreaView>
+          </SafeAreaView>
+        ) : (
+          <View style={styles.loadingContainer} />
+        )}
       </View>
     </ImageBackground>
   );
@@ -141,6 +147,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   safeArea: {
+    flex: 1,
+  },
+  loadingContainer: {
     flex: 1,
   },
   content: {
@@ -189,7 +198,6 @@ const styles = StyleSheet.create({
     borderRadius: 59,
   },
   languageButtonPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     transform: [
       {
         scale: 0.96,

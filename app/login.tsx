@@ -190,17 +190,17 @@ export default function LoginScreen() {
 
   const getBackButtonPositionStyle = () => {
     const isChineseLanguage = language === 'zh-CN' || language === 'zh-TW';
-  
+
     if (canvasMode === 'register') {
       return isChineseLanguage ? styles.backButtonRegisterChinese : styles.backButtonRegisterOther;
     }
-  
+
     if (canvasMode === 'forgotPassword') {
       return isChineseLanguage
         ? styles.backButtonForgotPasswordChinese
         : styles.backButtonForgotPasswordOther;
     }
-  
+
     return styles.backButtonRegisterChinese;
   };
 
@@ -376,11 +376,11 @@ export default function LoginScreen() {
     return (
       <View style={styles.secondaryPage}>
         <Pressable
-  style={[styles.backButton, getBackButtonPositionStyle()]}
-  onPress={handleBackToLoginCanvas}
->
-  <Text style={styles.backButtonText}>‹</Text>
-</Pressable>
+          style={[styles.backButton, getBackButtonPositionStyle()]}
+          onPress={handleBackToLoginCanvas}
+        >
+          <Text style={styles.backButtonText}>‹</Text>
+        </Pressable>
 
         <View style={styles.secondaryContent}>
           <Text style={styles.secondaryTitle}>{secondaryCopy.title}</Text>
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   //   left: 290,
   //   top: 180,
   // },
-  
+
   backButtonRegisterOther: {
     left: 350,
     top: 180,
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
     left: 290,
     top: 180,
   },
-  
+
   backButtonForgotPasswordOther: {
     left: 280,
     top: 160,
