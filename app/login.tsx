@@ -1,17 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  Image,
-  ImageBackground,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image, ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
+
+type AuthCanvasMode = 'login' | 'register' | 'forgotPassword';
 
 type LoginCopy = {
   register: string;
@@ -24,6 +18,14 @@ type LoginCopy = {
   forgotPassword: string;
   welcomeTitle: string;
   welcomeSubtitle: string;
+};
+
+type SecondaryCanvasCopy = {
+  title: string;
+  description: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  submitButton: string;
 };
 
 type LoginLanguageOption = {
@@ -101,6 +103,72 @@ const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
   },
 };
 
+const REGISTER_COPY: Record<LanguageValue, SecondaryCanvasCopy> = {
+  'zh-CN': {
+    title: '快速注册账号',
+    description: '此电子邮件，将用于未来登录账号使用。',
+    emailLabel: '电子邮件',
+    emailPlaceholder: 'Example@example.com',
+    submitButton: '送出',
+  },
+  'zh-TW': {
+    title: '快速註冊帳號',
+    description: '此電子郵件，將用於未來登入帳號使用。',
+    emailLabel: '電子郵件',
+    emailPlaceholder: 'Example@example.com',
+    submitButton: '送出',
+  },
+  en: {
+    title: 'Quick Sign-Up',
+    description: 'This email will be used to log in to your account in the future.',
+    emailLabel: 'Email',
+    emailPlaceholder: 'Example@example.com',
+    submitButton: 'Submit',
+  },
+  ms: {
+    title: 'Daftar Pantas',
+    description: 'E-mel ini akan digunakan untuk log masuk ke akaun anda pada masa hadapan.',
+    emailLabel: 'E-mel',
+    emailPlaceholder: 'Example@example.com',
+    submitButton: 'Hantar',
+  },
+};
+
+const FORGOT_PASSWORD_COPY: Record<LanguageValue, SecondaryCanvasCopy> = {
+  'zh-CN': {
+    title: '放心，我们将帮您找回密码。',
+    description:
+      '密码至少 8 个字，包含大小写英文和数字。只接受英文字母、数字和常见符号（!@#|>_<）。',
+    emailLabel: '电子邮件',
+    emailPlaceholder: 'Example@example.com',
+    submitButton: '送出',
+  },
+  'zh-TW': {
+    title: '放心，我們將幫您找回密碼。',
+    description:
+      '密碼至少 8 個字，包含大小寫英文和數字。只接受英文字母、數字和常見符號（!@#|>_<）。',
+    emailLabel: '電子郵件',
+    emailPlaceholder: 'Example@example.com',
+    submitButton: '送出',
+  },
+  en: {
+    title: "Don't worry, we'll help you recover your password.",
+    description:
+      'Password must be at least 8 characters long,\nmust include A-Z, a-z, 0-9. Only: letters, digits, (!@#|>_<).',
+    emailLabel: 'Email',
+    emailPlaceholder: 'Example@example.com',
+    submitButton: 'Submit',
+  },
+  ms: {
+    title: 'Jangan risau, kami bantu pulihkan kata laluan.',
+    description:
+      'Kata laluan mesti sekurang-kurangnya 8 aksara\nperlu A-Z, a-z & 0-9. Dibenarkan: huruf, nombor & (!@#|>_<).',
+    emailLabel: 'E-mel',
+    emailPlaceholder: 'Example@example.com',
+    submitButton: 'Hantar',
+  },
+};
+
 function normalizeLanguage(value: unknown): LanguageValue {
   if (value === 'zh-CN' || value === 'zh-TW' || value === 'en' || value === 'ms') {
     return value;
@@ -117,13 +185,34 @@ export default function LoginScreen() {
   }, [params.lang]);
 
   const [language, setLanguage] = useState<LanguageValue>(initialLanguage);
+  const [canvasMode, setCanvasMode] = useState<AuthCanvasMode>('login');
   const [isLanguagePanelVisible, setIsLanguagePanelVisible] = useState(false);
 
-  const copy = LOGIN_COPY[language];
+  const getBackButtonPositionStyle = () => {
+    const isChineseLanguage = language === 'zh-CN' || language === 'zh-TW';
+  
+    if (canvasMode === 'register') {
+      return isChineseLanguage ? styles.backButtonRegisterChinese : styles.backButtonRegisterOther;
+    }
+  
+    if (canvasMode === 'forgotPassword') {
+      return isChineseLanguage
+        ? styles.backButtonForgotPasswordChinese
+        : styles.backButtonForgotPasswordOther;
+    }
+  
+    return styles.backButtonRegisterChinese;
+  };
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  const [secondaryEmail, setSecondaryEmail] = useState('');
+
+  const loginCopy = LOGIN_COPY[language];
+
+  const secondaryCopy =
+    canvasMode === 'register' ? REGISTER_COPY[language] : FORGOT_PASSWORD_COPY[language];
 
   const handleLogin = () => {
     console.log('[LoginScreen] login:', {
@@ -136,8 +225,22 @@ export default function LoginScreen() {
     router.replace('/(tabs)/home');
   };
 
-  const handleRegister = () => {
-    console.log('[LoginScreen] register pressed');
+  const handleOpenRegisterCanvas = () => {
+    setCanvasMode('register');
+    setSecondaryEmail('');
+    setIsLanguagePanelVisible(false);
+  };
+
+  const handleOpenForgotPasswordCanvas = () => {
+    setCanvasMode('forgotPassword');
+    setSecondaryEmail('');
+    setIsLanguagePanelVisible(false);
+  };
+
+  const handleBackToLoginCanvas = () => {
+    setCanvasMode('login');
+    setSecondaryEmail('');
+    setIsLanguagePanelVisible(false);
   };
 
   const handleToggleLanguagePanel = () => {
@@ -149,8 +252,167 @@ export default function LoginScreen() {
     setIsLanguagePanelVisible(false);
   };
 
-  const handleForgotPassword = () => {
-    console.log('[LoginScreen] forgot password pressed');
+  const handleSecondarySubmit = () => {
+    console.log('[LoginScreen] secondary submit:', {
+      canvasMode,
+      language,
+      email: secondaryEmail,
+    });
+  };
+
+  const renderLanguagePanel = () => {
+    if (!isLanguagePanelVisible) {
+      return null;
+    }
+
+    return (
+      <View style={styles.languagePanel}>
+        {LOGIN_LANGUAGE_OPTIONS.map((option) => {
+          const isSelected = option.value === language;
+
+          return (
+            <Pressable
+              key={option.value}
+              style={[styles.languagePanelItem, isSelected && styles.languagePanelItemSelected]}
+              onPress={() => handleSelectLanguage(option.value)}
+            >
+              <Text style={styles.languagePanelText}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderLoginCanvas = () => {
+    return (
+      <View style={styles.page}>
+        <View style={styles.leftPanel}>
+          <Image
+            source={require('@/assets/images/login-Logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+
+          <Text style={styles.welcomeTitle}>{loginCopy.welcomeTitle}</Text>
+          <Text style={styles.welcomeSubtitle}>{loginCopy.welcomeSubtitle}</Text>
+        </View>
+
+        <View style={styles.rightPanel}>
+          {renderLanguagePanel()}
+
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <View style={styles.emailHeaderRow}>
+                <Text style={styles.label}>{loginCopy.emailLabel}</Text>
+
+                <View style={styles.topActionRow}>
+                  <Pressable onPress={handleOpenRegisterCanvas}>
+                    <Text style={styles.registerText}>{loginCopy.register}</Text>
+                  </Pressable>
+
+                  <Pressable style={styles.languageIconButton} onPress={handleToggleLanguagePanel}>
+                    <Image
+                      source={require('@/assets/images/login-language-btn.png')}
+                      style={styles.languageIconImage}
+                      resizeMode="contain"
+                    />
+                  </Pressable>
+                </View>
+              </View>
+
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder={loginCopy.emailPlaceholder}
+                placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={styles.input}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.passwordLabel}>{loginCopy.passwordLabel}</Text>
+
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder={loginCopy.passwordPlaceholder}
+                placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                secureTextEntry
+                style={styles.input}
+              />
+            </View>
+
+            <Pressable
+              style={styles.rememberRow}
+              onPress={() => setRememberMe((current) => !current)}
+            >
+              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                {rememberMe ? <Text style={styles.checkboxMark}>✓</Text> : null}
+              </View>
+
+              <Text style={styles.rememberText}>{loginCopy.rememberMe}</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.loginButton, pressed && styles.loginButtonPressed]}
+              onPress={handleLogin}
+            >
+              <Text style={styles.loginButtonText}>{loginCopy.loginButton}</Text>
+            </Pressable>
+
+            <Pressable onPress={handleOpenForgotPasswordCanvas}>
+              <Text style={styles.forgotPasswordText}>{loginCopy.forgotPassword}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderSecondaryCanvas = () => {
+    return (
+      <View style={styles.secondaryPage}>
+        <Pressable
+  style={[styles.backButton, getBackButtonPositionStyle()]}
+  onPress={handleBackToLoginCanvas}
+>
+  <Text style={styles.backButtonText}>‹</Text>
+</Pressable>
+
+        <View style={styles.secondaryContent}>
+          <Text style={styles.secondaryTitle}>{secondaryCopy.title}</Text>
+
+          <Text style={styles.secondaryDescription}>{secondaryCopy.description}</Text>
+
+          <View style={styles.secondaryInputGroup}>
+            <Text style={styles.secondaryLabel}>{secondaryCopy.emailLabel}</Text>
+
+            <TextInput
+              value={secondaryEmail}
+              onChangeText={setSecondaryEmail}
+              placeholder={secondaryCopy.emailPlaceholder}
+              placeholderTextColor="rgba(255, 255, 255, 0.42)"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.secondaryInput}
+            />
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.secondarySubmitButton,
+              pressed && styles.secondarySubmitButtonPressed,
+            ]}
+            onPress={handleSecondarySubmit}
+          >
+            <Text style={styles.secondarySubmitButtonText}>{secondaryCopy.submitButton}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -161,128 +423,7 @@ export default function LoginScreen() {
     >
       <View style={styles.overlay}>
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.page}>
-            <View style={styles.leftPanel}>
-              <Image
-                source={require('@/assets/images/login-Logo.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-
-              <Text style={styles.welcomeTitle}>{copy.welcomeTitle}</Text>
-              <Text style={styles.welcomeSubtitle}>{copy.welcomeSubtitle}</Text>
-            </View>
-
-            <View style={styles.rightPanel}>
-              {/* <View style={styles.topActionRow}>
-                <Pressable onPress={handleRegister}>
-                  <Text style={styles.registerText}>{copy.register}</Text>
-                </Pressable>
-
-                <Pressable
-                  style={styles.languageIconButton}
-                  onPress={handleToggleLanguagePanel}
-                >
-                  <Image
-                    source={require('@/assets/images/login-language-btn.png')}
-                    style={styles.languageIconImage}
-                    resizeMode="contain"
-                  />
-                </Pressable>
-              </View> */}
-
-              {isLanguagePanelVisible ? (
-                <View style={styles.languagePanel}>
-                  {LOGIN_LANGUAGE_OPTIONS.map((option) => {
-                    const isSelected = option.value === language;
-
-                    return (
-                      <Pressable
-                        key={option.value}
-                        style={[
-                          styles.languagePanelItem,
-                          isSelected && styles.languagePanelItemSelected,
-                        ]}
-                        onPress={() => handleSelectLanguage(option.value)}
-                      >
-                        <Text style={styles.languagePanelText}>{option.label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-
-              <View style={styles.form}>
-              <View style={styles.inputGroup}>
-  <View style={styles.emailHeaderRow}>
-    <Text style={styles.label}>{copy.emailLabel}</Text>
-
-    <View style={styles.topActionRow}>
-      <Pressable onPress={handleRegister}>
-        <Text style={styles.registerText}>{copy.register}</Text>
-      </Pressable>
-
-      <Pressable style={styles.languageIconButton} onPress={handleToggleLanguagePanel}>
-        <Image
-          source={require('@/assets/images/login-language-btn.png')}
-          style={styles.languageIconImage}
-          resizeMode="contain"
-        />
-      </Pressable>
-    </View>
-  </View>
-
-  <TextInput
-    value={email}
-    onChangeText={setEmail}
-    placeholder={copy.emailPlaceholder}
-    placeholderTextColor="rgba(255, 255, 255, 0.42)"
-    keyboardType="email-address"
-    autoCapitalize="none"
-    style={styles.input}
-  />
-</View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>{copy.passwordLabel}</Text>
-
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder={copy.passwordPlaceholder}
-                    placeholderTextColor="rgba(255, 255, 255, 0.42)"
-                    secureTextEntry
-                    style={styles.input}
-                  />
-                </View>
-
-                <Pressable
-                  style={styles.rememberRow}
-                  onPress={() => setRememberMe((current) => !current)}
-                >
-                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                    {rememberMe ? <Text style={styles.checkboxMark}>✓</Text> : null}
-                  </View>
-
-                  <Text style={styles.rememberText}>{copy.rememberMe}</Text>
-                </Pressable>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.loginButton,
-                    pressed && styles.loginButtonPressed,
-                  ]}
-                  onPress={handleLogin}
-                >
-                  <Text style={styles.loginButtonText}>{copy.loginButton}</Text>
-                </Pressable>
-
-                <Pressable onPress={handleForgotPassword}>
-                  <Text style={styles.forgotPasswordText}>{copy.forgotPassword}</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
+          {canvasMode === 'login' ? renderLoginCanvas() : renderSecondaryCanvas()}
         </SafeAreaView>
       </View>
     </ImageBackground>
@@ -310,13 +451,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingLeft: 88,
-    paddingTop: 0,
+    paddingTop: 80,
     paddingBottom: 100,
   },
   logoImage: {
     width: 1280,
     height: 480,
-    marginBottom: -180,
+    marginBottom: -170,
     marginLeft: -450,
   },
   welcomeTitle: {
@@ -335,15 +476,37 @@ const styles = StyleSheet.create({
   rightPanel: {
     position: 'relative',
     width: 520,
-    paddingTop: 46,
+    paddingTop: 106,
     paddingRight: 88,
+  },
+  form: {
+    marginTop: 4,
+  },
+  inputGroup: {
+    marginBottom: 28,
+  },
+  emailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  label: {
+    color: 'rgba(255, 255, 255, 0.62)',
+    fontSize: 22,
+    fontWeight: '600',
+  },
+  passwordLabel: {
+    marginBottom: 10,
+    color: 'rgba(255, 255, 255, 0.62)',
+    fontSize: 22,
+    fontWeight: '600',
   },
   topActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 20,
-    marginBottom: 6,
+    gap: 16,
   },
   registerText: {
     color: '#FF7A00',
@@ -362,7 +525,7 @@ const styles = StyleSheet.create({
   },
   languagePanel: {
     position: 'absolute',
-    top: 112,
+    top: 150,
     right: 88,
     width: 260,
     height: 240,
@@ -385,26 +548,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
-  },
-  form: {
-    marginTop: 20,
-  },
-  inputGroup: {
-    marginBottom: 28,
-  },
-
-  emailHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-
-  label: {
-    marginBottom: 10,
-    color: 'rgba(255, 255, 255, 0.62)',
-    fontSize: 22,
-    fontWeight: '600',
   },
   input: {
     height: 58,
@@ -477,5 +620,120 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  secondaryPage: {
+    flex: 1,
+  },
+  backButton: {
+    position: 'absolute',
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    zIndex: 10,
+  },
+  backButtonChinese: {
+    left: 290,
+    top: 180,
+  },
+  // backButtonOtherLanguage: {
+  //   left: 280,
+  //   top: 164,
+  // },
+  // backButtonRegisterChinese: {
+  //   left: 290,
+  //   top: 180,
+  // },
+  
+  backButtonRegisterOther: {
+    left: 350,
+    top: 180,
+  },
+  backButtonRegisterChinese: {
+    left: 400,
+    top: 175,
+  },
+  backButtonForgotPasswordChinese: {
+    left: 290,
+    top: 180,
+  },
+  
+  backButtonForgotPasswordOther: {
+    left: 280,
+    top: 160,
+  },
+  backButtonText: {
+    marginTop: -3,
+    color: '#FFFFFF',
+    fontSize: 34,
+    fontWeight: '300',
+    lineHeight: 36,
+  },
+  secondaryContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 36,
+  },
+  secondaryTitle: {
+    color: '#FFFFFF',
+    fontSize: 21,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  secondaryDescription: {
+    width: 720,
+    marginTop: 32,
+    marginBottom: 42,
+    color: 'rgba(255, 255, 255, 0.42)',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  secondaryInputGroup: {
+    width: 420,
+  },
+  secondaryLabel: {
+    marginBottom: 10,
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  secondaryInput: {
+    height: 54,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+    borderRadius: 27,
+    paddingHorizontal: 24,
+    color: '#FFFFFF',
+    fontSize: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  secondarySubmitButton: {
+    width: 250,
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 50,
+    borderRadius: 27,
+    backgroundColor: '#FF7A00',
+  },
+  secondarySubmitButtonPressed: {
+    opacity: 0.82,
+    transform: [
+      {
+        scale: 0.98,
+      },
+    ],
+  },
+  secondarySubmitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });
