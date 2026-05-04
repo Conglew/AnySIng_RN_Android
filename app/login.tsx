@@ -324,10 +324,14 @@ export default function LoginScreen() {
               <TextInput
                 value={email}
                 onChangeText={setEmail}
+                onFocus={() => console.log('[LoginScreen] email input focused')}
                 placeholder={loginCopy.emailPlaceholder}
                 placeholderTextColor="rgba(255, 255, 255, 0.42)"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
+                editable={true}
+                showSoftInputOnFocus={true}
                 style={styles.input}
               />
             </View>
@@ -338,9 +342,14 @@ export default function LoginScreen() {
               <TextInput
                 value={password}
                 onChangeText={setPassword}
+                onFocus={() => console.log('[LoginScreen] password input focused')}
                 placeholder={loginCopy.passwordPlaceholder}
                 placeholderTextColor="rgba(255, 255, 255, 0.42)"
-                secureTextEntry
+                secureTextEntry={true}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={true}
+                showSoftInputOnFocus={true}
                 style={styles.input}
               />
             </View>
@@ -393,10 +402,14 @@ export default function LoginScreen() {
             <TextInput
               value={secondaryEmail}
               onChangeText={setSecondaryEmail}
+              onFocus={() => console.log('[LoginScreen] secondary email input focused')}
               placeholder={secondaryCopy.emailPlaceholder}
               placeholderTextColor="rgba(255, 255, 255, 0.42)"
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              editable={true}
+              showSoftInputOnFocus={true}
               style={styles.secondaryInput}
             />
           </View>
