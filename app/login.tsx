@@ -430,7 +430,7 @@ export default function LoginScreen() {
 
   return (
     <ImageBackground
-      source={require('@/assets/images/language-bg.png')}
+      source={require('@/assets/images/language-bg.jpg')}
       style={styles.background}
       resizeMode="cover"
     >
