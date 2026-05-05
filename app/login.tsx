@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Image, ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -204,6 +204,10 @@ export default function LoginScreen() {
     return styles.backButtonRegisterChinese;
   };
 
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const secondaryEmailInputRef = useRef<TextInput>(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -322,16 +326,26 @@ export default function LoginScreen() {
               </View>
 
               <TextInput
+                ref={emailInputRef}
                 value={email}
                 onChangeText={setEmail}
                 onFocus={() => console.log('[LoginScreen] email input focused')}
+                onPressIn={() => {
+                  emailInputRef.current?.focus();
+                }}
                 placeholder={loginCopy.emailPlaceholder}
                 placeholderTextColor="rgba(255, 255, 255, 0.42)"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={true}
+                focusable={true}
                 showSoftInputOnFocus={true}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => {
+                  passwordInputRef.current?.focus();
+                }}
                 style={styles.input}
               />
             </View>
@@ -340,16 +354,26 @@ export default function LoginScreen() {
               <Text style={styles.passwordLabel}>{loginCopy.passwordLabel}</Text>
 
               <TextInput
-                value={password}
-                onChangeText={setPassword}
-                onFocus={() => console.log('[LoginScreen] password input focused')}
-                placeholder={loginCopy.passwordPlaceholder}
+                ref={emailInputRef}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => console.log('[LoginScreen] email input focused')}
+                onPressIn={() => {
+                  emailInputRef.current?.focus();
+                }}
+                placeholder={loginCopy.emailPlaceholder}
                 placeholderTextColor="rgba(255, 255, 255, 0.42)"
-                secureTextEntry={true}
+                keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={true}
+                focusable={true}
                 showSoftInputOnFocus={true}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => {
+                  passwordInputRef.current?.focus();
+                }}
                 style={styles.input}
               />
             </View>
@@ -400,16 +424,22 @@ export default function LoginScreen() {
             <Text style={styles.secondaryLabel}>{secondaryCopy.emailLabel}</Text>
 
             <TextInput
+              ref={secondaryEmailInputRef}
               value={secondaryEmail}
               onChangeText={setSecondaryEmail}
               onFocus={() => console.log('[LoginScreen] secondary email input focused')}
+              onPressIn={() => {
+                secondaryEmailInputRef.current?.focus();
+              }}
               placeholder={secondaryCopy.emailPlaceholder}
               placeholderTextColor="rgba(255, 255, 255, 0.42)"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               editable={true}
+              focusable={true}
               showSoftInputOnFocus={true}
+              returnKeyType="done"
               style={styles.secondaryInput}
             />
           </View>
