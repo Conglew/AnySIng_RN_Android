@@ -5,6 +5,7 @@ import {
   Image,
   ImageBackground,
   Keyboard,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -19,6 +20,8 @@ import {
   getRememberedLogin,
   saveRememberedLogin,
 } from '@/src/services/auth/remembered-login-store';
+
+import { ForgotPasswordCanvas } from '@/src/features/auth/components/forgot-password-canvas';
 
 type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
 
@@ -39,16 +42,59 @@ type LoginCopy = {
 
 type SecondaryCanvasCopy = {
   title: string;
-  description: string;
+  descriptionBefore: string;
+  descriptionHighlight: string;
+  descriptionAfter: string;
   emailLabel: string;
   emailPlaceholder: string;
   submitButton: string;
 };
 
+// type ForgotPasswordCopy = {
+//   title: string;
+//   descriptionBefore: string;
+//   descriptionHighlight: string;
+//   descriptionAfter: string;
+
+//   emailLabel: string;
+//   emailPlaceholder: string;
+//   sendButton: string;
+
+//   sentNotice: string;
+//   resendCountdown: (seconds: number) => string;
+//   resendButton: string;
+
+//   codeLabel: string;
+//   codeHint: string;
+//   codeError: string;
+//   verifyFailed: string;
+
+//   resetTitle: string;
+//   resetDescription: string;
+//   newPasswordLabel: string;
+//   confirmPasswordLabel: string;
+//   passwordPlaceholder: string;
+//   requiredError: string;
+//   passwordMismatchError: string;
+//   resetButton: string;
+//   resetFailed: string;
+
+//   successMessage: string;
+
+//   leaveTitle: string;
+//   leaveDescription: string;
+//   leaveButton: string;
+//   continueButton: string;
+// };
+
 type LoginLanguageOption = {
   label: string;
   value: LanguageValue;
 };
+
+// type ForgotPasswordStep = 'email' | 'code' | 'resetPassword' | 'success';
+
+// type LeaveConfirmTarget = 'login' | null;
 
 const LOGIN_LANGUAGE_OPTIONS: LoginLanguageOption[] = [
   {
@@ -123,68 +169,230 @@ const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
 const REGISTER_COPY: Record<LanguageValue, SecondaryCanvasCopy> = {
   'zh-CN': {
     title: '快速注册账号',
-    description: '此电子邮件，将用于未来登录账号使用。',
+    descriptionBefore: '此电子邮件将用于未来登录账号使用。',
+    descriptionHighlight: '',
+    descriptionAfter: '',
     emailLabel: '电子邮件',
     emailPlaceholder: 'Example@example.com',
     submitButton: '送出',
   },
   'zh-TW': {
     title: '快速註冊帳號',
-    description: '此電子郵件，將用於未來登入帳號使用。',
+    descriptionBefore: '此電子郵件將用於未來登入帳號使用。',
+    descriptionHighlight: '',
+    descriptionAfter: '',
     emailLabel: '電子郵件',
     emailPlaceholder: 'Example@example.com',
     submitButton: '送出',
   },
   en: {
     title: 'Quick Sign-Up',
-    description: 'This email will be used to log in to your account in the future.',
+    descriptionBefore: 'This email will be used to log in to your account in the future.',
+    descriptionHighlight: '',
+    descriptionAfter: '',
     emailLabel: 'Email',
     emailPlaceholder: 'Example@example.com',
     submitButton: 'Submit',
   },
   ms: {
     title: 'Daftar Pantas',
-    description: 'E-mel ini akan digunakan untuk log masuk ke akaun anda pada masa hadapan.',
+    descriptionBefore: 'E-mel ini akan digunakan untuk log masuk ke akaun anda pada masa hadapan.',
+    descriptionHighlight: '',
+    descriptionAfter: '',
     emailLabel: 'E-mel',
     emailPlaceholder: 'Example@example.com',
     submitButton: 'Hantar',
   },
 };
 
-const FORGOT_PASSWORD_COPY: Record<LanguageValue, SecondaryCanvasCopy> = {
-  'zh-CN': {
-    title: '放心，我们将帮您找回密码。',
-    description:
-      '密码至少 8 个字，包含大小写英文和数字。只接受英文字母、数字和常见符号（!@#|>_<）。',
-    emailLabel: '电子邮件',
-    emailPlaceholder: 'Example@example.com',
-    submitButton: '送出',
-  },
-  'zh-TW': {
-    title: '放心，我們將幫您找回密碼。',
-    description:
-      '密碼至少 8 個字，包含大小寫英文和數字。只接受英文字母、數字和常見符號（!@#|>_<）。',
-    emailLabel: '電子郵件',
-    emailPlaceholder: 'Example@example.com',
-    submitButton: '送出',
-  },
-  en: {
-    title: "Don't worry, we'll help you recover your password.",
-    description:
-      'Password must be at least 8 characters long,\nmust include A-Z, a-z, 0-9. Only: letters, digits, (!@#|>_<).',
-    emailLabel: 'Email',
-    emailPlaceholder: 'Example@example.com',
-    submitButton: 'Submit',
-  },
-  ms: {
-    title: 'Jangan risau, kami bantu pulihkan kata laluan.',
-    description:
-      'Kata laluan mesti sekurang-kurangnya 8 aksara\nperlu A-Z, a-z & 0-9. Dibenarkan: huruf, nombor & (!@#|>_<).',
-    emailLabel: 'E-mel',
-    emailPlaceholder: 'Example@example.com',
-    submitButton: 'Hantar',
-  },
-};
+// const FORGOT_PASSWORD_COPY: Record<LanguageValue, SecondaryCanvasCopy> = {
+//   'zh-CN': {
+//     title: '放心，我们将帮您找回密码。',
+//     descriptionBefore: '请输入您的注册电子邮件，我们将发送重设密码的',
+//     descriptionHighlight: '验证码',
+//     descriptionAfter: '到您的信箱内。',
+//     emailLabel: '电子邮件',
+//     emailPlaceholder: 'Example@example.com',
+//     submitButton: '发送',
+//   },
+//   'zh-TW': {
+//     title: '放心，我們將幫您找回密碼。',
+//     descriptionBefore: '請輸入您的註冊電子郵件，我們將發送重設密碼的',
+//     descriptionHighlight: '驗證碼',
+//     descriptionAfter: '到您的信箱內。',
+//     emailLabel: '電子郵件',
+//     emailPlaceholder: 'Example@example.com',
+//     submitButton: '發送',
+//   },
+//   en: {
+//     title: "Don't worry, we'll help you recover your password.",
+//     descriptionBefore: 'Enter your registered email. We will send a password reset ',
+//     descriptionHighlight: 'verification code',
+//     descriptionAfter: ' to your inbox.',
+//     emailLabel: 'Email',
+//     emailPlaceholder: 'Example@example.com',
+//     submitButton: 'Send',
+//   },
+//   ms: {
+//     title: 'Jangan risau, kami akan bantu pulihkan kata laluan anda.',
+//     descriptionBefore: 'Masukkan e-mel berdaftar anda. Kami akan menghantar ',
+//     descriptionHighlight: 'kod pengesahan',
+//     descriptionAfter: ' untuk tetapan semula kata laluan ke peti masuk anda.',
+//     emailLabel: 'E-mel',
+//     emailPlaceholder: 'Example@example.com',
+//     submitButton: 'Hantar',
+//   },
+// };
+
+// const FORGOT_PASSWORD_FLOW_COPY: Record<LanguageValue, ForgotPasswordCopy> = {
+//   'zh-CN': {
+//     title: '放心，我们将帮您找回密码。',
+//     descriptionBefore: '请输入您的注册电子邮件，我们将发送重设密码的',
+//     descriptionHighlight: '验证码',
+//     descriptionAfter: '到您的信箱内。',
+
+//     emailLabel: '电子邮件',
+//     emailPlaceholder: 'Example@example.com',
+//     sendButton: '发送',
+
+//     sentNotice: '已发送电子邮件，请前往信箱查看。',
+//     resendCountdown: (seconds) => `${seconds}s 后可重新发送验证码`,
+//     resendButton: '重新发送验证码',
+
+//     codeLabel: '验证码',
+//     codeHint: '请输入验证码',
+//     codeError: '验证码错误',
+//     verifyFailed: '验证失败，请稍后再试',
+
+//     resetTitle: '重设密码',
+//     resetDescription:
+//       '密码至少 8 个字，包含大小写英文和数字。只接受英文字母、数字和常用符号（!@#|>_<）。',
+//     newPasswordLabel: '新密码',
+//     confirmPasswordLabel: '再次输入新密码',
+//     passwordPlaceholder: '至少8位英数字',
+//     requiredError: '必填',
+//     passwordMismatchError: '密码不一致',
+//     resetButton: '完成',
+//     resetFailed: '重设密码失败，请稍后再试',
+
+//     successMessage: '恭喜，密码已经重设完成，即将返回登录页。',
+//     leaveTitle: '尚未完成，要离开此页面？',
+//     leaveDescription: '离开后将不会保留此流程',
+//     leaveButton: '离开',
+//     continueButton: '继续',
+//   },
+
+//   'zh-TW': {
+//     title: '放心，我們將幫您找回密碼。',
+//     descriptionBefore: '請輸入您的註冊電子郵件，我們將發送重設密碼的',
+//     descriptionHighlight: '驗證碼',
+//     descriptionAfter: '到您的信箱內。',
+
+//     emailLabel: '電子郵件',
+//     emailPlaceholder: 'Example@example.com',
+//     sendButton: '發送',
+
+//     sentNotice: '已發送電子郵件，請前往信箱查看。',
+//     resendCountdown: (seconds) => `${seconds}S 後可重新發送驗證碼`,
+//     resendButton: '重新發送驗證碼',
+
+//     codeLabel: '驗證碼',
+//     codeHint: '請輸入驗證碼',
+//     codeError: '驗證碼錯誤',
+//     verifyFailed: '驗證失敗，請稍後再試',
+
+//     resetTitle: '重設密碼',
+//     resetDescription:
+//       '密碼至少 8 個字，包含大小寫英文和數字。只接受英文字母、數字和常用符號（!@#|>_<）。',
+//     newPasswordLabel: '新密碼',
+//     confirmPasswordLabel: '再次輸入新密碼',
+//     passwordPlaceholder: '至少8位英數字',
+//     requiredError: '必填',
+//     passwordMismatchError: '密碼不一致',
+//     resetButton: '完成',
+//     resetFailed: '重設密碼失敗，請稍後再試',
+
+//     successMessage: '恭喜，密碼已經重設完成，即將返回登入頁。',
+//     leaveTitle: '尚未完成，要離開此頁面？',
+//     leaveDescription: '離開後將不會保留此流程',
+//     leaveButton: '離開',
+//     continueButton: '繼續',
+//   },
+
+//   en: {
+//     title: "Don't worry, we'll help you recover your password.",
+//     descriptionBefore: 'Enter your registered email. We will send a password reset ',
+//     descriptionHighlight: 'verification code',
+//     descriptionAfter: ' to your inbox.',
+
+//     emailLabel: 'Email',
+//     emailPlaceholder: 'Example@example.com',
+//     sendButton: 'Send',
+
+//     sentNotice: 'Email sent. Please check your inbox.',
+//     resendCountdown: (seconds) => `You can resend the code in ${seconds}s`,
+//     resendButton: 'Resend code',
+
+//     codeLabel: 'Verification Code',
+//     codeHint: 'Enter the verification code',
+//     codeError: 'Incorrect verification code',
+//     verifyFailed: 'Verification failed. Please try again later.',
+
+//     resetTitle: 'Reset Password',
+//     resetDescription:
+//       'Password must be at least 8 characters and include uppercase letters, lowercase letters, and numbers. Allowed symbols: !@#|>_<.',
+//     newPasswordLabel: 'New Password',
+//     confirmPasswordLabel: 'Confirm New Password',
+//     passwordPlaceholder: 'At least 8 characters',
+//     requiredError: 'Required',
+//     passwordMismatchError: 'Passwords do not match',
+//     resetButton: 'Complete',
+//     resetFailed: 'Password reset failed. Please try again later.',
+
+//     successMessage: 'Your password has been reset. Returning to login.',
+//     leaveTitle: 'Leave before completing this process?',
+//     leaveDescription: 'Your progress will not be saved.',
+//     leaveButton: 'Leave',
+//     continueButton: 'Continue',
+//   },
+
+//   ms: {
+//     title: 'Jangan risau, kami akan bantu pulihkan kata laluan anda.',
+//     descriptionBefore: 'Masukkan e-mel berdaftar anda. Kami akan menghantar ',
+//     descriptionHighlight: 'kod pengesahan',
+//     descriptionAfter: ' untuk tetapan semula kata laluan ke peti masuk anda.',
+
+//     emailLabel: 'E-mel',
+//     emailPlaceholder: 'Example@example.com',
+//     sendButton: 'Hantar',
+
+//     sentNotice: 'E-mel telah dihantar. Sila semak peti masuk anda.',
+//     resendCountdown: (seconds) => `Anda boleh hantar semula kod dalam ${seconds}s`,
+//     resendButton: 'Hantar semula kod',
+
+//     codeLabel: 'Kod Pengesahan',
+//     codeHint: 'Masukkan kod pengesahan',
+//     codeError: 'Kod pengesahan salah',
+//     verifyFailed: 'Pengesahan gagal. Sila cuba lagi kemudian.',
+
+//     resetTitle: 'Tetapkan Semula Kata Laluan',
+//     resetDescription:
+//       'Kata laluan mesti sekurang-kurangnya 8 aksara dan mengandungi huruf besar, huruf kecil, serta nombor. Simbol dibenarkan: !@#|>_<.',
+//     newPasswordLabel: 'Kata Laluan Baharu',
+//     confirmPasswordLabel: 'Sahkan Kata Laluan Baharu',
+//     passwordPlaceholder: 'Sekurang-kurangnya 8 aksara',
+//     requiredError: 'Wajib diisi',
+//     passwordMismatchError: 'Kata laluan tidak sepadan',
+//     resetButton: 'Selesai',
+//     resetFailed: 'Tetapan semula kata laluan gagal. Sila cuba lagi kemudian.',
+
+//     successMessage: 'Kata laluan anda telah ditetapkan semula. Kembali ke halaman log masuk.',
+//     leaveTitle: 'Keluar sebelum proses selesai?',
+//     leaveDescription: 'Kemajuan anda tidak akan disimpan.',
+//     leaveButton: 'Keluar',
+//     continueButton: 'Teruskan',
+//   },
+// };
 
 function normalizeLanguage(value: unknown): LanguageValue {
   if (value === 'zh-CN' || value === 'zh-TW' || value === 'en' || value === 'ms') {
@@ -213,6 +421,26 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [secondaryEmail, setSecondaryEmail] = useState('');
+  // const [forgotPasswordStep, setForgotPasswordStep] = useState<ForgotPasswordStep>('email');
+
+  // const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+
+  // const verificationCodeInputRef = useRef<TextInput>(null);
+  // const [verificationCode, setVerificationCode] = useState('');
+  // const [verificationCodeDigits, setVerificationCodeDigits] = useState(['', '', '', '', '']);
+  // const [verificationCodeError, setVerificationCodeError] = useState('');
+
+  // const [resendSeconds, setResendSeconds] = useState(0);
+
+  // const [newPassword, setNewPassword] = useState('');
+  // const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  // const [newPasswordError, setNewPasswordError] = useState('');
+  // const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
+  // const [isForgotSubmitting, setIsForgotSubmitting] = useState(false);
+
+  // const [leaveConfirmTarget, setLeaveConfirmTarget] = useState<LeaveConfirmTarget>(null);
+
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
 
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
@@ -275,10 +503,27 @@ export default function LoginScreen() {
     pushDebugLog(`[Canvas] mode=${canvasMode}, language=${language}`);
   }, [canvasMode, language, pushDebugLog]);
 
-  const loginCopy = LOGIN_COPY[language];
+  // useEffect(() => {
+  //   if (resendSeconds <= 0) {
+  //     return;
+  //   }
 
-  const secondaryCopy =
-    canvasMode === 'register' ? REGISTER_COPY[language] : FORGOT_PASSWORD_COPY[language];
+  //   const timer = setTimeout(() => {
+  //     setResendSeconds((current) => Math.max(current - 1, 0));
+  //   }, 1000);
+
+  //   return () => {
+  //     clearTimeout(timer);
+  //   };
+  // }, [resendSeconds]);
+
+  const loginCopy = LOGIN_COPY[language];
+  // const forgotCopy = FORGOT_PASSWORD_FLOW_COPY[language];
+
+  // const secondaryCopy =
+  //   canvasMode === 'register' ? REGISTER_COPY[language] : FORGOT_PASSWORD_COPY[language];
+
+  const secondaryCopy = REGISTER_COPY[language];
 
   const getBackButtonPositionStyle = () => {
     const isChineseLanguage = language === 'zh-CN' || language === 'zh-TW';
@@ -357,6 +602,70 @@ export default function LoginScreen() {
     }
   };
 
+  // const isValidEmail = (value: string) => {
+  //   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  // };
+
+  // const isValidPassword = (value: string) => {
+  //   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z0-9!@#|><_.]{8,}$/.test(value);
+  // };
+
+  // const getForgotPasswordHasProgress = () => {
+  //   if (forgotPasswordStep !== 'email') {
+  //     return true;
+  //   }
+
+  //   if (forgotPasswordEmail.trim().length > 0) {
+  //     return true;
+  //   }
+
+  //   // if (verificationCodeDigits.some((digit) => digit.length > 0)) {
+  //   //   return true;
+  //   // }
+  //   if (verificationCode.length > 0) {
+  //     return true;
+  //   }
+
+  //   if (newPassword.length > 0 || confirmNewPassword.length > 0) {
+  //     return true;
+  //   }
+
+  //   return false;
+  // };
+
+  // const resetForgotPasswordFlow = () => {
+  //   setForgotPasswordStep('email');
+  //   setForgotPasswordEmail('');
+  //   // setVerificationCodeDigits(['', '', '', '', '']);
+  //   setVerificationCode('');
+  //   setVerificationCodeError('');
+  //   setResendSeconds(0);
+  //   setNewPassword('');
+  //   setConfirmNewPassword('');
+  //   setNewPasswordError('');
+  //   setConfirmPasswordError('');
+  //   setIsForgotSubmitting(false);
+  // };
+
+  // const requestBackToLoginCanvas = () => {
+  //   if (canvasMode === 'forgotPassword' && getForgotPasswordHasProgress()) {
+  //     setLeaveConfirmTarget('login');
+  //     return;
+  //   }
+
+  //   handleBackToLoginCanvas();
+  // };
+
+  // const confirmBackToLoginCanvas = () => {
+  //   setLeaveConfirmTarget(null);
+  //   resetForgotPasswordFlow();
+  //   handleBackToLoginCanvas();
+  // };
+
+  // const cancelBackToLoginCanvas = () => {
+  //   setLeaveConfirmTarget(null);
+  // };
+
   const handleOpenRegisterCanvas = () => {
     pushDebugLog('[LoginScreen] open register canvas');
     setCanvasMode('register');
@@ -398,6 +707,327 @@ export default function LoginScreen() {
       email: secondaryEmail,
     });
   };
+
+  // const handleSendForgotPasswordCode = async () => {
+  //   const normalizedEmail = forgotPasswordEmail.trim();
+
+  //   if (!isValidEmail(normalizedEmail)) {
+  //     return;
+  //   }
+
+  //   setIsForgotSubmitting(true);
+  //   pushDebugLog('[ForgotPassword] send code pressed');
+
+  //   try {
+  //     // TODO: 之後這裡改成 authClient.sendForgotCode({ email: normalizedEmail })
+  //     await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  //     setForgotPasswordStep('code');
+  //     setResendSeconds(90);
+  //     setVerificationCodeError('');
+  //     pushDebugLog('[ForgotPassword] mock code sent');
+  //   } catch (error) {
+  //     pushDebugLog(
+  //       `[ForgotPassword] send code failed: ${
+  //         error instanceof Error ? error.message : 'Unknown error'
+  //       }`,
+  //     );
+  //   } finally {
+  //     setIsForgotSubmitting(false);
+  //   }
+  // };
+
+  // const handleVerificationCodeDigitChange = (value: string, index: number) => {
+  //   const digit = value.replace(/\D/g, '').slice(0, 1);
+
+  //   setVerificationCodeError('');
+
+  //   setVerificationCodeDigits((currentDigits) => {
+  //     const nextDigits = [...currentDigits];
+  //     nextDigits[index] = digit;
+
+  //     return nextDigits;
+  //   });
+  // };
+  // const handleVerificationCodeChange = (value: string) => {
+  //   const normalizedCode = value.replace(/\D/g, '').slice(0, 5);
+
+  //   setVerificationCodeError('');
+  //   setVerificationCode(normalizedCode);
+  // };
+
+  // useEffect(() => {
+  //   if (forgotPasswordStep !== 'code') {
+  //     return;
+  //   }
+
+  //   if (verificationCode.length !== 5) {
+  //     return;
+  //   }
+
+  //   Keyboard.dismiss();
+
+  //   const verifyCode = async () => {
+  //     setIsForgotSubmitting(true);
+
+  //     try {
+  //       // TODO: 之後改成 authClient.verifyResetCode({
+  //       //   email: forgotPasswordEmail.trim(),
+  //       //   code: verificationCode,
+  //       // })
+
+  //       await new Promise((resolve) => setTimeout(resolve, 500));
+
+  //       // Mock 規則：12345 代表驗證成功
+  //       if (verificationCode !== '12345') {
+  //         setVerificationCodeError(forgotCopy.codeError);
+  //         return;
+  //       }
+
+  //       setVerificationCodeError('');
+  //       setForgotPasswordStep('resetPassword');
+  //     } catch {
+  //       setVerificationCodeError(forgotCopy.verifyFailed);
+  //     } finally {
+  //       setIsForgotSubmitting(false);
+  //     }
+  //   };
+
+  //   verifyCode();
+  // }, [verificationCode, forgotPasswordStep, forgotPasswordEmail, forgotCopy]);
+
+  // const handleResetPasswordSubmit = async () => {
+  //   setNewPasswordError('');
+  //   setConfirmPasswordError('');
+
+  //   if (!isValidPassword(newPassword)) {
+  //     setNewPasswordError('必填');
+  //     return;
+  //   }
+
+  //   if (newPassword !== confirmNewPassword) {
+  //     setConfirmPasswordError('密碼不一致');
+  //     return;
+  //   }
+
+  //   setIsForgotSubmitting(true);
+  //   pushDebugLog('[ForgotPassword] reset password pressed');
+
+  //   try {
+  //     // TODO: 之後這裡改成 authClient.resetPassword({ email, code, password })
+  //     await new Promise((resolve) => setTimeout(resolve, 700));
+
+  //     setForgotPasswordStep('success');
+  //     pushDebugLog('[ForgotPassword] reset password success');
+
+  //     setTimeout(() => {
+  //       resetForgotPasswordFlow();
+  //       setCanvasMode('login');
+  //     }, 1200);
+  //   } catch (error) {
+  //     setConfirmPasswordError('重設密碼失敗，請稍後再試');
+  //   } finally {
+  //     setIsForgotSubmitting(false);
+  //   }
+  // };
+
+  // const renderForgotPasswordCanvas = () => {
+  //   const isEmailValid = isValidEmail(forgotPasswordEmail);
+
+  //   if (forgotPasswordStep === 'success') {
+  //     return (
+  //       <View style={styles.forgotSuccessContent}>
+  //         <Text style={styles.forgotSuccessText}>{forgotCopy.successMessage}</Text>
+  //       </View>
+  //     );
+  //   }
+
+  //   return (
+  //     <View style={styles.secondaryContent}>
+  //       <View style={styles.forgotTitleSlot}>
+  //         <Text style={styles.secondaryTitle}>{forgotCopy.title}</Text>
+  //       </View>
+
+  //       <View style={styles.forgotDescriptionSlot}>
+  //         {forgotPasswordStep === 'email' ? (
+  //           <Text style={styles.secondaryDescription}>
+  //             {forgotCopy.descriptionBefore}
+  //             <Text style={styles.secondaryDescriptionHighlight}>
+  //               {forgotCopy.descriptionHighlight}
+  //             </Text>
+  //             {forgotCopy.descriptionAfter}
+  //           </Text>
+  //         ) : (
+  //           <Text style={styles.forgotNoticeText}>{forgotCopy.sentNotice}</Text>
+  //         )}
+  //       </View>
+
+  //       <View style={styles.forgotEmailCenterBlock}>
+  //         <View style={styles.forgotEmailInputGroup}>
+  //           <Text style={styles.secondaryLabel}>{forgotCopy.emailLabel}</Text>
+
+  //           <TextInput
+  //             value={forgotPasswordEmail}
+  //             onChangeText={(value) => {
+  //               setForgotPasswordEmail(value);
+  //               setVerificationCodeError('');
+  //             }}
+  //             placeholder={forgotCopy.emailPlaceholder}
+  //             placeholderTextColor="rgba(255, 255, 255, 0.42)"
+  //             keyboardType="email-address"
+  //             autoCapitalize="none"
+  //             autoCorrect={false}
+  //             editable={forgotPasswordStep === 'email'}
+  //             showSoftInputOnFocus={true}
+  //             style={styles.secondaryInput}
+  //           />
+  //         </View>
+
+  //         {forgotPasswordStep !== 'email' ? (
+  //           <View style={styles.resendSlotAbsolute}>
+  //             <Text style={styles.resendText}>
+  //               {resendSeconds > 0
+  //                 ? forgotCopy.resendCountdown(resendSeconds)
+  //                 : forgotCopy.resendButton}
+  //             </Text>
+  //           </View>
+  //         ) : null}
+  //       </View>
+
+  //       <View style={styles.forgotActionSlot}>
+  //         {forgotPasswordStep === 'email' ? (
+  //           <Pressable
+  //             disabled={!isEmailValid || isForgotSubmitting}
+  //             style={({ pressed }) => [
+  //               styles.secondarySubmitButton,
+  //               pressed && !isForgotSubmitting && styles.secondarySubmitButtonPressed,
+  //               !isEmailValid && styles.hiddenActionButton,
+  //               isForgotSubmitting && styles.secondarySubmitButtonLoading,
+  //             ]}
+  //             onPress={handleSendForgotPasswordCode}
+  //           >
+  //             {isForgotSubmitting ? (
+  //               <ActivityIndicator size="small" color="rgba(255, 255, 255, 0.86)" />
+  //             ) : (
+  //               <Text style={styles.secondarySubmitButtonText}>{forgotCopy.sendButton}</Text>
+  //             )}
+  //           </Pressable>
+  //         ) : null}
+
+  //         {forgotPasswordStep === 'code' ? (
+  //           <View style={styles.verificationArea}>
+  //             <View style={styles.verificationLabelRow}>
+  //               <Text style={styles.verificationLabel}>{forgotCopy.codeLabel}</Text>
+  //               <Text style={styles.verificationHint}>{forgotCopy.codeHint}</Text>
+  //             </View>
+
+  //             {verificationCodeError ? (
+  //               <Text style={styles.verificationErrorText}>{verificationCodeError}</Text>
+  //             ) : null}
+
+  //             <Pressable
+  //               style={styles.verificationCodePressArea}
+  //               onPress={() => verificationCodeInputRef.current?.focus()}
+  //             >
+  //               <TextInput
+  //                 ref={verificationCodeInputRef}
+  //                 value={verificationCode}
+  //                 onChangeText={handleVerificationCodeChange}
+  //                 keyboardType="number-pad"
+  //                 maxLength={5}
+  //                 caretHidden={true}
+  //                 showSoftInputOnFocus={true}
+  //                 style={styles.hiddenVerificationCodeInput}
+  //               />
+
+  //               <View style={styles.verificationCodeRow}>
+  //                 {Array.from({ length: 5 }).map((_, index) => {
+  //                   const digit = verificationCode[index] ?? '';
+
+  //                   return (
+  //                     <View
+  //                       key={`verification-code-box-${index}`}
+  //                       style={[
+  //                         styles.verificationCodeInput,
+  //                         verificationCodeError && styles.verificationCodeInputError,
+  //                       ]}
+  //                     >
+  //                       <Text style={styles.verificationCodeDigitText}>{digit}</Text>
+  //                     </View>
+  //                   );
+  //                 })}
+  //               </View>
+  //             </Pressable>
+  //           </View>
+  //         ) : null}
+  //       </View>
+
+  //       {forgotPasswordStep === 'resetPassword' ? (
+  //         <View style={styles.resetPasswordArea}>
+  //           <Text style={styles.resetPasswordTitle}>{forgotCopy.resetTitle}</Text>
+
+  //           <Text style={styles.resetPasswordDescription}>{forgotCopy.resetDescription}</Text>
+
+  //           <View style={styles.resetPasswordRow}>
+  //             <View style={styles.resetPasswordInputGroup}>
+  //               <Text style={styles.secondaryLabel}>{forgotCopy.newPasswordLabel}</Text>
+
+  //               <TextInput
+  //                 value={newPassword}
+  //                 onChangeText={(value) => {
+  //                   setNewPassword(value);
+  //                   setNewPasswordError('');
+  //                 }}
+  //                 placeholder={forgotCopy.passwordPlaceholder}
+  //                 placeholderTextColor="rgba(255, 255, 255, 0.42)"
+  //                 secureTextEntry={true}
+  //                 autoCapitalize="none"
+  //                 autoCorrect={false}
+  //                 style={[styles.secondaryInput, newPasswordError && styles.inputError]}
+  //               />
+
+  //               {newPasswordError ? (
+  //                 <Text style={styles.fieldErrorText}>{newPasswordError}</Text>
+  //               ) : null}
+  //             </View>
+
+  //             <View style={styles.resetPasswordInputGroup}>
+  //               <Text style={styles.secondaryLabel}>{forgotCopy.confirmPasswordLabel}</Text>
+
+  //               <TextInput
+  //                 value={confirmNewPassword}
+  //                 onChangeText={(value) => {
+  //                   setConfirmNewPassword(value);
+  //                   setConfirmPasswordError('');
+  //                 }}
+  //                 placeholder={forgotCopy.passwordPlaceholder}
+  //                 placeholderTextColor="rgba(255, 255, 255, 0.42)"
+  //                 secureTextEntry={true}
+  //                 autoCapitalize="none"
+  //                 autoCorrect={false}
+  //                 style={[styles.secondaryInput, confirmPasswordError && styles.inputError]}
+  //               />
+
+  //               {confirmPasswordError ? (
+  //                 <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>
+  //               ) : null}
+  //             </View>
+  //           </View>
+
+  //           <Pressable
+  //             style={({ pressed }) => [
+  //               styles.secondarySubmitButton,
+  //               pressed && styles.secondarySubmitButtonPressed,
+  //             ]}
+  //             onPress={handleResetPasswordSubmit}
+  //           >
+  //             <Text style={styles.secondarySubmitButtonText}>{forgotCopy.resetButton}</Text>
+  //           </Pressable>
+  //         </View>
+  //       ) : null}
+  //     </View>
+  //   );
+  // };
 
   const renderLanguagePanel = () => {
     if (!isLanguagePanelVisible) {
@@ -450,6 +1080,37 @@ export default function LoginScreen() {
       </View>
     );
   };
+
+  // const renderLeaveConfirmModal = () => {
+  //   return (
+  //     <Modal
+  //       visible={leaveConfirmTarget !== null}
+  //       transparent={true}
+  //       animationType="fade"
+  //       onRequestClose={cancelBackToLoginCanvas}
+  //     >
+  //       <View style={styles.confirmModalOverlay}>
+  //         <View style={styles.confirmModalCard}>
+  //           <Text style={styles.confirmModalTitle}>{forgotCopy.leaveTitle}</Text>
+
+  //           <Text style={styles.confirmModalDescription}>{forgotCopy.leaveDescription}</Text>
+
+  //           <View style={styles.confirmModalButtonRow}>
+  //             <Pressable style={styles.confirmModalGhostButton} onPress={confirmBackToLoginCanvas}>
+  //               <Text style={styles.confirmModalGhostButtonText}>{forgotCopy.leaveButton}</Text>
+  //             </Pressable>
+
+  //             <Pressable style={styles.confirmModalPrimaryButton} onPress={cancelBackToLoginCanvas}>
+  //               <Text style={styles.confirmModalPrimaryButtonText}>
+  //                 {forgotCopy.continueButton}
+  //               </Text>
+  //             </Pressable>
+  //           </View>
+  //         </View>
+  //       </View>
+  //     </Modal>
+  //   );
+  // };
 
   const renderLoginCanvas = () => {
     return (
@@ -570,9 +1231,7 @@ export default function LoginScreen() {
               ]}
               onPress={handleLogin}
             >
-              <Text style={styles.loginButtonText}>
-                {loginCopy.loginButton}
-              </Text>
+              <Text style={styles.loginButtonText}>{loginCopy.loginButton}</Text>
             </Pressable>
 
             <Pressable onPress={handleOpenForgotPasswordCanvas}>
@@ -585,6 +1244,18 @@ export default function LoginScreen() {
   };
 
   const renderSecondaryCanvas = () => {
+    if (canvasMode === 'forgotPassword') {
+      return (
+        <ForgotPasswordCanvas
+          language={language}
+          styles={styles}
+          backButtonPositionStyle={getBackButtonPositionStyle()}
+          onBackToLogin={handleBackToLoginCanvas}
+          pushDebugLog={pushDebugLog}
+        />
+      );
+    }
+
     return (
       <View style={styles.secondaryPage}>
         <Pressable
@@ -597,7 +1268,15 @@ export default function LoginScreen() {
         <View style={styles.secondaryContent}>
           <Text style={styles.secondaryTitle}>{secondaryCopy.title}</Text>
 
-          <Text style={styles.secondaryDescription}>{secondaryCopy.description}</Text>
+          <Text style={styles.secondaryDescription}>
+            {secondaryCopy.descriptionBefore}
+            {secondaryCopy.descriptionHighlight ? (
+              <Text style={styles.secondaryDescriptionHighlight}>
+                {secondaryCopy.descriptionHighlight}
+              </Text>
+            ) : null}
+            {secondaryCopy.descriptionAfter}
+          </Text>
 
           <View style={styles.secondaryInputGroup}>
             <Text style={styles.secondaryLabel}>{secondaryCopy.emailLabel}</Text>
@@ -654,8 +1333,9 @@ export default function LoginScreen() {
           {canvasMode === 'login' ? renderLoginCanvas() : renderSecondaryCanvas()}
         </SafeAreaView>
 
-        {renderDebugPanel()}
+        {/* {renderDebugPanel()} */}
         {renderFullScreenLoading()}
+        {/* {renderLeaveConfirmModal()} */}
       </View>
     </ImageBackground>
   );
@@ -756,13 +1436,13 @@ const styles = StyleSheet.create({
   },
   languagePanel: {
     position: 'absolute',
-    top: 86,
+    top: 150,
     right: 88,
     width: 260,
     height: 240,
     overflow: 'hidden',
     borderRadius: 32,
-    backgroundColor: 'rgba(26, 26, 26, 0.8)',
+    backgroundColor: 'rgba(26, 26, 26, 0.9)',
     zIndex: 20,
     elevation: 20,
   },
@@ -772,7 +1452,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   languagePanelItemSelected: {
-    backgroundColor: 'rgba(255, 122, 0, 0.24)',
+    backgroundColor: 'rgb(255, 123, 0)',
   },
   languagePanelText: {
     color: '#FFFFFF',
@@ -866,20 +1546,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
     zIndex: 10,
   },
-  backButtonRegisterOther: {
-    left: 350,
-    top: 180,
-  },
   backButtonRegisterChinese: {
     left: 400,
-    top: 175,
+    top: 165,
+  },
+  backButtonRegisterOther: {
+    left: 350,
+    top: 165,
   },
   backButtonForgotPasswordChinese: {
-    left: 290,
-    top: 180,
+    left: 330,
+    top: 160,
   },
   backButtonForgotPasswordOther: {
-    left: 280,
+    left: 260,
     top: 160,
   },
   backButtonText: {
@@ -904,9 +1584,6 @@ const styles = StyleSheet.create({
   },
   secondaryDescription: {
     width: 720,
-    height: 56,
-    marginTop: 32,
-    marginBottom: 42,
     color: 'rgba(255, 255, 255, 0.42)',
     fontSize: 16,
     fontWeight: '500',
@@ -918,8 +1595,8 @@ const styles = StyleSheet.create({
   },
   secondaryLabel: {
     marginBottom: 10,
-    color: '#FFFFFF',
-    fontSize: 20,
+    color: '#B2B6BA',
+    fontSize: 24,
     fontWeight: '600',
   },
   secondaryInput: {
@@ -1009,5 +1686,255 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  secondaryDescriptionHighlight: {
+    color: '#FF7A00',
+    fontWeight: '700',
+  },
+  secondarySubmitButtonLoading: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+  },
+
+  forgotNoticeText: {
+    color: '#FF7A00',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+
+  forgotEmailCenterBlock: {
+    position: 'relative',
+    width: 720,
+    alignItems: 'center',
+  },
+
+  forgotEmailInputGroup: {
+    width: 420,
+  },
+  forgotTitleSlot: {
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  forgotDescriptionSlot: {
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  resendSlotAbsolute: {
+    position: 'absolute',
+    left: 590,
+    bottom: 20,
+    width: 220,
+    justifyContent: 'center',
+  },
+
+  resendText: {
+    color: 'rgba(255, 255, 255, 0.56)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  verificationArea: {
+    width: 420,
+  },
+
+  verificationLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  verificationLabel: {
+    color: '#B2B6BA',
+    fontSize: 24,
+    fontWeight: '600',
+  },
+
+  verificationHint: {
+    marginLeft: 8,
+    color: 'rgba(255, 255, 255, 0.42)',
+    fontSize: 20,
+    fontWeight: '500',
+  },
+
+  verificationErrorText: {
+    marginBottom: 8,
+    color: '#FF4D36',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  verificationCodePressArea: {
+    position: 'relative',
+  },
+
+  hiddenVerificationCodeInput: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
+
+  verificationCodeRow: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+
+  verificationCodeInput: {
+    width: 68,
+    height: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  },
+
+  verificationCodeDigitText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600',
+  },
+
+  verificationCodeInputError: {
+    borderColor: '#FF4D36',
+  },
+
+  resetPasswordArea: {
+    width: 720,
+    alignItems: 'center',
+  },
+
+  resetPasswordTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  resetPasswordDescription: {
+    width: 720,
+    marginTop: 22,
+    marginBottom: 36,
+    color: 'rgba(255, 255, 255, 0.52)',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+
+  resetPasswordRow: {
+    width: 720,
+    flexDirection: 'row',
+    gap: 24,
+  },
+
+  resetPasswordInputGroup: {
+    flex: 1,
+  },
+
+  inputError: {
+    borderColor: '#FF4D36',
+  },
+
+  fieldErrorText: {
+    marginTop: 8,
+    color: '#FF4D36',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  forgotSuccessContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  forgotSuccessText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+
+  confirmModalOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+  },
+
+  confirmModalCard: {
+    width: 420,
+    borderRadius: 18,
+    backgroundColor: 'rgba(30, 30, 30, 0.92)',
+    paddingHorizontal: 28,
+    paddingVertical: 24,
+  },
+
+  confirmModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  confirmModalDescription: {
+    marginTop: 10,
+    color: 'rgba(255, 255, 255, 0.62)',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+
+  confirmModalButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    gap: 14,
+  },
+
+  confirmModalGhostButton: {
+    flex: 1,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+  },
+
+  confirmModalGhostButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  confirmModalPrimaryButton: {
+    flex: 1,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: '#FF7A00',
+  },
+
+  confirmModalPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  forgotActionSlot: {
+    height: 150,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 10,
+  },
+
+  hiddenActionButton: {
+    opacity: 0,
   },
 });
