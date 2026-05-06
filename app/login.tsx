@@ -1,6 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { Image, ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Image,
+  ImageBackground,
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
@@ -184,9 +193,56 @@ export default function LoginScreen() {
     return normalizeLanguage(params.lang);
   }, [params.lang]);
 
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const secondaryEmailInputRef = useRef<TextInput>(null);
+
   const [language, setLanguage] = useState<LanguageValue>(initialLanguage);
   const [canvasMode, setCanvasMode] = useState<AuthCanvasMode>('login');
   const [isLanguagePanelVisible, setIsLanguagePanelVisible] = useState(false);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
+  const [secondaryEmail, setSecondaryEmail] = useState('');
+
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const pushDebugLog = useCallback((message: string) => {
+    const time = new Date().toLocaleTimeString();
+
+    setDebugLogs((currentLogs) => {
+      const nextLogs = [`${time} ${message}`, ...currentLogs];
+
+      return nextLogs.slice(0, 12);
+    });
+
+    console.log(message);
+  }, []);
+
+  useEffect(() => {
+    const keyboardShowSub = Keyboard.addListener('keyboardDidShow', (event) => {
+      pushDebugLog(`[Keyboard] keyboardDidShow height=${event.endCoordinates.height}`);
+    });
+
+    const keyboardHideSub = Keyboard.addListener('keyboardDidHide', () => {
+      pushDebugLog('[Keyboard] keyboardDidHide');
+    });
+
+    return () => {
+      keyboardShowSub.remove();
+      keyboardHideSub.remove();
+    };
+  }, [pushDebugLog]);
+
+  useEffect(() => {
+    pushDebugLog(`[Canvas] mode=${canvasMode}, language=${language}`);
+  }, [canvasMode, language, pushDebugLog]);
+
+  const loginCopy = LOGIN_COPY[language];
+
+  const secondaryCopy =
+    canvasMode === 'register' ? REGISTER_COPY[language] : FORGOT_PASSWORD_COPY[language];
 
   const getBackButtonPositionStyle = () => {
     const isChineseLanguage = language === 'zh-CN' || language === 'zh-TW';
@@ -204,21 +260,18 @@ export default function LoginScreen() {
     return styles.backButtonRegisterChinese;
   };
 
-  const emailInputRef = useRef<TextInput>(null);
-  const passwordInputRef = useRef<TextInput>(null);
-  const secondaryEmailInputRef = useRef<TextInput>(null);
+  const focusInputWithLog = (inputRef: React.RefObject<TextInput | null>, inputName: string) => {
+    pushDebugLog(`[${inputName}] force focus scheduled`);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
-  const [secondaryEmail, setSecondaryEmail] = useState('');
-
-  const loginCopy = LOGIN_COPY[language];
-
-  const secondaryCopy =
-    canvasMode === 'register' ? REGISTER_COPY[language] : FORGOT_PASSWORD_COPY[language];
+    setTimeout(() => {
+      pushDebugLog(`[${inputName}] force focus execute`);
+      inputRef.current?.focus();
+    }, 50);
+  };
 
   const handleLogin = () => {
+    pushDebugLog('[LoginScreen] login pressed');
+
     console.log('[LoginScreen] login:', {
       language,
       email,
@@ -230,33 +283,40 @@ export default function LoginScreen() {
   };
 
   const handleOpenRegisterCanvas = () => {
+    pushDebugLog('[LoginScreen] open register canvas');
     setCanvasMode('register');
     setSecondaryEmail('');
     setIsLanguagePanelVisible(false);
   };
 
   const handleOpenForgotPasswordCanvas = () => {
+    pushDebugLog('[LoginScreen] open forgot password canvas');
     setCanvasMode('forgotPassword');
     setSecondaryEmail('');
     setIsLanguagePanelVisible(false);
   };
 
   const handleBackToLoginCanvas = () => {
+    pushDebugLog('[LoginScreen] back to login canvas');
     setCanvasMode('login');
     setSecondaryEmail('');
     setIsLanguagePanelVisible(false);
   };
 
   const handleToggleLanguagePanel = () => {
+    pushDebugLog('[LoginScreen] toggle language panel');
     setIsLanguagePanelVisible((current) => !current);
   };
 
   const handleSelectLanguage = (nextLanguage: LanguageValue) => {
+    pushDebugLog(`[LoginScreen] select language=${nextLanguage}`);
     setLanguage(nextLanguage);
     setIsLanguagePanelVisible(false);
   };
 
   const handleSecondarySubmit = () => {
+    pushDebugLog(`[LoginScreen] secondary submit mode=${canvasMode}`);
+
     console.log('[LoginScreen] secondary submit:', {
       canvasMode,
       language,
@@ -284,6 +344,20 @@ export default function LoginScreen() {
             </Pressable>
           );
         })}
+      </View>
+    );
+  };
+
+  const renderDebugPanel = () => {
+    return (
+      <View style={styles.debugPanel} pointerEvents="none">
+        <Text style={styles.debugTitle}>Debug Log</Text>
+
+        {debugLogs.map((log, index) => (
+          <Text key={`${log}-${index}`} style={styles.debugText}>
+            {log}
+          </Text>
+        ))}
       </View>
     );
   };
@@ -329,9 +403,15 @@ export default function LoginScreen() {
                 ref={emailInputRef}
                 value={email}
                 onChangeText={setEmail}
-                onFocus={() => console.log('[LoginScreen] email input focused')}
                 onPressIn={() => {
-                  emailInputRef.current?.focus();
+                  pushDebugLog('[EmailInput] onPressIn');
+                  focusInputWithLog(emailInputRef, 'EmailInput');
+                }}
+                onFocus={() => {
+                  pushDebugLog('[EmailInput] onFocus');
+                }}
+                onBlur={() => {
+                  pushDebugLog('[EmailInput] onBlur');
                 }}
                 placeholder={loginCopy.emailPlaceholder}
                 placeholderTextColor="rgba(255, 255, 255, 0.42)"
@@ -344,6 +424,7 @@ export default function LoginScreen() {
                 returnKeyType="next"
                 blurOnSubmit={false}
                 onSubmitEditing={() => {
+                  pushDebugLog('[EmailInput] submit editing -> password focus');
                   passwordInputRef.current?.focus();
                 }}
                 style={styles.input}
@@ -354,26 +435,28 @@ export default function LoginScreen() {
               <Text style={styles.passwordLabel}>{loginCopy.passwordLabel}</Text>
 
               <TextInput
-                ref={emailInputRef}
-                value={email}
-                onChangeText={setEmail}
-                onFocus={() => console.log('[LoginScreen] email input focused')}
+                ref={passwordInputRef}
+                value={password}
+                onChangeText={setPassword}
                 onPressIn={() => {
-                  emailInputRef.current?.focus();
+                  pushDebugLog('[PasswordInput] onPressIn');
+                  focusInputWithLog(passwordInputRef, 'PasswordInput');
                 }}
-                placeholder={loginCopy.emailPlaceholder}
+                onFocus={() => {
+                  pushDebugLog('[PasswordInput] onFocus');
+                }}
+                onBlur={() => {
+                  pushDebugLog('[PasswordInput] onBlur');
+                }}
+                placeholder={loginCopy.passwordPlaceholder}
                 placeholderTextColor="rgba(255, 255, 255, 0.42)"
-                keyboardType="email-address"
+                secureTextEntry={true}
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={true}
                 focusable={true}
                 showSoftInputOnFocus={true}
-                returnKeyType="next"
-                blurOnSubmit={false}
-                onSubmitEditing={() => {
-                  passwordInputRef.current?.focus();
-                }}
+                returnKeyType="done"
                 style={styles.input}
               />
             </View>
@@ -427,9 +510,15 @@ export default function LoginScreen() {
               ref={secondaryEmailInputRef}
               value={secondaryEmail}
               onChangeText={setSecondaryEmail}
-              onFocus={() => console.log('[LoginScreen] secondary email input focused')}
               onPressIn={() => {
-                secondaryEmailInputRef.current?.focus();
+                pushDebugLog('[SecondaryEmailInput] onPressIn');
+                focusInputWithLog(secondaryEmailInputRef, 'SecondaryEmailInput');
+              }}
+              onFocus={() => {
+                pushDebugLog('[SecondaryEmailInput] onFocus');
+              }}
+              onBlur={() => {
+                pushDebugLog('[SecondaryEmailInput] onBlur');
               }}
               placeholder={secondaryCopy.emailPlaceholder}
               placeholderTextColor="rgba(255, 255, 255, 0.42)"
@@ -468,6 +557,8 @@ export default function LoginScreen() {
         <SafeAreaView style={styles.safeArea}>
           {canvasMode === 'login' ? renderLoginCanvas() : renderSecondaryCanvas()}
         </SafeAreaView>
+
+        {renderDebugPanel()}
       </View>
     </ImageBackground>
   );
@@ -563,29 +654,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   languageIconImage: {
-    width: 30,
-    height: 30,
+    width: 34,
+    height: 34,
   },
   languagePanel: {
     position: 'absolute',
-    top: 150,
+    top: 86,
     right: 88,
     width: 260,
     height: 240,
     overflow: 'hidden',
     borderRadius: 32,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(26, 26, 26, 0.8)',
     zIndex: 20,
     elevation: 20,
   },
   languagePanelItem: {
-    height: 60,
+    flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 52,
-    backgroundColor: 'rgba(26, 26, 26, 0.9)',
+    paddingHorizontal: 22,
   },
   languagePanelItemSelected: {
-    backgroundColor: '#FF7A00',
+    backgroundColor: 'rgba(255, 122, 0, 0.24)',
   },
   languagePanelText: {
     color: '#FFFFFF',
@@ -679,19 +769,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
     zIndex: 10,
   },
-  backButtonChinese: {
-    left: 290,
-    top: 180,
-  },
-  // backButtonOtherLanguage: {
-  //   left: 280,
-  //   top: 164,
-  // },
-  // backButtonRegisterChinese: {
-  //   left: 290,
-  //   top: 180,
-  // },
-
   backButtonRegisterOther: {
     left: 350,
     top: 180,
@@ -704,7 +781,6 @@ const styles = StyleSheet.create({
     left: 290,
     top: 180,
   },
-
   backButtonForgotPasswordOther: {
     left: 280,
     top: 160,
@@ -723,6 +799,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
   secondaryTitle: {
+    width: 720,
     color: '#FFFFFF',
     fontSize: 21,
     fontWeight: '600',
@@ -730,6 +807,7 @@ const styles = StyleSheet.create({
   },
   secondaryDescription: {
     width: 720,
+    height: 56,
     marginTop: 32,
     marginBottom: 42,
     color: 'rgba(255, 255, 255, 0.42)',
@@ -778,5 +856,29 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  debugPanel: {
+    position: 'absolute',
+    left: 48,
+    top: 48,
+    width: 420,
+    maxHeight: 260,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    zIndex: 9999,
+    elevation: 9999,
+  },
+  debugTitle: {
+    marginBottom: 6,
+    color: '#FF7A00',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  debugText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    lineHeight: 16,
   },
 });
