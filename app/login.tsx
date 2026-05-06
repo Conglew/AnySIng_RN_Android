@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   ImageBackground,
   Keyboard,
@@ -11,6 +12,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { authClient } from '@/src/services/auth/auth-client';
+import { saveAuthSession } from '@/src/services/auth/auth-token-store';
+import {
+  clearRememberedLogin,
+  getRememberedLogin,
+  saveRememberedLogin,
+} from '@/src/services/auth/remembered-login-store';
 
 type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
 
@@ -205,6 +213,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [secondaryEmail, setSecondaryEmail] = useState('');
+  const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
 
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
 
@@ -233,6 +242,33 @@ export default function LoginScreen() {
       keyboardShowSub.remove();
       keyboardHideSub.remove();
     };
+  }, [pushDebugLog]);
+
+  useEffect(() => {
+    const restoreRememberedLogin = async () => {
+      try {
+        const rememberedLogin = await getRememberedLogin();
+
+        if (!rememberedLogin) {
+          pushDebugLog('[RememberLogin] no remembered login');
+          return;
+        }
+
+        setEmail(rememberedLogin.email);
+        setPassword(rememberedLogin.password);
+        setRememberMe(rememberedLogin.rememberMe);
+
+        pushDebugLog('[RememberLogin] restored email and password');
+      } catch (error) {
+        pushDebugLog(
+          `[RememberLogin] restore failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        );
+      }
+    };
+
+    restoreRememberedLogin();
   }, [pushDebugLog]);
 
   useEffect(() => {
@@ -269,17 +305,56 @@ export default function LoginScreen() {
     }, 50);
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    if (isLoginSubmitting) {
+      return;
+    }
+
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail || !password) {
+      pushDebugLog('[LoginScreen] login failed: email or password is empty');
+      return;
+    }
+
+    setIsLoginSubmitting(true);
     pushDebugLog('[LoginScreen] login pressed');
 
-    console.log('[LoginScreen] login:', {
-      language,
-      email,
-      password,
-      rememberMe,
-    });
+    try {
+      const session = await authClient.login({
+        email: normalizedEmail,
+        password,
+      });
 
-    router.replace('/(tabs)/home');
+      await saveAuthSession(session);
+
+      if (rememberMe) {
+        await saveRememberedLogin({
+          email: normalizedEmail,
+          password,
+        });
+
+        pushDebugLog('[RememberLogin] saved email and password');
+      } else {
+        await clearRememberedLogin();
+
+        pushDebugLog('[RememberLogin] cleared remembered login');
+      }
+
+      pushDebugLog('[LoginScreen] login success');
+
+      console.log('[LoginScreen] login session:', session);
+
+      router.replace('/(tabs)/home');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown login error.';
+
+      pushDebugLog(`[LoginScreen] login failed: ${message}`);
+
+      console.log('[LoginScreen] login error:', error);
+    } finally {
+      setIsLoginSubmitting(false);
+    }
   };
 
   const handleOpenRegisterCanvas = () => {
@@ -358,6 +433,20 @@ export default function LoginScreen() {
             {log}
           </Text>
         ))}
+      </View>
+    );
+  };
+
+  const renderFullScreenLoading = () => {
+    if (!isLoginSubmitting) {
+      return null;
+    }
+
+    return (
+      <View style={styles.fullScreenLoading} pointerEvents="auto">
+        <View style={styles.loadingCard}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
       </View>
     );
   };
@@ -473,10 +562,17 @@ export default function LoginScreen() {
             </Pressable>
 
             <Pressable
-              style={({ pressed }) => [styles.loginButton, pressed && styles.loginButtonPressed]}
+              disabled={isLoginSubmitting}
+              style={({ pressed }) => [
+                styles.loginButton,
+                pressed && styles.loginButtonPressed,
+                isLoginSubmitting && styles.loginButtonDisabled,
+              ]}
               onPress={handleLogin}
             >
-              <Text style={styles.loginButtonText}>{loginCopy.loginButton}</Text>
+              <Text style={styles.loginButtonText}>
+                {loginCopy.loginButton}
+              </Text>
             </Pressable>
 
             <Pressable onPress={handleOpenForgotPasswordCanvas}>
@@ -559,6 +655,7 @@ export default function LoginScreen() {
         </SafeAreaView>
 
         {renderDebugPanel()}
+        {renderFullScreenLoading()}
       </View>
     </ImageBackground>
   );
@@ -880,5 +977,37 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     lineHeight: 16,
+  },
+
+  loginButtonDisabled: {
+    opacity: 0.56,
+  },
+  fullScreenLoading: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.48)',
+    zIndex: 10000,
+    elevation: 10000,
+  },
+  loadingCard: {
+    minWidth: 180,
+    minHeight: 128,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
+    // backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    paddingHorizontal: 28,
+    paddingVertical: 24,
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });
