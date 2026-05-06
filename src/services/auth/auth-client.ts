@@ -1,7 +1,7 @@
 import { apiRequest } from '../api/api-client';
+import { ENDPOINTS } from '../api/endpoints';
 import {
   AuthLoginRequest,
-  AuthLoginResponse,
   AuthSession,
   DeleteAccountRequest,
   DeleteAccountResponse,
@@ -17,6 +17,7 @@ import {
   VerifyResetCodeResponse,
   VerifySignupCodeRequest,
   VerifySignupCodeResponse,
+  AuthLoginResponse,
 } from './auth.types';
 
 function toAuthSession(response: AuthLoginResponse): AuthSession {
@@ -34,17 +35,25 @@ export const authClient = {
   async login(body: AuthLoginRequest) {
     const response = await apiRequest<AuthLoginResponse, AuthLoginRequest>({
       method: 'POST',
-      path: '/auth/login',
+      path: ENDPOINTS.auth.login,
       body,
     });
 
     return toAuthSession(response);
   },
 
+  signup(body: SignupRequest) {
+    return apiRequest<SignupResponse, SignupRequest>({
+      method: 'PUT',
+      path: ENDPOINTS.auth.signup,
+      body,
+    });
+  },
+
   sendSignupCode(body: SendSignupCodeRequest) {
     return apiRequest<SendSignupCodeResponse, SendSignupCodeRequest>({
       method: 'POST',
-      path: '/auth/send-signup-code',
+      path: ENDPOINTS.auth.sendSignupCode,
       body,
     });
   },
@@ -52,15 +61,7 @@ export const authClient = {
   verifySignupCode(body: VerifySignupCodeRequest) {
     return apiRequest<VerifySignupCodeResponse, VerifySignupCodeRequest>({
       method: 'POST',
-      path: '/auth/verify-signup-code',
-      body,
-    });
-  },
-
-  signup(body: SignupRequest) {
-    return apiRequest<SignupResponse, SignupRequest>({
-      method: 'PUT',
-      path: '/auth/signup',
+      path: ENDPOINTS.auth.verifySignupCode,
       body,
     });
   },
@@ -68,7 +69,7 @@ export const authClient = {
   sendForgotCode(body: SendForgotCodeRequest) {
     return apiRequest<SendForgotCodeResponse, SendForgotCodeRequest>({
       method: 'POST',
-      path: '/auth/send-forgot-code',
+      path: ENDPOINTS.auth.sendForgotCode,
       body,
     });
   },
@@ -76,7 +77,7 @@ export const authClient = {
   verifyResetCode(body: VerifyResetCodeRequest) {
     return apiRequest<VerifyResetCodeResponse, VerifyResetCodeRequest>({
       method: 'POST',
-      path: '/auth/verify-reset-code',
+      path: ENDPOINTS.auth.verifyResetCode,
       body,
     });
   },
@@ -84,7 +85,7 @@ export const authClient = {
   resetPassword(body: ResetPasswordRequest) {
     return apiRequest<ResetPasswordResponse, ResetPasswordRequest>({
       method: 'POST',
-      path: '/auth/reset-password',
+      path: ENDPOINTS.auth.resetPassword,
       body,
     });
   },
@@ -92,7 +93,7 @@ export const authClient = {
   deleteAccount({ token, body }: { token: string; body: DeleteAccountRequest }) {
     return apiRequest<DeleteAccountResponse, DeleteAccountRequest>({
       method: 'DELETE',
-      path: '/auth/users/me',
+      path: ENDPOINTS.auth.deleteAccount,
       token,
       body,
     });
