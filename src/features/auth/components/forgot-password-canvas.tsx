@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -16,6 +16,9 @@ import {
 import { useForgotPasswordFlow } from '@/src/features/auth/hooks/use-forgot-password-flow';
 import { LeaveConfirmModal } from './leave-confirm-modal';
 
+import { CustomEmailKeyboard } from '@/src/shared/components/custom-email-keyboard';
+import { CustomNumberKeyboard } from '@/src/shared/components/custom-number-keyboard';
+
 type Props = {
   language: LanguageValue;
   styles: any;
@@ -23,6 +26,8 @@ type Props = {
   onBackToLogin: () => void;
   pushDebugLog?: (message: string) => void;
 };
+
+type CustomKeyboardTarget = 'email' | 'verificationCode' | null;
 
 export function ForgotPasswordCanvas({
   language,
@@ -33,6 +38,8 @@ export function ForgotPasswordCanvas({
 }: Props) {
   const verificationCodeInputRef = useRef<TextInput>(null);
   const forgotCopy = FORGOT_PASSWORD_FLOW_COPY[language];
+
+  const [activeKeyboardTarget, setActiveKeyboardTarget] = useState<CustomKeyboardTarget>(null);
 
   const flow = useForgotPasswordFlow({
     forgotCopy,
@@ -68,54 +75,64 @@ export function ForgotPasswordCanvas({
       </Pressable>
 
       <View style={styles.secondaryContent}>
-        <View style={styles.forgotTitleSlot}>
-          <Text style={styles.secondaryTitle}>{forgotCopy.title}</Text>
-        </View>
-
-        <View style={styles.forgotDescriptionSlot}>
-          {flow.forgotPasswordStep === 'email' ? (
-            <Text style={styles.secondaryDescription}>
-              {forgotCopy.descriptionBefore}
-              <Text style={styles.secondaryDescriptionHighlight}>
-                {forgotCopy.descriptionHighlight}
-              </Text>
-              {forgotCopy.descriptionAfter}
-            </Text>
-          ) : (
-            <Text style={styles.forgotNoticeText}>{forgotCopy.sentNotice}</Text>
-          )}
-        </View>
-
-        <View style={styles.forgotEmailCenterBlock}>
-          <View style={styles.forgotEmailInputGroup}>
-            <Text style={styles.secondaryLabel}>{forgotCopy.emailLabel}</Text>
-
-            <TextInput
-              value={flow.forgotPasswordEmail}
-              onChangeText={(value) => {
-                flow.setForgotPasswordEmail(value);
-              }}
-              placeholder={forgotCopy.emailPlaceholder}
-              placeholderTextColor="rgba(255, 255, 255, 0.42)"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={flow.forgotPasswordStep === 'email'}
-              showSoftInputOnFocus={true}
-              style={styles.secondaryInput}
-            />
-          </View>
-
-          {flow.forgotPasswordStep !== 'email' ? (
-            <View style={styles.resendSlotAbsolute}>
-              <Text style={styles.resendText}>
-                {flow.resendSeconds > 0
-                  ? forgotCopy.resendCountdown(flow.resendSeconds)
-                  : forgotCopy.resendButton}
-              </Text>
+        {flow.forgotPasswordStep !== 'resetPassword' ? (
+          <>
+            <View style={styles.forgotTitleSlot}>
+              <Text style={styles.secondaryTitle}>{forgotCopy.title}</Text>
             </View>
-          ) : null}
-        </View>
+
+            <View style={styles.forgotDescriptionSlot}>
+              {flow.forgotPasswordStep === 'email' ? (
+                <Text style={styles.secondaryDescription}>
+                  {forgotCopy.descriptionBefore}
+                  <Text style={styles.secondaryDescriptionHighlight}>
+                    {forgotCopy.descriptionHighlight}
+                  </Text>
+                  {forgotCopy.descriptionAfter}
+                </Text>
+              ) : (
+                <Text style={styles.forgotNoticeText}>{forgotCopy.sentNotice}</Text>
+              )}
+            </View>
+
+            <View style={styles.forgotEmailCenterBlock}>
+              <View style={styles.forgotEmailInputGroup}>
+                <Text style={styles.secondaryLabel}>{forgotCopy.emailLabel}</Text>
+
+                <TextInput
+                  value={flow.forgotPasswordEmail}
+                  onChangeText={() => {
+                    // 不使用原生輸入，所以這裡不用處理
+                  }}
+                  onPressIn={() => {
+                    if (flow.forgotPasswordStep === 'email') {
+                      setActiveKeyboardTarget('email');
+                    }
+                  }}
+                  placeholder={forgotCopy.emailPlaceholder}
+                  placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={flow.forgotPasswordStep === 'email'}
+                  showSoftInputOnFocus={false}
+                  caretHidden={true}
+                  style={styles.secondaryInput}
+                />
+              </View>
+
+              {flow.forgotPasswordStep !== 'email' ? (
+                <View style={styles.resendSlotAbsolute}>
+                  <Text style={styles.resendText}>
+                    {flow.resendSeconds > 0
+                      ? forgotCopy.resendCountdown(flow.resendSeconds)
+                      : forgotCopy.resendButton}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </>
+        ) : null}
 
         <View style={styles.forgotActionSlot}>
           {flow.forgotPasswordStep === 'email' ? (
@@ -150,7 +167,9 @@ export function ForgotPasswordCanvas({
 
               <Pressable
                 style={styles.verificationCodePressArea}
-                onPress={() => verificationCodeInputRef.current?.focus()}
+                onPress={() => {
+                  setActiveKeyboardTarget('verificationCode');
+                }}
               >
                 <TextInput
                   ref={verificationCodeInputRef}
@@ -159,7 +178,7 @@ export function ForgotPasswordCanvas({
                   keyboardType="number-pad"
                   maxLength={5}
                   caretHidden={true}
-                  showSoftInputOnFocus={true}
+                  showSoftInputOnFocus={false}
                   editable={!flow.isForgotSubmitting}
                   style={styles.hiddenVerificationCodeInput}
                 />
@@ -207,7 +226,13 @@ export function ForgotPasswordCanvas({
                   secureTextEntry={true}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  style={[styles.secondaryInput, flow.newPasswordError && styles.inputError]}
+                  editable={flow.resetPasswordPhase === 'newPassword'}
+                  style={[
+                    styles.secondaryInput,
+                    styles.resetPasswordInput,
+                    flow.newPasswordError && styles.inputError,
+                    flow.resetPasswordPhase === 'confirmPassword' && styles.disabledPasswordInput,
+                  ]}
                 />
 
                 {flow.newPasswordError ? (
@@ -215,27 +240,34 @@ export function ForgotPasswordCanvas({
                 ) : null}
               </View>
 
-              <View style={styles.resetPasswordInputGroup}>
-                <Text style={styles.secondaryLabel}>{forgotCopy.confirmPasswordLabel}</Text>
+              {flow.resetPasswordPhase === 'confirmPassword' ? (
+                <View style={styles.resetPasswordInputGroup}>
+                  <Text style={styles.secondaryLabel}>{forgotCopy.confirmPasswordLabel}</Text>
 
-                <TextInput
-                  value={flow.confirmNewPassword}
-                  onChangeText={(value) => {
-                    flow.setConfirmNewPassword(value);
-                    flow.setConfirmPasswordError('');
-                  }}
-                  placeholder={forgotCopy.passwordPlaceholder}
-                  placeholderTextColor="rgba(255, 255, 255, 0.42)"
-                  secureTextEntry={true}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={[styles.secondaryInput, flow.confirmPasswordError && styles.inputError]}
-                />
+                  <TextInput
+                    value={flow.confirmNewPassword}
+                    onChangeText={(value) => {
+                      flow.setConfirmNewPassword(value);
+                      flow.setConfirmPasswordError('');
+                    }}
+                    placeholder={forgotCopy.passwordPlaceholder}
+                    placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                    secureTextEntry={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!flow.isForgotSubmitting}
+                    style={[
+                      styles.secondaryInput,
+                      styles.resetPasswordInput,
+                      flow.confirmPasswordError && styles.inputError,
+                    ]}
+                  />
 
-                {flow.confirmPasswordError ? (
-                  <Text style={styles.fieldErrorText}>{flow.confirmPasswordError}</Text>
-                ) : null}
-              </View>
+                  {flow.confirmPasswordError ? (
+                    <Text style={styles.fieldErrorText}>{flow.confirmPasswordError}</Text>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
 
             <Pressable
@@ -250,6 +282,36 @@ export function ForgotPasswordCanvas({
           </View>
         ) : null}
       </View>
+
+      <CustomNumberKeyboard
+        visible={activeKeyboardTarget === 'verificationCode'}
+        onInput={(value) => {
+          if (flow.verificationCode.length >= 5) {
+            return;
+          }
+
+          flow.handleVerificationCodeChange(flow.verificationCode + value);
+        }}
+        onBackspace={() => {
+          flow.handleVerificationCodeChange(flow.verificationCode.slice(0, -1));
+        }}
+        onDone={() => {
+          setActiveKeyboardTarget(null);
+        }}
+      />
+
+      <CustomEmailKeyboard
+        visible={activeKeyboardTarget === 'email'}
+        onInput={(value) => {
+          flow.setForgotPasswordEmail(flow.forgotPasswordEmail + value);
+        }}
+        onBackspace={() => {
+          flow.setForgotPasswordEmail(flow.forgotPasswordEmail.slice(0, -1));
+        }}
+        onDone={() => {
+          setActiveKeyboardTarget(null);
+        }}
+      />
 
       <LeaveConfirmModal
         visible={flow.isLeaveConfirmVisible}

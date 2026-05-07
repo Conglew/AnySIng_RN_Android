@@ -17,6 +17,8 @@ type UseForgotPasswordFlowParams = {
   pushDebugLog?: (message: string) => void;
 };
 
+type ResetPasswordPhase = 'newPassword' | 'confirmPassword';
+
 export function useForgotPasswordFlow({
   forgotCopy,
   onBackToLogin,
@@ -35,6 +37,8 @@ export function useForgotPasswordFlow({
   const [newPasswordError, setNewPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
+  const [resetPasswordPhase, setResetPasswordPhase] = useState<ResetPasswordPhase>('newPassword');
+
   const [isForgotSubmitting, setIsForgotSubmitting] = useState(false);
   const [isLeaveConfirmVisible, setIsLeaveConfirmVisible] = useState(false);
 
@@ -50,6 +54,7 @@ export function useForgotPasswordFlow({
     setConfirmNewPassword('');
     setNewPasswordError('');
     setConfirmPasswordError('');
+    setResetPasswordPhase('newPassword');
     setIsForgotSubmitting(false);
   }, []);
 
@@ -118,6 +123,16 @@ export function useForgotPasswordFlow({
     setNewPasswordError('');
     setConfirmPasswordError('');
 
+    if (resetPasswordPhase === 'newPassword') {
+      if (!isValidPassword(newPassword)) {
+        setNewPasswordError(forgotCopy.requiredError);
+        return;
+      }
+
+      setResetPasswordPhase('confirmPassword');
+      return;
+    }
+
     if (!isValidPassword(newPassword)) {
       setNewPasswordError(forgotCopy.requiredError);
       return;
@@ -146,7 +161,7 @@ export function useForgotPasswordFlow({
       setTimeout(() => {
         resetForgotPasswordFlow();
         onBackToLogin();
-      }, 1200);
+      }, 5000);
     } catch {
       setConfirmPasswordError(forgotCopy.resetFailed);
     } finally {
@@ -162,6 +177,7 @@ export function useForgotPasswordFlow({
     onBackToLogin,
     pushDebugLog,
     resetForgotPasswordFlow,
+    resetPasswordPhase,
     verificationCode,
   ]);
 
@@ -210,6 +226,7 @@ export function useForgotPasswordFlow({
         }
 
         setVerificationCodeError('');
+        setResetPasswordPhase('newPassword');
         setForgotPasswordStep('resetPassword');
         pushDebugLog?.('[ForgotPassword] code valid');
       } catch {
@@ -238,6 +255,8 @@ export function useForgotPasswordFlow({
     verificationCodeError,
 
     resendSeconds,
+
+    resetPasswordPhase,
 
     newPassword,
     setNewPassword,
