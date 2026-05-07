@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
@@ -7,38 +8,67 @@ type Props = {
   onDone: () => void;
 };
 
-const ROWS = [
-  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+const LETTER_ROWS = [
   ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
   ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-  ['z', 'x', 'c', 'v', 'b', 'n', 'm', '@', '.'],
-  ['_', '-', '⌫', '完成'],
+  ['⇧', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '@', '.'],
 ];
 
+const NUMBER_ROW = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+
+const BOTTOM_ROW = ['_', '-', '⌫', '完成'];
+
 export function CustomEmailKeyboard({ visible, onInput, onBackspace, onDone }: Props) {
+  const [isUppercase, setIsUppercase] = useState(false);
+
   if (!visible) {
     return null;
   }
 
+  const rows = [
+    NUMBER_ROW,
+    ...LETTER_ROWS.map((row) =>
+      row.map((key) => {
+        if (isLetterKey(key)) {
+          return isUppercase ? key.toUpperCase() : key.toLowerCase();
+        }
+
+        return key;
+      }),
+    ),
+    BOTTOM_ROW,
+  ];
+
   return (
     <View style={styles.keyboard}>
-      {ROWS.map((row, rowIndex) => (
+      {rows.map((row, rowIndex) => (
         <View key={`email-keyboard-row-${rowIndex}`} style={styles.row}>
           {row.map((key) => {
-            const isWideKey = key === '完成';
+            const isDoneKey = key === '完成';
+            const isBackspaceKey = key === '⌫';
+            const isShiftKey = key === '⇧';
 
             return (
               <Pressable
                 key={key}
-                style={[styles.key, isWideKey && styles.wideKey]}
+                style={[
+                  styles.key,
+                  isDoneKey && styles.doneKey,
+                  isShiftKey && isUppercase && styles.shiftKeyActive,
+                ]}
                 onPress={() => {
-                  if (key === '⌫') {
+                  if (isBackspaceKey) {
                     onBackspace();
                     return;
                   }
 
-                  if (key === '完成') {
+                  if (isDoneKey) {
                     onDone();
+                    return;
+                  }
+
+                  if (isShiftKey) {
+                    setIsUppercase((currentValue) => !currentValue);
                     return;
                   }
 
@@ -53,6 +83,10 @@ export function CustomEmailKeyboard({ visible, onInput, onBackspace, onDone }: P
       ))}
     </View>
   );
+}
+
+function isLetterKey(value: string) {
+  return /^[a-z]$/i.test(value);
 }
 
 const styles = StyleSheet.create({
@@ -81,9 +115,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
   },
-  wideKey: {
+  doneKey: {
     width: 116,
     backgroundColor: '#FF7A00',
+  },
+  shiftKeyActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.36)',
   },
   keyText: {
     color: '#FFFFFF',
