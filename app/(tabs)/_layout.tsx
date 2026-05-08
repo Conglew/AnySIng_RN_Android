@@ -1,71 +1,37 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { Slot } from 'expo-router';
+import { ImageBackground, StyleSheet, View } from 'react-native';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { MainHeader } from '@/src/features/main/components/main-header';
+import { MainFooter } from '@/src/features/main/components/main-footer';
 
-export { ErrorBoundary } from 'expo-router';
-
-export const unstable_settings = {
-  initialRouteName: 'index',
-};
-
-SplashScreen.preventAutoHideAsync();
-
-export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('@/assets/fonts/SpaceMono-Regular.ttf'),
-    ...FontAwesome.font,
-  });
-
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
+export default function TabsLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen
-          name="home"
-          options={{
-            headerShown: false,
-          }}
-        />
+    <ImageBackground style={styles.background} resizeMode="cover">
+      <View style={styles.page}>
+        <MainHeader />
 
-        {/* <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-          }}
-        /> */}
+        <View style={styles.content}>
+          <Slot />
+        </View>
 
-        <Stack.Screen
-          name="two"
-          options={{
-            presentation: 'modal',
-          }}
-        />
-      </Stack>
-    </ThemeProvider>
+        <MainFooter />
+      </View>
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+
+  page: {
+    flex: 1,
+  },
+
+  content: {
+    flex: 1,
+    paddingHorizontal: 32,
+  },
+});

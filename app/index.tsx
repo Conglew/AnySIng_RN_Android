@@ -61,8 +61,7 @@ export default function LanguageSelectScreen() {
     console.log('[LanguageSelectScreen] confirmed language:', selectedLanguage.value);
 
     router.replace({
-      // pathname: '/login',
-      pathname: '/payment',
+      pathname: '/login',
       params: {
         lang: selectedLanguage.value,
       },
