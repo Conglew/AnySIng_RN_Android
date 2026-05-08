@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 
 import { PaymentCopy } from '@/src/features/payments/i18n/payment-copy';
 import { PaymentPlanType } from '@/src/features/payments/types/payment-plan.type';
@@ -18,6 +19,8 @@ type KeyboardTarget = 'coupon' | null;
 
 const VALID_COUPON_CODE = 'Abc2025';
 
+const MOCK_PAYMENT_URL = 'https://example.com/payment/checkout?orderId=mock_order_001';
+
 export function PaymentConfirmCanvas({
   copy,
   selectedPlanType,
@@ -30,8 +33,10 @@ export function PaymentConfirmCanvas({
   const [couponCode, setCouponCode] = useState('');
   const [keyboardTarget, setKeyboardTarget] = useState<KeyboardTarget>(null);
   const [hasTriedCoupon, setHasTriedCoupon] = useState(false);
-
   const [isCouponFocused, setIsCouponFocused] = useState(false);
+
+  const [paymentQrCodeUrl, setPaymentQrCodeUrl] = useState<string | null>(null);
+  const [isCreatingPaymentQrCode, setIsCreatingPaymentQrCode] = useState(false);
 
   const selectedPlan = selectedPlanType === 'yearly' ? copy.yearlyPlan : copy.monthlyPlan;
 
@@ -58,10 +63,12 @@ export function PaymentConfirmCanvas({
     setIsCouponFocused(false);
     couponInputRef.current?.blur();
 
-    // 目前先模擬付款成功，不 call API。
+    setIsCreatingPaymentQrCode(true);
+
     setTimeout(() => {
-      onPaymentSuccess();
-    }, 450);
+      setPaymentQrCodeUrl(MOCK_PAYMENT_URL);
+      setIsCreatingPaymentQrCode(false);
+    }, 300);
   };
 
   const hasCouponValue = couponCode.trim().length > 0;
@@ -196,12 +203,82 @@ export function PaymentConfirmCanvas({
         </View>
 
         <Pressable
-          style={({ pressed }) => [styles.payButton, pressed && styles.payButtonPressed]}
+          disabled={isCreatingPaymentQrCode}
+          style={({ pressed }) => [
+            styles.payButton,
+            pressed && !isCreatingPaymentQrCode && styles.payButtonPressed,
+            isCreatingPaymentQrCode && styles.payButtonLoading,
+          ]}
           onPress={handlePaymentPress}
         >
-          <Text style={styles.payButtonText}>{copy.confirm.payButton}</Text>
+          <Text style={styles.payButtonText}>
+            {isCreatingPaymentQrCode ? '建立 QRCode 中...' : copy.confirm.payButton}
+          </Text>
         </Pressable>
       </View>
+
+      {/* {paymentQrCodeUrl ? (
+        <View style={styles.qrCodeFullScreenOverlay}>
+          <View style={styles.qrCodeModalContent}>
+            <View style={styles.qrCodeBox}>
+              <QRCode
+                value={paymentQrCodeUrl}
+                size={220}
+                backgroundColor="#FFFFFF"
+                color="#000000"
+              />
+            </View>
+
+            <Text style={styles.qrCodeHintText}>請掃描 QRCode 完成付款</Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.mockSuccessButton,
+                pressed && styles.mockSuccessButtonPressed,
+              ]}
+              onPress={() => {
+                onPaymentSuccess();
+              }}
+            >
+              <Text style={styles.mockSuccessButtonText}>模擬付款成功</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null} */}
+
+      <Modal
+        visible={paymentQrCodeUrl !== null}
+        transparent={true}
+        animationType="fade"
+        statusBarTranslucent={true}
+      >
+        <View style={styles.qrCodeFullScreenOverlay}>
+          <View style={styles.qrCodeModalContent}>
+            <View style={styles.qrCodeBox}>
+              <QRCode
+                value={paymentQrCodeUrl ?? ''}
+                size={220}
+                backgroundColor="#FFFFFF"
+                color="#000000"
+              />
+            </View>
+
+            <Text style={styles.qrCodeHintText}>請掃描 QRCode 完成付款</Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.mockSuccessButton,
+                pressed && styles.mockSuccessButtonPressed,
+              ]}
+              onPress={() => {
+                onPaymentSuccess();
+              }}
+            >
+              <Text style={styles.mockSuccessButtonText}>模擬付款成功</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <CustomEmailKeyboard
         visible={keyboardTarget === 'coupon'}
@@ -491,6 +568,60 @@ const styles = StyleSheet.create({
   payButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
+    fontWeight: '500',
+  },
+  qrCodeFullScreenOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  qrCodeModalContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  qrCodeBox: {
+    width: 260,
+    height: 260,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  qrCodeHintText: {
+    marginTop: 24,
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '500',
+  },
+
+  payButtonLoading: {
+    opacity: 0.62,
+  },
+
+  mockSuccessButton: {
+    width: 160,
+    height: 38,
+    marginTop: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(66, 196, 255, 0.26)',
+  },
+
+  mockSuccessButtonPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.98 }],
+  },
+
+  mockSuccessButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '500',
   },
 });

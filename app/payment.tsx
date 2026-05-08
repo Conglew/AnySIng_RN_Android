@@ -60,17 +60,17 @@ export default function PaymentScreen() {
     >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.page}>
-          {/* {viewMode === 'plans' ? (
-            <Pressable
-              accessibilityLabel={paymentCopy.closeButtonLabel}
-              style={styles.closeButton}
-              onPress={() => {
-                router.back();
-              }}
-            >
-              <Text style={styles.closeButtonText}>×</Text>
-            </Pressable>
-          ) : null} */}
+          
+        {viewMode === 'plans' ? (
+  <Pressable
+    style={styles.backButton}
+    onPress={() => {
+      router.replace('/login');
+    }}
+  >
+    <Text style={styles.backButtonText}>‹</Text>
+  </Pressable>
+) : null}
 
           {viewMode === 'plans' ? (
             <View style={styles.content}>
@@ -173,5 +173,27 @@ const styles = StyleSheet.create({
     color: '#B2B6BA',
     fontSize: 24,
     fontWeight: '500',
+  },
+
+  backButton: {
+    position: 'absolute',
+    top: 12,
+    left: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.24)',
+    zIndex: 5,
+  },
+  
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: '300',
+    marginBottom: 10,
+    marginRight: 2,
   },
 });
