@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,13 +9,9 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import {
-  FORGOT_PASSWORD_FLOW_COPY,
-  LanguageValue,
-} from '@/src/features/auth/i18n/forgot-password-copy';
-import { useForgotPasswordFlow } from '@/src/features/auth/hooks/use-forgot-password-flow';
-import { LeaveConfirmModal } from './leave-confirm-modal';
-
+import { LanguageValue, REGISTER_FLOW_COPY } from '@/src/features/auth/i18n/register-copy';
+import { useRegisterFlow } from '@/src/features/auth/hooks/use-register-flow';
+import { LeaveConfirmModal } from '@/src/features/auth/components/leave-confirm-modal';
 import { CustomEmailKeyboard } from '@/src/shared/components/custom-email-keyboard';
 import { CustomNumberKeyboard } from '@/src/shared/components/custom-number-keyboard';
 
@@ -27,9 +23,14 @@ type Props = {
   pushDebugLog?: (message: string) => void;
 };
 
-type CustomKeyboardTarget = 'email' | 'verificationCode' | 'newPassword' | 'confirmPassword' | null;
+type RegisterKeyboardTarget =
+  | 'email'
+  | 'verificationCode'
+  | 'newPassword'
+  | 'confirmPassword'
+  | null;
 
-export function ForgotPasswordCanvas({
+export function RegisterCanvas({
   language,
   styles,
   backButtonPositionStyle,
@@ -37,29 +38,44 @@ export function ForgotPasswordCanvas({
   pushDebugLog,
 }: Props) {
   const verificationCodeInputRef = useRef<TextInput>(null);
-  const forgotCopy = FORGOT_PASSWORD_FLOW_COPY[language];
+  const confirmPasswordInputRef = useRef<TextInput>(null);
 
-  const [activeKeyboardTarget, setActiveKeyboardTarget] = useState<CustomKeyboardTarget>(null);
+  const [activeKeyboardTarget, setActiveKeyboardTarget] = useState<RegisterKeyboardTarget>(null);
 
-  const flow = useForgotPasswordFlow({
-    forgotCopy,
+  const registerCopy = REGISTER_FLOW_COPY[language];
+
+  const flow = useRegisterFlow({
+    registerCopy,
     onBackToLogin,
     pushDebugLog,
   });
 
-  if (flow.forgotPasswordStep === 'success') {
+  useEffect(() => {
+    if (flow.registerStep !== 'resetPassword') {
+      return;
+    }
+
+    if (flow.resetPasswordPhase === 'confirmPassword') {
+      requestAnimationFrame(() => {
+        confirmPasswordInputRef.current?.focus();
+        setActiveKeyboardTarget('confirmPassword');
+      });
+    }
+  }, [flow.registerStep, flow.resetPasswordPhase]);
+
+  if (flow.registerStep === 'success') {
     return (
       <View style={styles.secondaryPage}>
         <View style={styles.forgotSuccessContent}>
-          <Text style={styles.forgotSuccessText}>{forgotCopy.successMessage}</Text>
+          <Text style={styles.forgotSuccessText}>{registerCopy.successMessage}</Text>
         </View>
 
         <LeaveConfirmModal
           visible={flow.isLeaveConfirmVisible}
-          copy={forgotCopy}
+          copy={registerCopy}
           styles={styles}
-          onConfirmLeave={flow.confirmLeaveForgotPassword}
-          onCancelLeave={flow.cancelLeaveForgotPassword}
+          onConfirmLeave={flow.confirmLeaveRegister}
+          onCancelLeave={flow.cancelLeaveRegister}
         />
       </View>
     );
@@ -69,64 +85,67 @@ export function ForgotPasswordCanvas({
     <View style={styles.secondaryPage}>
       <Pressable
         style={[styles.backButton, backButtonPositionStyle]}
-        onPress={flow.requestBackToLoginCanvas}
+        onPress={() => {
+          setActiveKeyboardTarget(null);
+          flow.requestBackToLoginCanvas();
+        }}
       >
         <Text style={styles.backButtonText}>‹</Text>
       </Pressable>
 
       <View style={styles.secondaryContent}>
-        {flow.forgotPasswordStep !== 'resetPassword' ? (
+        {flow.registerStep !== 'resetPassword' ? (
           <>
             <View style={styles.forgotTitleSlot}>
-              <Text style={styles.secondaryTitle}>{forgotCopy.title}</Text>
+              <Text style={styles.secondaryTitle}>{registerCopy.title}</Text>
             </View>
 
             <View style={styles.forgotDescriptionSlot}>
-              {flow.forgotPasswordStep === 'email' ? (
+              {flow.registerStep === 'email' ? (
                 <Text style={styles.secondaryDescription}>
-                  {forgotCopy.descriptionBefore}
+                  {registerCopy.descriptionBefore}
                   <Text style={styles.secondaryDescriptionHighlight}>
-                    {forgotCopy.descriptionHighlight}
+                    {registerCopy.descriptionHighlight}
                   </Text>
-                  {forgotCopy.descriptionAfter}
+                  {registerCopy.descriptionAfter}
                 </Text>
               ) : (
-                <Text style={styles.forgotNoticeText}>{forgotCopy.sentNotice}</Text>
+                <Text style={styles.forgotNoticeText}>{registerCopy.sentNotice}</Text>
               )}
             </View>
 
             <View style={styles.forgotEmailCenterBlock}>
               <View style={styles.forgotEmailInputGroup}>
-                <Text style={styles.secondaryLabel}>{forgotCopy.emailLabel}</Text>
+                <Text style={styles.secondaryLabel}>{registerCopy.emailLabel}</Text>
 
                 <TextInput
-                  value={flow.forgotPasswordEmail}
+                  value={flow.registerEmail}
                   onChangeText={() => {
-                    // 不使用原生輸入，所以這裡不用處理
+                    // 使用自訂鍵盤，所以這裡不處理原生鍵盤輸入
                   }}
                   onPressIn={() => {
-                    if (flow.forgotPasswordStep === 'email') {
+                    if (flow.registerStep === 'email') {
                       setActiveKeyboardTarget('email');
                     }
                   }}
-                  placeholder={forgotCopy.emailPlaceholder}
+                  placeholder={registerCopy.emailPlaceholder}
                   placeholderTextColor="rgba(255, 255, 255, 0.42)"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  editable={flow.forgotPasswordStep === 'email'}
+                  editable={flow.registerStep === 'email'}
                   showSoftInputOnFocus={false}
                   caretHidden={true}
                   style={styles.secondaryInput}
                 />
               </View>
 
-              {flow.forgotPasswordStep !== 'email' ? (
+              {flow.registerStep !== 'email' ? (
                 <View style={styles.resendSlotAbsolute}>
                   <Text style={styles.resendText}>
                     {flow.resendSeconds > 0
-                      ? forgotCopy.resendCountdown(flow.resendSeconds)
-                      : forgotCopy.resendButton}
+                      ? registerCopy.resendCountdown(flow.resendSeconds)
+                      : registerCopy.resendButton}
                   </Text>
                 </View>
               ) : null}
@@ -135,33 +154,33 @@ export function ForgotPasswordCanvas({
         ) : null}
 
         <View style={styles.forgotActionSlot}>
-          {flow.forgotPasswordStep === 'email' ? (
+          {flow.registerStep === 'email' ? (
             <Pressable
-              disabled={!flow.isEmailValid || flow.isForgotSubmitting}
+              disabled={!flow.isRegisterEmailValid || flow.isRegisterSubmitting}
               style={({ pressed }) => [
                 styles.secondarySubmitButton,
-                pressed && !flow.isForgotSubmitting && styles.secondarySubmitButtonPressed,
-                !flow.isEmailValid && styles.hiddenActionButton,
-                flow.isForgotSubmitting && styles.secondarySubmitButtonLoading,
+                pressed && !flow.isRegisterSubmitting && styles.secondarySubmitButtonPressed,
+                !flow.isRegisterEmailValid && styles.hiddenActionButton,
+                flow.isRegisterSubmitting && styles.secondarySubmitButtonLoading,
               ]}
               onPress={() => {
                 setActiveKeyboardTarget(null);
-                flow.handleSendForgotPasswordCode();
+                flow.handleSendRegisterCode();
               }}
             >
-              {flow.isForgotSubmitting ? (
+              {flow.isRegisterSubmitting ? (
                 <ActivityIndicator size="small" color="rgba(255, 255, 255, 0.86)" />
               ) : (
-                <Text style={styles.secondarySubmitButtonText}>{forgotCopy.sendButton}</Text>
+                <Text style={styles.secondarySubmitButtonText}>{registerCopy.sendButton}</Text>
               )}
             </Pressable>
           ) : null}
 
-          {flow.forgotPasswordStep === 'code' ? (
+          {flow.registerStep === 'code' ? (
             <View style={styles.verificationArea}>
               <View style={styles.verificationLabelRow}>
-                <Text style={styles.verificationLabel}>{forgotCopy.codeLabel}</Text>
-                <Text style={styles.verificationHint}>{forgotCopy.codeHint}</Text>
+                <Text style={styles.verificationLabel}>{registerCopy.codeLabel}</Text>
+                <Text style={styles.verificationHint}>{registerCopy.codeHint}</Text>
               </View>
 
               {flow.verificationCodeError ? (
@@ -171,18 +190,21 @@ export function ForgotPasswordCanvas({
               <Pressable
                 style={styles.verificationCodePressArea}
                 onPress={() => {
+                  verificationCodeInputRef.current?.focus();
                   setActiveKeyboardTarget('verificationCode');
                 }}
               >
                 <TextInput
                   ref={verificationCodeInputRef}
                   value={flow.verificationCode}
-                  onChangeText={flow.handleVerificationCodeChange}
+                  onChangeText={() => {
+                    // 使用自訂鍵盤，所以這裡不處理原生鍵盤輸入
+                  }}
                   keyboardType="number-pad"
                   maxLength={5}
                   caretHidden={true}
                   showSoftInputOnFocus={false}
-                  editable={!flow.isForgotSubmitting}
+                  editable={!flow.isRegisterSubmitting}
                   style={styles.hiddenVerificationCodeInput}
                 />
 
@@ -192,7 +214,7 @@ export function ForgotPasswordCanvas({
 
                     return (
                       <View
-                        key={`verification-code-box-${index}`}
+                        key={`register-code-box-${index}`}
                         style={[
                           styles.verificationCodeInput,
                           flow.verificationCodeError && styles.verificationCodeInputError,
@@ -208,27 +230,27 @@ export function ForgotPasswordCanvas({
           ) : null}
         </View>
 
-        {flow.forgotPasswordStep === 'resetPassword' ? (
+        {flow.registerStep === 'resetPassword' ? (
           <View style={styles.resetPasswordArea}>
-            <Text style={styles.resetPasswordTitle}>{forgotCopy.resetTitle}</Text>
+            <Text style={styles.resetPasswordTitle}>{registerCopy.resetTitle}</Text>
 
-            <Text style={styles.resetPasswordDescription}>{forgotCopy.resetDescription}</Text>
+            <Text style={styles.resetPasswordDescription}>{registerCopy.resetDescription}</Text>
 
             <View style={styles.resetPasswordRow}>
               <View style={styles.resetPasswordInputGroup}>
-                <Text style={styles.secondaryLabel}>{forgotCopy.newPasswordLabel}</Text>
+                <Text style={styles.secondaryLabel}>{registerCopy.newPasswordLabel}</Text>
 
                 <TextInput
                   value={flow.newPassword}
                   onChangeText={() => {
-                    // 使用自訂鍵盤，所以這裡不處理原生輸入
+                    // 使用自訂鍵盤，所以這裡不處理原生鍵盤輸入
                   }}
                   onPressIn={() => {
                     if (flow.resetPasswordPhase === 'newPassword') {
                       setActiveKeyboardTarget('newPassword');
                     }
                   }}
-                  placeholder={forgotCopy.passwordPlaceholder}
+                  placeholder={registerCopy.passwordPlaceholder}
                   placeholderTextColor="rgba(255, 255, 255, 0.42)"
                   secureTextEntry={true}
                   autoCapitalize="none"
@@ -238,9 +260,8 @@ export function ForgotPasswordCanvas({
                   caretHidden={true}
                   style={[
                     styles.secondaryInput,
-                    styles.resetPasswordInput,
                     flow.newPasswordError && styles.inputError,
-                    flow.resetPasswordPhase === 'confirmPassword' && styles.disabledPasswordInput,
+                    flow.resetPasswordPhase === 'confirmPassword' && styles.inputDisabled,
                   ]}
                 />
 
@@ -251,31 +272,26 @@ export function ForgotPasswordCanvas({
 
               {flow.resetPasswordPhase === 'confirmPassword' ? (
                 <View style={styles.resetPasswordInputGroup}>
-                  <Text style={styles.secondaryLabel}>{forgotCopy.confirmPasswordLabel}</Text>
+                  <Text style={styles.secondaryLabel}>{registerCopy.confirmPasswordLabel}</Text>
 
                   <TextInput
+                    ref={confirmPasswordInputRef}
                     value={flow.confirmNewPassword}
                     onChangeText={() => {
-                      // 使用自訂鍵盤，所以這裡不處理原生輸入
+                      // 使用自訂鍵盤，所以這裡不處理原生鍵盤輸入
                     }}
                     onPressIn={() => {
-                      if (!flow.isForgotSubmitting) {
-                        setActiveKeyboardTarget('confirmPassword');
-                      }
+                      setActiveKeyboardTarget('confirmPassword');
                     }}
-                    placeholder={forgotCopy.passwordPlaceholder}
+                    placeholder={registerCopy.passwordPlaceholder}
                     placeholderTextColor="rgba(255, 255, 255, 0.42)"
                     secureTextEntry={true}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    editable={!flow.isForgotSubmitting}
+                    editable={!flow.isRegisterSubmitting}
                     showSoftInputOnFocus={false}
                     caretHidden={true}
-                    style={[
-                      styles.secondaryInput,
-                      styles.resetPasswordInput,
-                      flow.confirmPasswordError && styles.inputError,
-                    ]}
+                    style={[styles.secondaryInput, flow.confirmPasswordError && styles.inputError]}
                   />
 
                   {flow.confirmPasswordError ? (
@@ -286,16 +302,22 @@ export function ForgotPasswordCanvas({
             </View>
 
             <Pressable
+              disabled={flow.isRegisterSubmitting}
               style={({ pressed }) => [
                 styles.secondarySubmitButton,
-                pressed && styles.secondarySubmitButtonPressed,
+                pressed && !flow.isRegisterSubmitting && styles.secondarySubmitButtonPressed,
+                flow.isRegisterSubmitting && styles.secondarySubmitButtonLoading,
               ]}
               onPress={() => {
                 setActiveKeyboardTarget(null);
-                flow.handleResetPasswordSubmit();
+                flow.handleRegisterPasswordSubmit();
               }}
             >
-              <Text style={styles.secondarySubmitButtonText}>{forgotCopy.resetButton}</Text>
+              {flow.isRegisterSubmitting ? (
+                <ActivityIndicator size="small" color="rgba(255, 255, 255, 0.86)" />
+              ) : (
+                <Text style={styles.secondarySubmitButtonText}>{registerCopy.resetButton}</Text>
+              )}
             </Pressable>
           </View>
         ) : null}
@@ -304,12 +326,7 @@ export function ForgotPasswordCanvas({
       <CustomNumberKeyboard
         visible={activeKeyboardTarget === 'verificationCode'}
         onInput={(value) => {
-          if (flow.verificationCode.length >= 5) {
-            setActiveKeyboardTarget(null);
-            return;
-          }
-
-          const nextCode = flow.verificationCode + value;
+          const nextCode = `${flow.verificationCode}${value}`.slice(0, 5);
 
           flow.handleVerificationCodeChange(nextCode);
 
@@ -333,7 +350,7 @@ export function ForgotPasswordCanvas({
         }
         onInput={(value) => {
           if (activeKeyboardTarget === 'email') {
-            flow.setForgotPasswordEmail(flow.forgotPasswordEmail + value);
+            flow.setRegisterEmail(flow.registerEmail + value);
             return;
           }
 
@@ -350,7 +367,7 @@ export function ForgotPasswordCanvas({
         }}
         onBackspace={() => {
           if (activeKeyboardTarget === 'email') {
-            flow.setForgotPasswordEmail(flow.forgotPasswordEmail.slice(0, -1));
+            flow.setRegisterEmail(flow.registerEmail.slice(0, -1));
             return;
           }
 
@@ -372,10 +389,10 @@ export function ForgotPasswordCanvas({
 
       <LeaveConfirmModal
         visible={flow.isLeaveConfirmVisible}
-        copy={forgotCopy}
+        copy={registerCopy}
         styles={styles}
-        onConfirmLeave={flow.confirmLeaveForgotPassword}
-        onCancelLeave={flow.cancelLeaveForgotPassword}
+        onConfirmLeave={flow.confirmLeaveRegister}
+        onCancelLeave={flow.cancelLeaveRegister}
       />
     </View>
   );

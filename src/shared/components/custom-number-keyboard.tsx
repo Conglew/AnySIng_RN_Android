@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
   visible: boolean;
@@ -10,26 +11,42 @@ type Props = {
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'backspace', '0', 'done'];
 
 export function CustomNumberKeyboard({ visible, onInput, onBackspace, onDone }: Props) {
+  const insets = useSafeAreaInsets();
+
   if (!visible) {
     return null;
   }
 
   return (
-    <View style={styles.keyboard}>
+    <View
+      style={[
+        styles.keyboard,
+        {
+          paddingBottom: 16 + insets.bottom,
+        },
+      ]}
+    >
       {KEYS.map((key) => {
-        const label = key === 'backspace' ? '⌫' : key === 'done' ? '完成' : key;
+        const isBackspaceKey = key === 'backspace';
+        const isDoneKey = key === 'done';
+        const label = isBackspaceKey ? '⌫' : isDoneKey ? '完成' : key;
 
         return (
           <Pressable
             key={key}
-            style={styles.key}
+            style={({ pressed }) => [
+              styles.key,
+              pressed && styles.keyPressed,
+              isDoneKey && styles.doneKey,
+              pressed && isDoneKey && styles.doneKeyPressed,
+            ]}
             onPress={() => {
-              if (key === 'backspace') {
+              if (isBackspaceKey) {
                 onBackspace();
                 return;
               }
 
-              if (key === 'done') {
+              if (isDoneKey) {
                 onDone();
                 return;
               }
@@ -51,12 +68,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 260,
     flexDirection: 'row',
     flexWrap: 'wrap',
     backgroundColor: 'rgba(0, 0, 0, 0.92)',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingTop: 16,
     zIndex: 9999,
   },
   key: {
@@ -64,6 +80,20 @@ const styles = StyleSheet.create({
     height: 60,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 12,
+  },
+  keyPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.94 }],
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  doneKey: {
+    borderRadius: 12,
+  },
+  doneKeyPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.96 }],
+    backgroundColor: 'rgba(255, 122, 0, 0.36)',
   },
   keyText: {
     color: '#FFFFFF',

@@ -22,10 +22,13 @@ import {
   saveRememberedLogin,
 } from '@/src/services/auth/remembered-login-store';
 
+import { Ionicons } from '@expo/vector-icons';
+
 import { ForgotPasswordCanvas } from '@/src/features/auth/components/forgot-password-canvas';
+import { RegisterCanvas } from '@/src/features/auth/components/register-canvas';
 
 import { CustomEmailKeyboard } from '@/src/shared/components/custom-email-keyboard';
-import { CustomNumberKeyboard } from '@/src/shared/components/custom-number-keyboard';
+// import { CustomNumberKeyboard } from '@/src/shared/components/custom-number-keyboard';
 
 type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
 
@@ -44,15 +47,15 @@ type LoginCopy = {
   welcomeSubtitle: string;
 };
 
-type SecondaryCanvasCopy = {
-  title: string;
-  descriptionBefore: string;
-  descriptionHighlight: string;
-  descriptionAfter: string;
-  emailLabel: string;
-  emailPlaceholder: string;
-  submitButton: string;
-};
+// type SecondaryCanvasCopy = {
+//   title: string;
+//   descriptionBefore: string;
+//   descriptionHighlight: string;
+//   descriptionAfter: string;
+//   emailLabel: string;
+//   emailPlaceholder: string;
+//   submitButton: string;
+// };
 
 type LoginLanguageOption = {
   label: string;
@@ -86,7 +89,7 @@ const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
     emailLabel: '账号',
     emailPlaceholder: '请输入电子邮件',
     passwordLabel: '密码',
-    passwordPlaceholder: '6-12位英数字',
+    passwordPlaceholder: '请输入密码',
     rememberMe: '记住账号密码',
     loginButton: '登录',
     forgotPassword: '忘记密码',
@@ -98,7 +101,7 @@ const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
     emailLabel: '帳號',
     emailPlaceholder: '請輸入電子郵件',
     passwordLabel: '密碼',
-    passwordPlaceholder: '6-12位英數字',
+    passwordPlaceholder: '請輸入密碼',
     rememberMe: '記住帳號密碼',
     loginButton: '登入',
     forgotPassword: '忘記密碼',
@@ -110,7 +113,7 @@ const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
     emailLabel: 'Email',
     emailPlaceholder: 'Please enter your email',
     passwordLabel: 'Password',
-    passwordPlaceholder: '6-12 alphanumeric characters',
+    passwordPlaceholder: 'Please enter your password',
     rememberMe: 'Remember me',
     loginButton: 'Login',
     forgotPassword: 'Forgot password',
@@ -122,7 +125,7 @@ const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
     emailLabel: 'E-mel',
     emailPlaceholder: 'Sila masukkan e-mel anda',
     passwordLabel: 'Kata laluan',
-    passwordPlaceholder: '6-12 aksara alfanumerik',
+    passwordPlaceholder: 'Sila masukkan kata laluan',
     rememberMe: 'Ingat saya',
     loginButton: 'Log Masuk',
     forgotPassword: 'Terlupa kata laluan',
@@ -131,44 +134,44 @@ const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
   },
 };
 
-const REGISTER_COPY: Record<LanguageValue, SecondaryCanvasCopy> = {
-  'zh-CN': {
-    title: '快速注册账号',
-    descriptionBefore: '此电子邮件将用于未来登录账号使用。',
-    descriptionHighlight: '',
-    descriptionAfter: '',
-    emailLabel: '电子邮件',
-    emailPlaceholder: 'Example@example.com',
-    submitButton: '送出',
-  },
-  'zh-TW': {
-    title: '快速註冊帳號',
-    descriptionBefore: '此電子郵件將用於未來登入帳號使用。',
-    descriptionHighlight: '',
-    descriptionAfter: '',
-    emailLabel: '電子郵件',
-    emailPlaceholder: 'Example@example.com',
-    submitButton: '送出',
-  },
-  en: {
-    title: 'Quick Sign-Up',
-    descriptionBefore: 'This email will be used to log in to your account in the future.',
-    descriptionHighlight: '',
-    descriptionAfter: '',
-    emailLabel: 'Email',
-    emailPlaceholder: 'Example@example.com',
-    submitButton: 'Submit',
-  },
-  ms: {
-    title: 'Daftar Pantas',
-    descriptionBefore: 'E-mel ini akan digunakan untuk log masuk ke akaun anda pada masa hadapan.',
-    descriptionHighlight: '',
-    descriptionAfter: '',
-    emailLabel: 'E-mel',
-    emailPlaceholder: 'Example@example.com',
-    submitButton: 'Hantar',
-  },
-};
+// const REGISTER_COPY: Record<LanguageValue, SecondaryCanvasCopy> = {
+//   'zh-CN': {
+//     title: '快速注册账号',
+//     descriptionBefore: '此电子邮件将用于未来登录账号使用。',
+//     descriptionHighlight: '',
+//     descriptionAfter: '',
+//     emailLabel: '电子邮件',
+//     emailPlaceholder: 'Example@example.com',
+//     submitButton: '送出',
+//   },
+//   'zh-TW': {
+//     title: '快速註冊帳號',
+//     descriptionBefore: '此電子郵件將用於未來登入帳號使用。',
+//     descriptionHighlight: '',
+//     descriptionAfter: '',
+//     emailLabel: '電子郵件',
+//     emailPlaceholder: 'Example@example.com',
+//     submitButton: '送出',
+//   },
+//   en: {
+//     title: 'Quick Sign-Up',
+//     descriptionBefore: 'This email will be used to log in to your account in the future.',
+//     descriptionHighlight: '',
+//     descriptionAfter: '',
+//     emailLabel: 'Email',
+//     emailPlaceholder: 'Example@example.com',
+//     submitButton: 'Submit',
+//   },
+//   ms: {
+//     title: 'Daftar Pantas',
+//     descriptionBefore: 'E-mel ini akan digunakan untuk log masuk ke akaun anda pada masa hadapan.',
+//     descriptionHighlight: '',
+//     descriptionAfter: '',
+//     emailLabel: 'E-mel',
+//     emailPlaceholder: 'Example@example.com',
+//     submitButton: 'Hantar',
+//   },
+// };
 
 function normalizeLanguage(value: unknown): LanguageValue {
   if (value === 'zh-CN' || value === 'zh-TW' || value === 'en' || value === 'ms') {
@@ -196,11 +199,13 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
   const [activeLoginKeyboardTarget, setActiveLoginKeyboardTarget] =
     useState<LoginKeyboardTarget>(null);
 
   const [rememberMe, setRememberMe] = useState(true);
-  const [secondaryEmail, setSecondaryEmail] = useState('');
+  // const [secondaryEmail, setSecondaryEmail] = useState('');
 
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
 
@@ -280,7 +285,7 @@ export default function LoginScreen() {
 
   const loginCopy = LOGIN_COPY[language];
 
-  const secondaryCopy = REGISTER_COPY[language];
+  // const secondaryCopy = REGISTER_COPY[language];
 
   const getBackButtonPositionStyle = () => {
     const isChineseLanguage = language === 'zh-CN' || language === 'zh-TW';
@@ -354,7 +359,6 @@ export default function LoginScreen() {
     setActiveLoginKeyboardTarget(null);
     pushDebugLog('[LoginScreen] open register canvas');
     setCanvasMode('register');
-    setSecondaryEmail('');
     setIsLanguagePanelVisible(false);
   };
 
@@ -362,14 +366,13 @@ export default function LoginScreen() {
     setActiveLoginKeyboardTarget(null);
     pushDebugLog('[LoginScreen] open forgot password canvas');
     setCanvasMode('forgotPassword');
-    setSecondaryEmail('');
     setIsLanguagePanelVisible(false);
   };
 
   const handleBackToLoginCanvas = () => {
     pushDebugLog('[LoginScreen] back to login canvas');
     setCanvasMode('login');
-    setSecondaryEmail('');
+    setActiveLoginKeyboardTarget(null);
     setIsLanguagePanelVisible(false);
   };
 
@@ -384,15 +387,15 @@ export default function LoginScreen() {
     setIsLanguagePanelVisible(false);
   };
 
-  const handleSecondarySubmit = () => {
-    pushDebugLog(`[LoginScreen] secondary submit mode=${canvasMode}`);
+  // const handleSecondarySubmit = () => {
+  //   pushDebugLog(`[LoginScreen] secondary submit mode=${canvasMode}`);
 
-    console.log('[LoginScreen] secondary submit:', {
-      canvasMode,
-      language,
-      email: secondaryEmail,
-    });
-  };
+  //   console.log('[LoginScreen] secondary submit:', {
+  //     canvasMode,
+  //     language,
+  //     email: secondaryEmail,
+  //   });
+  // };
 
   const renderLoginCustomKeyboard = () => {
     return (
@@ -413,13 +416,7 @@ export default function LoginScreen() {
         <CustomEmailKeyboard
           visible={activeLoginKeyboardTarget === 'password'}
           onInput={(value) => {
-            setPassword((current) => {
-              if (current.length >= 12) {
-                return current;
-              }
-
-              return current + value;
-            });
+            setPassword((current) => current + value);
           }}
           onBackspace={() => {
             setPassword((current) => current.slice(0, -1));
@@ -435,15 +432,6 @@ export default function LoginScreen() {
   const renderLanguagePanel = () => {
     if (!isLanguagePanelVisible) {
       return null;
-    }
-
-    setActiveLoginKeyboardTarget(null);
-
-    const normalizedEmail = email.trim();
-
-    if (!normalizedEmail || !password) {
-      pushDebugLog('[LoginScreen] login failed: email or password is empty');
-      return;
     }
 
     return (
@@ -553,7 +541,7 @@ export default function LoginScreen() {
               />
             </View>
 
-            <View style={styles.inputGroup}>
+            {/* <View style={styles.inputGroup}>
               <Text style={styles.passwordLabel}>{loginCopy.passwordLabel}</Text>
 
               <TextInput
@@ -577,6 +565,50 @@ export default function LoginScreen() {
                 returnKeyType="done"
                 style={styles.input}
               />
+            </View> */}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.passwordLabel}>{loginCopy.passwordLabel}</Text>
+
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  ref={passwordInputRef}
+                  value={password}
+                  onChangeText={() => {
+                    // 不使用原生鍵盤輸入，所以這裡不用處理
+                  }}
+                  onPressIn={() => {
+                    pushDebugLog('[PasswordInput] custom keyboard open');
+                    setActiveLoginKeyboardTarget('password');
+                  }}
+                  placeholder={loginCopy.passwordPlaceholder}
+                  placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                  secureTextEntry={!isPasswordVisible}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={true}
+                  showSoftInputOnFocus={false}
+                  caretHidden={true}
+                  returnKeyType="done"
+                  style={[styles.input, styles.passwordInput]}
+                />
+
+                {password.length > 0 ? (
+                  <Pressable
+                    style={styles.passwordEyeButton}
+                    hitSlop={10}
+                    onPress={() => {
+                      setIsPasswordVisible((current) => !current);
+                    }}
+                  >
+                    <Ionicons
+                      name={isPasswordVisible ? 'eye-outline' : 'eye-off-outline'}
+                      size={24}
+                      color="rgba(255, 255, 255, 0.72)"
+                    />
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
 
             <Pressable
@@ -624,65 +656,19 @@ export default function LoginScreen() {
       );
     }
 
-    return (
-      <View style={styles.secondaryPage}>
-        <Pressable
-          style={[styles.backButton, getBackButtonPositionStyle()]}
-          onPress={handleBackToLoginCanvas}
-        >
-          <Text style={styles.backButtonText}>‹</Text>
-        </Pressable>
+    if (canvasMode === 'register') {
+      return (
+        <RegisterCanvas
+          language={language}
+          styles={styles}
+          backButtonPositionStyle={getBackButtonPositionStyle()}
+          onBackToLogin={handleBackToLoginCanvas}
+          pushDebugLog={pushDebugLog}
+        />
+      );
+    }
 
-        <View style={styles.secondaryContent}>
-          <Text style={styles.secondaryTitle}>{secondaryCopy.title}</Text>
-
-          <Text style={styles.secondaryDescription}>
-            {secondaryCopy.descriptionBefore}
-            {secondaryCopy.descriptionHighlight ? (
-              <Text style={styles.secondaryDescriptionHighlight}>
-                {secondaryCopy.descriptionHighlight}
-              </Text>
-            ) : null}
-            {secondaryCopy.descriptionAfter}
-          </Text>
-
-          <View style={styles.secondaryInputGroup}>
-            <Text style={styles.secondaryLabel}>{secondaryCopy.emailLabel}</Text>
-
-            <TextInput
-              ref={secondaryEmailInputRef}
-              value={secondaryEmail}
-              onChangeText={setSecondaryEmail}
-              onFocus={() => {
-                pushDebugLog('[SecondaryEmailInput] onFocus');
-              }}
-              onBlur={() => {
-                pushDebugLog('[SecondaryEmailInput] onBlur');
-              }}
-              placeholder={secondaryCopy.emailPlaceholder}
-              placeholderTextColor="rgba(255, 255, 255, 0.42)"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={true}
-              showSoftInputOnFocus={false}
-              returnKeyType="done"
-              style={styles.secondaryInput}
-            />
-          </View>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondarySubmitButton,
-              pressed && styles.secondarySubmitButtonPressed,
-            ]}
-            onPress={handleSecondarySubmit}
-          >
-            <Text style={styles.secondarySubmitButtonText}>{secondaryCopy.submitButton}</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
+    return null;
   };
 
   return (
@@ -1323,5 +1309,23 @@ const styles = StyleSheet.create({
   disabledPasswordInput: {
     opacity: 0.56,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+
+  passwordInputWrapper: {
+    position: 'relative',
+  },
+
+  passwordInput: {
+    paddingRight: 62,
+  },
+
+  passwordEyeButton: {
+    position: 'absolute',
+    right: 20,
+    top: 0,
+    bottom: 0,
+    width: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
