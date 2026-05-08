@@ -76,6 +76,13 @@ function RootLayoutNav() {
             presentation: 'modal',
           }}
         />
+
+        <Stack.Screen
+          name="payment"
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );
