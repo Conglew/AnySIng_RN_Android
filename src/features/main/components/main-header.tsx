@@ -9,7 +9,13 @@ export function MainHeader() {
         resizeMode="contain"
       />
 
-      <Pressable style={styles.languageButton}>{/* 之後可換成正式 globe icon */}</Pressable>
+      <Pressable style={styles.languageButton}>
+        <Image
+          source={require('@/assets/images/home-language-btn.png')}
+          style={styles.languageIcon}
+          resizeMode="contain"
+        />
+      </Pressable>
     </View>
   );
 }
@@ -17,20 +23,33 @@ export function MainHeader() {
 const styles = StyleSheet.create({
   header: {
     height: 64,
-    paddingHorizontal: 24,
+    paddingHorizontal: 30,
+    paddingVertical: 21,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
 
   logo: {
-    width: 86,
-    height: 32,
+    width: 560,
+    height: 240,
+    marginLeft: -210,
+    marginTop: 0,
   },
 
   languageButton: {
-    width: 32,
-    height: 32,
+    width: 48,
+    height: 48,
     borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    // 測試用，正式可以拿掉
+    // backgroundColor: 'red',
+  },
+
+  languageIcon: {
+    width: '100%',
+    height: '100%',
   },
 });
