@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Image,
   ImageBackground,
@@ -9,7 +10,11 @@ import {
   ViewStyle,
 } from 'react-native';
 
+import { CategoryPanel } from '@/src/features/main/components/category-panel';
 import { HomeSidePanel } from '@/src/features/main/components/home-side-panel';
+import { NewSongsPanel } from '@/src/features/main/components/new-songs-panel';
+import { RankingSongsPanel } from '@/src/features/main/components/ranking-songs-panel';
+import { SingerPanel } from '@/src/features/main/components/singer-panel';
 
 type HomeCard = {
   title: string;
@@ -66,6 +71,33 @@ const HOME_CARDS: HomeCard[] = [
 ];
 
 export default function HomeScreen() {
+  const [isCategoryPanelVisible, setIsCategoryPanelVisible] = useState(false);
+  const [isNewSongsPanelVisible, setIsNewSongsPanelVisible] = useState(false);
+  const [isRankingSongsPanelVisible, setIsRankingSongsPanelVisible] = useState(false);
+  const [isSingerPanelVisible, setIsSingerPanelVisible] = useState(false);
+
+  function handlePressHomeCard(title: string) {
+    if (title === '歌手') {
+      setIsSingerPanelVisible(true);
+      return;
+    }
+
+    if (title === '分類') {
+      setIsCategoryPanelVisible(true);
+      return;
+    }
+
+    if (title === '新歌') {
+      setIsNewSongsPanelVisible(true);
+      return;
+    }
+
+    if (title === '排行榜') {
+      setIsRankingSongsPanelVisible(true);
+      return;
+    }
+  }
+
   return (
     <View style={styles.page}>
       <View style={styles.cardSection}>
@@ -73,6 +105,7 @@ export default function HomeScreen() {
           <View key={item.title} style={styles.cardWrapper}>
             <Pressable
               style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
+              onPress={() => handlePressHomeCard(item.title)}
             >
               <ImageBackground
                 source={item.image}
@@ -81,7 +114,6 @@ export default function HomeScreen() {
                 resizeMode="cover"
               >
                 <View style={styles.menuCardOverlay}>
-                  {/* <Text style={styles.menuCardTitle}>{item.title}</Text> */}
                   <View style={styles.verticalTitleGroup}>
                     {item.title.split('').map((char, index) => (
                       <Text key={`${item.title}-${index}`} style={styles.menuCardTitle}>
@@ -107,8 +139,25 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.sidePanel}>
-        <HomeSidePanel videoSource={require('@/assets/demo/video/Test.mkv')} />
+        <HomeSidePanel videoAsset={require('@/assets/demo/video/Test.mkv')} />
       </View>
+
+      <CategoryPanel
+        visible={isCategoryPanelVisible}
+        onClose={() => setIsCategoryPanelVisible(false)}
+      />
+
+      <NewSongsPanel
+        visible={isNewSongsPanelVisible}
+        onClose={() => setIsNewSongsPanelVisible(false)}
+      />
+
+      <RankingSongsPanel
+        visible={isRankingSongsPanelVisible}
+        onClose={() => setIsRankingSongsPanelVisible(false)}
+      />
+
+      <SingerPanel visible={isSingerPanelVisible} onClose={() => setIsSingerPanelVisible(false)} />
     </View>
   );
 }

@@ -59,7 +59,8 @@
           "merchantIdentifier": "merchant.com.anysing.app",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

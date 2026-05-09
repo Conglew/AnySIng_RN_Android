@@ -1,79 +1,137 @@
-import { Href, router, usePathname } from 'expo-router';
+import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
+import { Href, usePathname } from 'expo-router';
+import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { SvgProps } from 'react-native-svg';
+
+import FooterIcon1 from '@/assets/images/footer-icons-1.svg';
+import FooterIcon2 from '@/assets/images/footer-icons-2.svg';
+import FooterIcon3 from '@/assets/images/footer-icons-3.svg';
+import FooterIcon4 from '@/assets/images/footer-icons-4.svg';
+import FooterIcon5 from '@/assets/images/footer-icons-5.svg';
+import FooterIcon6 from '@/assets/images/footer-icons-6.svg';
+import FooterIcon7 from '@/assets/images/footer-icons-7.svg';
+import FooterIcon8 from '@/assets/images/footer-icons-8.svg';
+import FooterIcon9 from '@/assets/images/footer-icons-9.svg';
+
+type FooterAction = 'navigate' | 'togglePause' | 'toggleAudioTrack';
 
 type FooterItem = {
   label: string;
   route: Href;
-  icon: string;
+  Icon: ComponentType<SvgProps>;
+  action: FooterAction;
 };
 
 const FOOTER_ITEMS: FooterItem[] = [
   {
     label: '主頁',
     route: '/(tabs)/home',
-    icon: '⌂',
+    Icon: FooterIcon1,
+    action: 'navigate',
   },
   {
     label: '點歌',
     route: '/(tabs)/two',
-    icon: '▦',
+    Icon: FooterIcon2,
+    action: 'navigate',
   },
   {
     label: '調音',
     route: '/(tabs)/tuning' as Href,
-    icon: '≡',
+    Icon: FooterIcon3,
+    action: 'navigate',
   },
   {
     label: '切歌',
     route: '/(tabs)/switch-song' as Href,
-    icon: '♬',
+    Icon: FooterIcon4,
+    action: 'navigate',
   },
   {
     label: '暫停',
     route: '/(tabs)/pause' as Href,
-    icon: 'Ⅱ',
+    Icon: FooterIcon5,
+    action: 'togglePause',
   },
   {
     label: '原唱',
     route: '/(tabs)/original' as Href,
-    icon: '♩',
+    Icon: FooterIcon6,
+    action: 'toggleAudioTrack',
   },
   {
     label: '重唱',
     route: '/(tabs)/restart' as Href,
-    icon: '↻',
+    Icon: FooterIcon7,
+    action: 'navigate',
   },
   {
     label: '已點',
     route: '/(tabs)/queue' as Href,
-    icon: '≡',
+    Icon: FooterIcon8,
+    action: 'navigate',
   },
   {
     label: '錄製',
     route: '/(tabs)/record' as Href,
-    icon: '◎',
+    Icon: FooterIcon9,
+    action: 'navigate',
   },
 ];
 
 export function MainFooter() {
   const pathname = usePathname();
 
+  const isPaused = usePlayerControlStore((state) => state.isPaused);
+  const audioTrackMode = usePlayerControlStore((state) => state.audioTrackMode);
+  const togglePause = usePlayerControlStore((state) => state.togglePause);
+  const toggleAudioTrackMode = usePlayerControlStore((state) => state.toggleAudioTrackMode);
+
   return (
     <View style={styles.footer}>
       {FOOTER_ITEMS.map((item) => {
         const isActive = pathname === item.route;
+        const Icon = item.Icon;
 
         return (
           <Pressable
             key={String(item.route)}
             style={({ pressed }) => [styles.footerItem, pressed && styles.footerItemPressed]}
             onPress={() => {
-              router.replace(item.route);
+              console.log('[MainFooter] pressed item:', item.label);
+              console.log('[MainFooter] action:', item.action);
+
+              if (item.action === 'togglePause') {
+                console.log('[MainFooter] before toggle isPaused:', isPaused);
+                console.log('[MainFooter] after toggle isPaused should be:', !isPaused);
+
+                togglePause();
+                return;
+              }
+
+              if (item.action === 'toggleAudioTrack') {
+                const nextAudioTrackMode = audioTrackMode === 'vocal' ? 'accompaniment' : 'vocal';
+
+                console.log('[MainFooter] before toggle audioTrackMode:', audioTrackMode);
+                console.log(
+                  '[MainFooter] after toggle audioTrackMode should be:',
+                  nextAudioTrackMode,
+                );
+
+                toggleAudioTrackMode();
+                return;
+              }
+
+              // router.replace(item.route);
             }}
           >
-            <Text style={[styles.footerIcon, isActive && styles.footerIconActive]}>
-              {item.icon}
-            </Text>
+            <Icon
+              width={28}
+              height={28}
+              color={isActive ? '#A78BFA' : '#FFFFFF'}
+              fill={isActive ? '#A78BFA' : '#FFFFFF'}
+            />
 
             <Text style={[styles.footerLabel, isActive && styles.footerLabelActive]}>
               {item.label}
@@ -107,18 +165,8 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
 
-  footerIcon: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-
-  footerIconActive: {
-    color: '#FFFFFF',
-  },
-
   footerLabel: {
+    marginTop: 6,
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '500',
