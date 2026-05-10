@@ -1,3 +1,4 @@
+import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
 import { useState } from 'react';
 import {
   Image,
@@ -76,6 +77,15 @@ export default function HomeScreen() {
   const [isRankingSongsPanelVisible, setIsRankingSongsPanelVisible] = useState(false);
   const [isSingerPanelVisible, setIsSingerPanelVisible] = useState(false);
 
+  const setMainBackgroundMode = useMainBackgroundStore((state) => state.setMode);
+  const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
+
+  const shouldHideHomeContent =
+    isSingerPanelVisible ||
+    isCategoryPanelVisible ||
+    isNewSongsPanelVisible ||
+    isRankingSongsPanelVisible;
+
   function handlePressHomeCard(title: string) {
     if (title === '歌手') {
       setIsSingerPanelVisible(true);
@@ -93,6 +103,7 @@ export default function HomeScreen() {
     }
 
     if (title === '排行榜') {
+      setMainBackgroundMode('ranking');
       setIsRankingSongsPanelVisible(true);
       return;
     }
@@ -100,46 +111,54 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.page}>
-      <View style={styles.cardSection}>
-        {HOME_CARDS.map((item) => (
-          <View key={item.title} style={styles.cardWrapper}>
-            <Pressable
-              style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
-              onPress={() => handlePressHomeCard(item.title)}
-            >
-              <ImageBackground
-                source={item.image}
-                style={styles.menuCardBackground}
-                imageStyle={styles.menuCardBackgroundImage}
-                resizeMode="cover"
+      <View
+        pointerEvents={shouldHideHomeContent ? 'none' : 'auto'}
+        style={[styles.homeContentLayer, shouldHideHomeContent && styles.homeContentLayerHidden]}
+      >
+        <View style={styles.cardSection}>
+          {HOME_CARDS.map((item) => (
+            <View key={item.title} style={styles.cardWrapper}>
+              <Pressable
+                style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
+                onPress={() => handlePressHomeCard(item.title)}
               >
-                <View style={styles.menuCardOverlay}>
-                  <View style={styles.verticalTitleGroup}>
-                    {item.title.split('').map((char, index) => (
-                      <Text key={`${item.title}-${index}`} style={styles.menuCardTitle}>
-                        {char}
-                      </Text>
-                    ))}
+                <ImageBackground
+                  source={item.image}
+                  style={styles.menuCardBackground}
+                  imageStyle={styles.menuCardBackgroundImage}
+                  resizeMode="cover"
+                >
+                  <View style={styles.menuCardOverlay}>
+                    <View style={styles.verticalTitleGroup}>
+                      {item.title.split('').map((char, index) => (
+                        <Text key={`${item.title}-${index}`} style={styles.menuCardTitle}>
+                          {char}
+                        </Text>
+                      ))}
+                    </View>
                   </View>
+                </ImageBackground>
+              </Pressable>
+
+              {item.foregroundImage ? (
+                <View
+                  pointerEvents="none"
+                  style={[styles.cardForegroundLayer, item.foregroundStyle]}
+                >
+                  <Image
+                    source={item.foregroundImage}
+                    style={styles.cardForegroundImage}
+                    resizeMode="contain"
+                  />
                 </View>
-              </ImageBackground>
-            </Pressable>
+              ) : null}
+            </View>
+          ))}
+        </View>
 
-            {item.foregroundImage ? (
-              <View pointerEvents="none" style={[styles.cardForegroundLayer, item.foregroundStyle]}>
-                <Image
-                  source={item.foregroundImage}
-                  style={styles.cardForegroundImage}
-                  resizeMode="contain"
-                />
-              </View>
-            ) : null}
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.sidePanel}>
-        <HomeSidePanel videoAsset={require('@/assets/demo/video/Test.mkv')} />
+        <View style={styles.sidePanel}>
+          <HomeSidePanel videoAsset={require('@/assets/demo/video/Test.mkv')} />
+        </View>
       </View>
 
       <CategoryPanel
@@ -154,7 +173,10 @@ export default function HomeScreen() {
 
       <RankingSongsPanel
         visible={isRankingSongsPanelVisible}
-        onClose={() => setIsRankingSongsPanelVisible(false)}
+        onClose={() => {
+          setIsRankingSongsPanelVisible(false);
+          resetMainBackgroundMode();
+        }}
       />
 
       <SingerPanel visible={isSingerPanelVisible} onClose={() => setIsSingerPanelVisible(false)} />
@@ -165,8 +187,20 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
+    // flexDirection: 'row',
+    // alignItems: 'center',
+    position: 'relative',
+    paddingHorizontal: 32,
+  },
+
+  homeContentLayer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+
+  homeContentLayerHidden: {
+    opacity: 0,
   },
 
   cardSection: {
