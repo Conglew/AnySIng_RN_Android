@@ -9,6 +9,15 @@ import {
   View,
 } from 'react-native';
 
+import * as ExpoFileSystem from 'expo-file-system/legacy';
+
+import {
+  ResolvedSongAssets,
+  songAssetResolverService,
+} from '@/src/features/player/services/song-asset-resolver.service';
+import { songCacheService } from '@/src/features/player/services/song-cache.service';
+import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
+
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { songClient } from '@/src/services/song/song-client';
 import { SongDto } from '@/src/services/song/song.types';
@@ -30,6 +39,13 @@ type LanguageTab = {
   label: string;
   value?: string;
 };
+
+type SongActionStatus = {
+  phase: 'preparing' | 'downloading';
+  progress?: number;
+};
+
+type SongActionStatusMap = Record<string, SongActionStatus | undefined>;
 
 const PAGE_SIZE = 20;
 
@@ -95,12 +111,83 @@ function getTotalPages(total: number) {
   return Math.max(1, Math.ceil(total / PAGE_SIZE));
 }
 
+function getFileExtensionFromS3Key(key?: string) {
+  if (!key) {
+    return 'mkv';
+  }
+
+  const filename = key.split('/').pop() || '';
+  const extension = filename.split('.').pop();
+
+  if (!extension || extension.length > 8) {
+    return 'mkv';
+  }
+
+  return extension;
+}
+
+function calculateDownloadProgress(totalBytesWritten: number, totalBytesExpectedToWrite: number) {
+  if (totalBytesExpectedToWrite <= 0) {
+    return 0;
+  }
+
+  const progress = Math.floor((totalBytesWritten / totalBytesExpectedToWrite) * 100);
+
+  return Math.max(0, Math.min(progress, 100));
+}
+
+function getInsertButtonText(status?: SongActionStatus) {
+  if (!status) {
+    return '插播';
+  }
+
+  if (status.phase === 'preparing') {
+    return '準備中';
+  }
+
+  if (status.phase === 'downloading') {
+    const progress = status.progress ?? 0;
+    return `下載中 ${progress}%`;
+  }
+
+  return '插播';
+}
+
+function createPlaybackQueueItem({
+  song,
+  localVideoUri,
+  artistText,
+}: {
+  song: SongDto;
+  localVideoUri: string;
+  artistText?: string;
+}) {
+  return {
+    queueId: `${song._id}-${Date.now()}`,
+    songId: song._id,
+    song,
+    title: song.title,
+    artistText,
+    localVideoUri,
+    status: 'ready' as const,
+    createdAt: Date.now(),
+  };
+}
+
 export function RankingSongsPanel({ visible, onClose }: Props) {
   const [songs, setSongs] = useState<SongDto[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageTab>(LANGUAGE_TABS[0]);
   const [searchKeyword, setSearchKeyword] = useState('');
+
+  const [resolvingSongId, setResolvingSongId] = useState<string | null>(null);
+  const [resolvedSongAsset, setResolvedSongAsset] = useState<ResolvedSongAssets | null>(null);
+
+  const enqueueSong = usePlaybackQueueStore((state) => state.enqueue);
+  const enqueueNextSong = usePlaybackQueueStore((state) => state.enqueueNext);
+
+  const [songActionStatusMap, setSongActionStatusMap] = useState<SongActionStatusMap>({});
 
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -195,6 +282,249 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
     setSelectedLanguage(tab);
   }, []);
 
+  /*
+    點擊歌曲
+    ↓
+    有 cache：直接加入播放隊列
+    ↓
+    沒 cache：下載完成後加入播放隊列
+  */
+  const handlePressSong = useCallback(
+    async (song: SongDto) => {
+      const songId = song._id;
+
+      try {
+        setErrorMessage('');
+
+        setSongActionStatusMap((previous) => ({
+          ...previous,
+          [songId]: {
+            phase: 'preparing',
+          },
+        }));
+
+        const cachedSong = await songCacheService.getCachedSong(songId);
+
+        if (cachedSong?.videoUri) {
+          enqueueSong(
+            createPlaybackQueueItem({
+              song,
+              artistText: formatArtists(song.artists),
+              localVideoUri: cachedSong.videoUri,
+            }),
+          );
+
+          return;
+        }
+
+        const resolvedAssets = await songAssetResolverService.resolveFromS3Title({
+          songId,
+          title: song.title,
+        });
+
+        setSongActionStatusMap((previous) => ({
+          ...previous,
+          [songId]: {
+            phase: 'downloading',
+            progress: 0,
+          },
+        }));
+
+        const songDir = await songCacheService.ensureSongDir(songId);
+        const extension = getFileExtensionFromS3Key(resolvedAssets.s3Key);
+        const targetUri = `${songDir}video.${extension}`;
+
+        let lastProgress = -1;
+
+        const downloadResumable = ExpoFileSystem.createDownloadResumable(
+          resolvedAssets.videoUrl,
+          targetUri,
+          {},
+          (downloadProgress) => {
+            const progress = calculateDownloadProgress(
+              downloadProgress.totalBytesWritten,
+              downloadProgress.totalBytesExpectedToWrite,
+            );
+
+            if (progress === lastProgress) {
+              return;
+            }
+
+            lastProgress = progress;
+
+            setSongActionStatusMap((previous) => ({
+              ...previous,
+              [songId]: {
+                phase: 'downloading',
+                progress,
+              },
+            }));
+          },
+        );
+
+        const downloadResult = await downloadResumable.downloadAsync();
+
+        if (!downloadResult?.uri) {
+          throw new Error('Download failed: missing local uri.');
+        }
+
+        await songCacheService.saveCachedSong(songId, {
+          songId,
+          videoUri: downloadResult.uri,
+          downloadedAt: Date.now(),
+          totalBytes: resolvedAssets.size,
+        });
+
+        enqueueSong(
+          createPlaybackQueueItem({
+            song,
+            artistText: formatArtists(song.artists),
+            localVideoUri: downloadResult.uri,
+          }),
+        );
+      } catch (error) {
+        console.log('[RankingSongsPanel] handlePressSong failed:', error);
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      } finally {
+        setSongActionStatusMap((previous) => ({
+          ...previous,
+          [songId]: undefined,
+        }));
+      }
+    },
+    [enqueueSong],
+  );
+
+  const handlePressInsert = useCallback(
+    async (song: SongDto) => {
+      const songId = song._id;
+
+      try {
+        setErrorMessage('');
+
+        setSongActionStatusMap((previous) => ({
+          ...previous,
+          [songId]: {
+            phase: 'preparing',
+          },
+        }));
+
+        console.log('[RankingSongsPanel] insert preparing:', {
+          songId,
+          title: song.title,
+        });
+
+        const cachedSong = await songCacheService.getCachedSong(songId);
+
+        if (cachedSong?.videoUri) {
+          console.log('[RankingSongsPanel] insert song already cached:', {
+            songId,
+            cachedSong,
+          });
+
+          enqueueNextSong(
+            createPlaybackQueueItem({
+              song,
+              artistText: formatArtists(song.artists),
+              localVideoUri: cachedSong.videoUri,
+            }),
+          );
+
+          return;
+        }
+
+        const resolvedAssets = await songAssetResolverService.resolveFromS3Title({
+          songId,
+          title: song.title,
+        });
+
+        console.log('[RankingSongsPanel] insert resolved S3 signed url:', {
+          songId,
+          title: song.title,
+          s3Key: resolvedAssets.s3Key,
+          videoUrl: resolvedAssets.videoUrl,
+        });
+
+        setResolvedSongAsset(resolvedAssets);
+
+        setSongActionStatusMap((previous) => ({
+          ...previous,
+          [songId]: {
+            phase: 'downloading',
+            progress: 0,
+          },
+        }));
+
+        const songDir = await songCacheService.ensureSongDir(songId);
+        const extension = getFileExtensionFromS3Key(resolvedAssets.s3Key);
+        const targetUri = `${songDir}video.${extension}`;
+
+        let lastProgress = -1;
+
+        const downloadResumable = ExpoFileSystem.createDownloadResumable(
+          resolvedAssets.videoUrl,
+          targetUri,
+          {},
+          (downloadProgress) => {
+            const progress = calculateDownloadProgress(
+              downloadProgress.totalBytesWritten,
+              downloadProgress.totalBytesExpectedToWrite,
+            );
+
+            if (progress === lastProgress) {
+              return;
+            }
+
+            lastProgress = progress;
+
+            setSongActionStatusMap((previous) => ({
+              ...previous,
+              [songId]: {
+                phase: 'downloading',
+                progress,
+              },
+            }));
+          },
+        );
+
+        const downloadResult = await downloadResumable.downloadAsync();
+
+        if (!downloadResult?.uri) {
+          throw new Error('Download failed: missing local uri.');
+        }
+
+        await songCacheService.saveCachedSong(songId, {
+          songId,
+          videoUri: downloadResult.uri,
+          downloadedAt: Date.now(),
+          totalBytes: resolvedAssets.size,
+        });
+
+        console.log('[RankingSongsPanel] insert download completed:', {
+          songId,
+          localUri: downloadResult.uri,
+        });
+
+        enqueueNextSong(
+          createPlaybackQueueItem({
+            song,
+            artistText: formatArtists(song.artists),
+            localVideoUri: downloadResult.uri,
+          }),
+        );
+      } catch (error) {
+        console.log('[RankingSongsPanel] handlePressInsert failed:', error);
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      } finally {
+        setSongActionStatusMap((previous) => ({
+          ...previous,
+          [songId]: undefined,
+        }));
+      }
+    },
+    [enqueueNextSong],
+  );
+
   useEffect(() => {
     if (!visible) {
       return;
@@ -262,10 +592,43 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                 onEndReached={loadNextPage}
                 onEndReachedThreshold={0.35}
                 renderItem={({ item }) => (
-                  <View style={styles.songRow}>
+                  // <View style={styles.songRow}>
+                  //   <View style={styles.songIconBox}>
+                  //     <SongReadyIcon width={32} height={32} />
+                  //   </View>
+                  //   <Text style={styles.songTitle} numberOfLines={1}>
+                  //     {truncateText(item.title, 11)}
+                  //   </Text>
+
+                  //   <Text style={styles.artistText} numberOfLines={1}>
+                  //     {truncateText(formatArtists(item.artists), 5)}
+                  //   </Text>
+
+                  //   <Pressable style={styles.favoriteButton}>
+                  //     {item.isCollected ? (
+                  //       <SongLikedIcon width={42} height={42} />
+                  //     ) : (
+                  //       <SongLikeIcon width={42} height={42} />
+                  //     )}
+                  //   </Pressable>
+
+                  //   <Pressable style={styles.insertButton}>
+                  //     <Text style={styles.insertText}>插播</Text>
+                  //   </Pressable>
+                  // </View>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.songRow,
+                      pressed && styles.songRowPressed,
+                      songActionStatusMap[item._id] && styles.songRowResolving,
+                    ]}
+                    onPress={() => handlePressInsert(item)}
+                  >
                     <View style={styles.songIconBox}>
                       <SongReadyIcon width={32} height={32} />
                     </View>
+
                     <Text style={styles.songTitle} numberOfLines={1}>
                       {truncateText(item.title, 11)}
                     </Text>
@@ -282,10 +645,19 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                       )}
                     </Pressable>
 
-                    <Pressable style={styles.insertButton}>
-                      <Text style={styles.insertText}>插播</Text>
+                    <Pressable
+                      style={styles.insertButton}
+                      disabled={Boolean(songActionStatusMap[item._id])}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        handlePressInsert(item);
+                      }}
+                    >
+                      <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
+                        {getInsertButtonText(songActionStatusMap[item._id])}
+                      </Text>
                     </Pressable>
-                  </View>
+                  </Pressable>
                 )}
                 ListEmptyComponent={
                   <View style={styles.centerContent}>
@@ -444,7 +816,8 @@ const styles = StyleSheet.create({
   },
 
   songTitle: {
-    flex: 1.15,
+    // flex: 1.15,
+    width: 285,
     minWidth: 0,
     color: '#FFFFFF',
     fontSize: 20,
@@ -452,7 +825,7 @@ const styles = StyleSheet.create({
   },
 
   artistText: {
-    flex: 0.72,
+    flex: 1.2,
     minWidth: 0,
     color: '#FFFFFF',
     fontSize: 17,
@@ -474,16 +847,23 @@ const styles = StyleSheet.create({
   },
 
   insertButton: {
-    width: 70,
+    width: 90,
     height: 42,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
+    overflow: 'visible',
+    // backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
 
   insertText: {
+    width: 90,
+    flexShrink: 0,
+
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
+    includeFontPadding: false,
+    textAlign: 'center',
   },
 
   leftFooter: {
@@ -547,5 +927,13 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  songRowPressed: {
+    opacity: 0.82,
+  },
+
+  songRowResolving: {
+    opacity: 0.55,
   },
 });

@@ -6,6 +6,8 @@ import Video, { SelectedTrackType, type SelectedTrack } from 'react-native-video
 
 import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
 
+import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
+
 type Props = {
   videoUri?: string;
   videoAsset?: number;
@@ -23,6 +25,11 @@ const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/demo/video/Test.mkv');
 export function HomeSidePanel({ videoUri, videoAsset }: Props) {
   const [resolvedVideoUri, setResolvedVideoUri] = useState<string | null>(null);
   const [videoLoadError, setVideoLoadError] = useState<string>('');
+
+  const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
+  const finishCurrentPlaybackItem = usePlaybackQueueStore((state) => state.finishCurrent);
+
+  const playbackVideoUri = currentPlaybackItem?.localVideoUri ?? resolvedVideoUri;
 
   const isPaused = usePlayerControlStore((state) => state.isPaused);
   const audioTrackMode = usePlayerControlStore((state) => state.audioTrackMode);
@@ -188,19 +195,20 @@ export function HomeSidePanel({ videoUri, videoAsset }: Props) {
       </View>
 
       <View style={styles.playerFrame}>
-        {resolvedVideoUri ? (
+        {playbackVideoUri ? (
           <Video
-            key={resolvedVideoUri}
-            source={{ uri: resolvedVideoUri }}
+            key={currentPlaybackItem?.queueId ?? playbackVideoUri}
+            source={{ uri: playbackVideoUri }}
             style={styles.video}
             resizeMode="contain"
             controls={false}
-            repeat={true}
+            repeat={false}
             paused={isPaused}
             muted={false}
             selectedAudioTrack={selectedAudioTrack}
             onLoad={(payload: any) => {
-              console.log('[ReactNativeVideo] resolvedVideoUri:', resolvedVideoUri);
+              console.log('[ReactNativeVideo] playbackVideoUri:', playbackVideoUri);
+              console.log('[ReactNativeVideo] currentPlaybackItem:', currentPlaybackItem);
               console.log('[ReactNativeVideo] onLoad payload:', payload);
               console.log('[ReactNativeVideo] audioTracks:', payload?.audioTracks);
 
@@ -215,15 +223,20 @@ export function HomeSidePanel({ videoUri, videoAsset }: Props) {
                   ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX
                   : null,
               });
-
-              console.log('[ReactNativeVideo] selected vocal track:', vocalTrack);
-              console.log('[ReactNativeVideo] selected accompaniment track:', accompanimentTrack);
             }}
-            onError={(error: any) => {
-              console.log('[ReactNativeVideo] error:', error);
-              console.log('[ReactNativeVideo] failed uri:', resolvedVideoUri);
+            onEnd={() => {
+              console.log('[ReactNativeVideo] playback ended:', {
+                songId: currentPlaybackItem?.songId,
+                song: currentPlaybackItem?.song,
+              });
 
-              setVideoLoadError(JSON.stringify(error));
+              finishCurrentPlaybackItem();
+            }}
+            onError={(event) => {
+              console.log('[ReactNativeVideo] error:', event);
+              setVideoLoadError(JSON.stringify(event));
+
+              finishCurrentPlaybackItem();
             }}
           />
         ) : (

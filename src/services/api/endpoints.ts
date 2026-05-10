@@ -17,6 +17,7 @@ export const ENDPOINTS = {
     batch: '/songs/batch',
     detail: (songId: string) => `/songs/${songId}`,
     presignedUrls: '/songs/s3/presigned-urls',
+    resolveFromS3: '/songs/s3/resolve',
   },
 
   categories: {

@@ -1,24 +1,38 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { storageManagerService } from './storage-manager.service';
 
 import { CachedSongAsset } from '../types/cached-song.types';
 
-const CACHE_INDEX_KEY = 'song-cache-index-v1';
+const CACHE_INDEX_URI = `${FileSystem.documentDirectory}song-cache-index-v1.json`;
 
 function getSongCacheDir(songId: string) {
   return storageManagerService.getSongDirectory(songId);
 }
 
-async function readCacheIndex(): Promise<Record<string, CachedSongAsset>> {
-  const raw = await AsyncStorage.getItem(CACHE_INDEX_KEY);
+async function fileExists(uri?: string) {
+  if (!uri) {
+    return true;
+  }
 
-  if (!raw) {
+  const info = await FileSystem.getInfoAsync(uri);
+  return info.exists;
+}
+
+async function readCacheIndex(): Promise<Record<string, CachedSongAsset>> {
+  const info = await FileSystem.getInfoAsync(CACHE_INDEX_URI);
+
+  if (!info.exists) {
     return {};
   }
 
   try {
+    const raw = await FileSystem.readAsStringAsync(CACHE_INDEX_URI);
+
+    if (!raw) {
+      return {};
+    }
+
     return JSON.parse(raw);
   } catch {
     return {};
@@ -26,7 +40,7 @@ async function readCacheIndex(): Promise<Record<string, CachedSongAsset>> {
 }
 
 async function writeCacheIndex(index: Record<string, CachedSongAsset>) {
-  await AsyncStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(index));
+  await FileSystem.writeAsStringAsync(CACHE_INDEX_URI, JSON.stringify(index));
 }
 
 export const songCacheService = {
@@ -38,9 +52,11 @@ export const songCacheService = {
       return null;
     }
 
-    const videoExists = cached.videoUri ? await FileSystem.getInfoAsync(cached.videoUri) : null;
+    const hasVideo = await fileExists(cached.videoUri);
+    const hasVocal = await fileExists(cached.vocalUri);
+    const hasInstrumental = await fileExists(cached.instrumentalUri);
 
-    if (cached.videoUri && !videoExists?.exists) {
+    if (!hasVideo || !hasVocal || !hasInstrumental) {
       delete index[songId];
       await writeCacheIndex(index);
       return null;

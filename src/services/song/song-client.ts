@@ -5,6 +5,7 @@ import {
   GetSongsParams,
   PresignedUrlRequest,
   PresignedUrlResponse,
+  ResolveSongFileFromS3Response,
   SearchSongsParams,
   SongBatchRequest,
   SongBatchResponse,
@@ -100,6 +101,20 @@ export const songClient = {
       path: ENDPOINTS.songs.presignedUrls,
       token,
       body,
+    });
+  },
+
+  resolveSongFileFromS3({ token, title }: { token: string; title: string }) {
+    const query = buildQuery({
+      title,
+    });
+
+    return apiRequest<ResolveSongFileFromS3Response>({
+      method: 'GET',
+      path: `${ENDPOINTS.songs.resolveFromS3}${query}`,
+      token,
+
+      timeoutMs: 100000,
     });
   },
 };

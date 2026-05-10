@@ -110,3 +110,11 @@ export type PresignedUrlResponse = {
     >
   >;
 };
+
+export type ResolveSongFileFromS3Response = {
+  title: string;
+  key: string;
+  size?: number;
+  lastModified?: string;
+  signedUrl: string;
+};
