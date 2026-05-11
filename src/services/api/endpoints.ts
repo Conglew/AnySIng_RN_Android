@@ -10,6 +10,11 @@ export const ENDPOINTS = {
     deleteAccount: '/auth/users/me',
   },
 
+  playlists: {
+    user: '/playlist/user',
+    now: '/playlist/user/now',
+  },
+
   songs: {
     list: '/songs',
     search: '/songs/search',

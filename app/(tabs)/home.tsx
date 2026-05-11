@@ -14,6 +14,7 @@ import {
 import { CachedSongsPanel } from '@/src/features/main/components/cached-songs-panel';
 import { CategoryPanel } from '@/src/features/main/components/category-panel';
 import { HomeSidePanel } from '@/src/features/main/components/home-side-panel';
+import { MySongsPanel } from '@/src/features/main/components/my-songs-panel';
 import { NewSongsPanel } from '@/src/features/main/components/new-songs-panel';
 import { RankingSongsPanel } from '@/src/features/main/components/ranking-songs-panel';
 import { SingerPanel } from '@/src/features/main/components/singer-panel';
@@ -78,6 +79,7 @@ export default function HomeScreen() {
   const [isRankingSongsPanelVisible, setIsRankingSongsPanelVisible] = useState(false);
   const [isSingerPanelVisible, setIsSingerPanelVisible] = useState(false);
   const [isCachedSongsPanelVisible, setIsCachedSongsPanelVisible] = useState(false);
+  const [isMySongsPanelVisible, setIsMySongsPanelVisible] = useState(false);
 
   const setMainBackgroundMode = useMainBackgroundStore((state) => state.setMode);
   const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
@@ -87,7 +89,8 @@ export default function HomeScreen() {
     isCategoryPanelVisible ||
     isNewSongsPanelVisible ||
     isRankingSongsPanelVisible ||
-    isCachedSongsPanelVisible;
+    isCachedSongsPanelVisible ||
+    isMySongsPanelVisible;
 
   function handlePressHomeCard(title: string) {
     if (title === '歌手') {
@@ -165,6 +168,10 @@ export default function HomeScreen() {
         <View style={styles.sidePanel}>
           <HomeSidePanel
             videoAsset={require('@/assets/demo/video/Test.mkv')}
+            onOpenMySongsPanel={() => {
+              setMainBackgroundMode('category');
+              setIsMySongsPanelVisible(true);
+            }}
             onOpenCachedSongsPanel={() => {
               setMainBackgroundMode('category');
               setIsCachedSongsPanelVisible(true);
@@ -209,6 +216,14 @@ export default function HomeScreen() {
         visible={isCachedSongsPanelVisible}
         onClose={() => {
           setIsCachedSongsPanelVisible(false);
+          resetMainBackgroundMode();
+        }}
+      />
+
+      <MySongsPanel
+        visible={isMySongsPanelVisible}
+        onClose={() => {
+          setIsMySongsPanelVisible(false);
           resetMainBackgroundMode();
         }}
       />

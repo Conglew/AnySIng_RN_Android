@@ -9,6 +9,9 @@ import { songCacheService } from '../services/song-cache.service';
 import { usePlaybackQueueStore } from '../stores/playback-queue.store';
 import { useSongDownloadStatusStore } from '../stores/song-download-status.store';
 
+import { getAccessToken } from '@/src/services/auth/auth-token-store';
+import { playlistClient } from '@/src/services/playlist/playlist-client';
+
 function formatArtists(artists: SongDto['artists']) {
   if (!Array.isArray(artists) || artists.length === 0) {
     return '未知歌手';
@@ -18,6 +21,41 @@ function formatArtists(artists: SongDto['artists']) {
     .map((artist) => String(artist))
     .filter(Boolean)
     .join('、');
+}
+
+function findLatestPlaylistSongItemBySongId({
+  songs,
+  songId,
+}: {
+  songs?: Array<{
+    songId: string;
+    queueId?: string | null;
+    addedAt?: string;
+  }>;
+  songId: string;
+}) {
+  if (!Array.isArray(songs) || songs.length === 0) {
+    return null;
+  }
+
+  const matchedItems = songs.filter((item) => item.songId === songId && item.queueId);
+
+  if (matchedItems.length === 0) {
+    return null;
+  }
+
+  const hasAddedAt = matchedItems.some((item) => Boolean(item.addedAt));
+
+  if (!hasAddedAt) {
+    return matchedItems[matchedItems.length - 1];
+  }
+
+  return matchedItems.sort((a, b) => {
+    const aTime = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+    const bTime = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+
+    return bTime - aTime;
+  })[0];
 }
 
 function getFileExtensionFromS3Key(key?: string) {
@@ -47,15 +85,17 @@ function calculateDownloadProgress(totalBytesWritten: number, totalBytesExpected
 
 function createPlaybackQueueItem({
   song,
+  queueId,
   localVideoUri,
   artistText,
 }: {
   song: SongDto;
+  queueId: string;
   localVideoUri: string;
   artistText?: string;
 }) {
   return {
-    queueId: `${song._id}-${Date.now()}`,
+    queueId,
     songId: song._id,
     song,
     title: song.title,
@@ -85,6 +125,82 @@ export function useInsertSongPlayback() {
   const enqueueSong = usePlaybackQueueStore((state) => state.enqueue);
   const enqueueNextSong = usePlaybackQueueStore((state) => state.enqueueNext);
 
+  const syncPendingPlaylistAndEnqueue = useCallback(
+    async ({
+      song,
+      localVideoUri,
+      mode,
+    }: {
+      song: SongDto;
+      localVideoUri: string;
+      mode: InsertSongMode;
+    }) => {
+      const token = await getAccessToken();
+
+      if (!token) {
+        throw new Error('Missing access token.');
+      }
+
+      if (mode === 'queue') {
+        const response = await playlistClient.addSongToPlaylist({
+          token,
+          type: 'pending',
+          songId: song._id,
+        });
+
+        const playlistItem = findLatestPlaylistSongItemBySongId({
+          songs: response.playlist.songs,
+          songId: song._id,
+        });
+
+        if (!playlistItem?.queueId) {
+          throw new Error('Missing backend queueId after adding song to playlist.');
+        }
+
+        const item = createPlaybackQueueItem({
+          song,
+          queueId: playlistItem.queueId,
+          artistText: formatArtists(song.artists),
+          localVideoUri,
+        });
+
+        enqueueSong(item);
+        return;
+      }
+
+      const response = await playlistClient.interjectSongNext({
+        token,
+        songId: song._id,
+      });
+
+      /**
+       * 插播下一首時，後端 response 通常會直接給 nextUp。
+       * 這是最準的來源。
+       */
+      const playlistItem =
+        response.nextUp?.songId === song._id && response.nextUp.queueId
+          ? response.nextUp
+          : findLatestPlaylistSongItemBySongId({
+              songs: response.playlist.songs,
+              songId: song._id,
+            });
+
+      if (!playlistItem?.queueId) {
+        throw new Error('Missing backend queueId after interjecting song.');
+      }
+
+      const item = createPlaybackQueueItem({
+        song,
+        queueId: playlistItem.queueId,
+        artistText: formatArtists(song.artists),
+        localVideoUri,
+      });
+
+      enqueueNextSong(item);
+    },
+    [enqueueNextSong, enqueueSong],
+  );
+
   const songActionStatusMap = useSongDownloadStatusStore((state) => state.statusMap);
   const setPreparing = useSongDownloadStatusStore((state) => state.setPreparing);
   const setDownloading = useSongDownloadStatusStore((state) => state.setDownloading);
@@ -113,18 +229,28 @@ export function useInsertSongPlayback() {
 
         const cachedSong = await songCacheService.getCachedSong(songId);
 
-        if (cachedSong?.videoUri) {
-          const item = createPlaybackQueueItem({
-            song,
-            artistText: formatArtists(song.artists),
-            localVideoUri: cachedSong.videoUri,
-          });
+        // if (cachedSong?.videoUri) {
+        //   const item = createPlaybackQueueItem({
+        //     song,
+        //     artistText: formatArtists(song.artists),
+        //     localVideoUri: cachedSong.videoUri,
+        //   });
 
-          if (mode === 'queue') {
-            enqueueSong(item);
-          } else {
-            enqueueNextSong(item);
-          }
+        //   if (mode === 'queue') {
+        //     enqueueSong(item);
+        //   } else {
+        //     enqueueNextSong(item);
+        //   }
+
+        //   return;
+        // }
+
+        if (cachedSong?.videoUri) {
+          await syncPendingPlaylistAndEnqueue({
+            song,
+            localVideoUri: cachedSong.videoUri,
+            mode,
+          });
 
           return;
         }
@@ -206,17 +332,23 @@ export function useInsertSongPlayback() {
           song,
         });
 
-        const item = createPlaybackQueueItem({
-          song,
-          artistText: formatArtists(song.artists),
-          localVideoUri: finalUri,
-        });
+        // const item = createPlaybackQueueItem({
+        //   song,
+        //   artistText: formatArtists(song.artists),
+        //   localVideoUri: finalUri,
+        // });
 
-        if (mode === 'queue') {
-          enqueueSong(item);
-        } else {
-          enqueueNextSong(item);
-        }
+        // if (mode === 'queue') {
+        //   enqueueSong(item);
+        // } else {
+        //   enqueueNextSong(item);
+        // }
+
+        await syncPendingPlaylistAndEnqueue({
+          song,
+          localVideoUri: finalUri,
+          mode,
+        });
       } catch (error) {
         if (error instanceof Error && error.message === 'Download cancelled.') {
           console.log('[useInsertSongPlayback] download cancelled:', {
@@ -246,7 +378,8 @@ export function useInsertSongPlayback() {
         clearDownloadStatus(songId);
       }
     },
-    [clearDownloadStatus, enqueueNextSong, enqueueSong, setDownloading, setPreparing],
+    // [clearDownloadStatus, enqueueNextSong, enqueueSong, setDownloading, setPreparing],
+    [clearDownloadStatus, setDownloading, setPreparing, syncPendingPlaylistAndEnqueue],
   );
 
   const cancelSongDownload = useCallback(

@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     width: 285,
     minWidth: 0,
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: '700',
   },
 
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     marginRight: 16,
   },
@@ -602,10 +602,11 @@ const styles = StyleSheet.create({
   },
 
   insertText: {
-    width: 72,
+    width: 90,
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: '800',
+    includeFontPadding: false,
     textAlign: 'center',
   },
 

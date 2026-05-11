@@ -96,6 +96,8 @@ export type PlaybackQueueStore = {
   finishCurrent: () => void;
 
   clear: () => void;
+
+  removeByQueueId: (queueId: string) => void;
 };
 
 /**
@@ -198,6 +200,19 @@ export const usePlaybackQueueStore = create<PlaybackQueueStore>((set) => ({
           status: 'playing',
         },
         queue: remainingQueue,
+      };
+    });
+  },
+
+  removeByQueueId: (queueId) => {
+    set((state) => {
+      const nextQueue = state.queue.filter((item) => item.queueId !== queueId);
+
+      const isRemoveCurrentItem = state.currentItem?.queueId === queueId;
+
+      return {
+        queue: nextQueue,
+        currentItem: isRemoveCurrentItem ? null : state.currentItem,
       };
     });
   },

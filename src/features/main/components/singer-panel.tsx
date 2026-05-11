@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
     width: 285,
     minWidth: 0,
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
   },
 
@@ -670,10 +670,11 @@ const styles = StyleSheet.create({
   },
 
   insertText: {
-    width: 72,
+    width: 90,
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '800',
+    includeFontPadding: false,
     textAlign: 'center',
   },
 

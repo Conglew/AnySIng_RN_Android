@@ -12,6 +12,7 @@ type Props = {
   videoUri?: string;
   videoAsset?: number;
 
+  onOpenMySongsPanel?: () => void;
   onOpenCachedSongsPanel?: () => void;
 };
 
@@ -24,7 +25,12 @@ const DEFAULT_ACCOMPANIMENT_TRACK_INDEX = 1;
 
 const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/demo/video/Test.mkv');
 
-export function HomeSidePanel({ videoUri, videoAsset, onOpenCachedSongsPanel }: Props) {
+export function HomeSidePanel({
+  videoUri,
+  videoAsset,
+  onOpenMySongsPanel,
+  onOpenCachedSongsPanel,
+}: Props) {
   const videoRef = useRef<any>(null);
   const [resolvedVideoUri, setResolvedVideoUri] = useState<string | null>(null);
   const [videoLoadError, setVideoLoadError] = useState<string>('');
@@ -188,6 +194,7 @@ export function HomeSidePanel({ videoUri, videoAsset, onOpenCachedSongsPanel }: 
 
         <Pressable
           style={({ pressed }) => [styles.sideButton, pressed && styles.sideButtonPressed]}
+          onPress={onOpenMySongsPanel}
         >
           <ImageBackground
             source={require('@/assets/images/home-setting-btn.png')}

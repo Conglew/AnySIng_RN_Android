@@ -1,5 +1,7 @@
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
+import { NowPlayingMarquee } from '@/src/features/main/components/now-playing-marquee';
+
 export function MainHeader() {
   return (
     <View style={styles.header}>
@@ -8,6 +10,8 @@ export function MainHeader() {
         style={styles.logo}
         resizeMode="contain"
       />
+
+      <NowPlayingMarquee />
 
       <Pressable style={styles.languageButton}>
         <Image
@@ -27,7 +31,6 @@ const styles = StyleSheet.create({
     paddingVertical: 21,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: 'transparent',
   },
 
@@ -45,8 +48,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    // 測試用，正式可以拿掉
-    // backgroundColor: 'red',
   },
 
   languageIcon: {
