@@ -98,6 +98,7 @@ export default function HomeScreen() {
     }
 
     if (title === '新歌') {
+      setMainBackgroundMode('newsongs');
       setIsNewSongsPanelVisible(true);
       return;
     }
@@ -168,7 +169,10 @@ export default function HomeScreen() {
 
       <NewSongsPanel
         visible={isNewSongsPanelVisible}
-        onClose={() => setIsNewSongsPanelVisible(false)}
+        onClose={() => {
+          setIsNewSongsPanelVisible(false);
+          resetMainBackgroundMode();
+        }}
       />
 
       <RankingSongsPanel

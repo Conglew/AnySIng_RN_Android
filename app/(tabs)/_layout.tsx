@@ -8,15 +8,21 @@ import { useMainBackgroundStore } from '@/src/features/main/store/main-backgroun
 
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
+const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png');
 
 export default function TabsLayout() {
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
+
+  const isHomeBackground = backgroundMode === 'home';
   const isRankingBackground = backgroundMode === 'ranking';
+  const isNewSongsBackground = backgroundMode === 'newsongs';
+
+  const isPanelBackground = isRankingBackground || isNewSongsBackground;
 
   return (
     <View style={styles.root}>
       <ImageBackground
-        style={[styles.backgroundLayer, isRankingBackground && styles.hiddenBackground]}
+        style={[styles.backgroundLayer, !isHomeBackground && styles.hiddenBackground]}
         source={HOME_BACKGROUND}
         resizeMode="cover"
         fadeDuration={0}
@@ -25,6 +31,13 @@ export default function TabsLayout() {
       <ImageBackground
         style={[styles.backgroundLayer, !isRankingBackground && styles.hiddenBackground]}
         source={RANKING_BACKGROUND}
+        resizeMode="cover"
+        fadeDuration={0}
+      />
+
+      <ImageBackground
+        style={[styles.backgroundLayer, !isNewSongsBackground && styles.hiddenBackground]}
+        source={NEW_SONGS_BACKGROUND}
         resizeMode="cover"
         fadeDuration={0}
       />
@@ -39,7 +52,7 @@ export default function TabsLayout() {
         </View>
 
         <SafeAreaView
-          style={[styles.footerSafeArea, !isRankingBackground && styles.footerSafeAreaDark]}
+          style={[styles.footerSafeArea, !isPanelBackground && styles.footerSafeAreaDark]}
           edges={['bottom']}
         >
           <MainFooter />

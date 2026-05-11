@@ -20,6 +20,8 @@ import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-que
 
 import { useRankingSongsCache } from '@/src/features/song/hook/use-ranking-songs-cache';
 
+import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
+
 import { SongDto } from '@/src/services/song/song.types';
 
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
@@ -451,7 +453,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                     </View>
 
                     <Text style={styles.songTitle} numberOfLines={1}>
-                      {truncateText(item.title, 11)}
+                      {truncateText(formatDisplaySongTitle(item.title), 11)}
                     </Text>
 
                     <Text style={styles.artistText} numberOfLines={1}>

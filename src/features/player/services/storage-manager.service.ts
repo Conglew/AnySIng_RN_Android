@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { nativeStorageService } from './native-storage.service';
 
 const SONG_CACHE_ROOT = `${FileSystem.documentDirectory}songs/`;
+const RESERVED_FREE_BYTES = 500 * 1024 * 1024;
 
 export const storageManagerService = {
   /**
@@ -75,7 +76,7 @@ export const storageManagerService = {
   async hasEnoughSpace(requiredBytes: number) {
     const freeBytes = await this.getFreeDiskStorageBytes();
 
-    return freeBytes > requiredBytes;
+    return freeBytes - RESERVED_FREE_BYTES > requiredBytes;
   },
 
   async getLargestNativeVolume() {

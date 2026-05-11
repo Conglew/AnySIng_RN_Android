@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type MainBackgroundMode = 'home' | 'ranking';
+type MainBackgroundMode = 'home' | 'ranking' | 'newsongs';
 
 type MainBackgroundStore = {
   mode: MainBackgroundMode;
