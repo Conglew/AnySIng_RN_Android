@@ -4,6 +4,8 @@ import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SvgProps } from 'react-native-svg';
 
+import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
+
 import FooterIcon1 from '@/assets/images/footer-icons-1.svg';
 import FooterIcon2 from '@/assets/images/footer-icons-2.svg';
 import FooterIcon3 from '@/assets/images/footer-icons-3.svg';
@@ -14,7 +16,7 @@ import FooterIcon7 from '@/assets/images/footer-icons-7.svg';
 import FooterIcon8 from '@/assets/images/footer-icons-8.svg';
 import FooterIcon9 from '@/assets/images/footer-icons-9.svg';
 
-type FooterAction = 'navigate' | 'togglePause' | 'toggleAudioTrack';
+type FooterAction = 'navigate' | 'togglePause' | 'toggleAudioTrack' | 'skipSong' | 'restartSong';
 
 type FooterItem = {
   label: string;
@@ -46,7 +48,7 @@ const FOOTER_ITEMS: FooterItem[] = [
     label: '切歌',
     route: '/(tabs)/switch-song' as Href,
     Icon: FooterIcon4,
-    action: 'navigate',
+    action: 'skipSong',
   },
   {
     label: '暫停',
@@ -64,7 +66,7 @@ const FOOTER_ITEMS: FooterItem[] = [
     label: '重唱',
     route: '/(tabs)/restart' as Href,
     Icon: FooterIcon7,
-    action: 'navigate',
+    action: 'restartSong',
   },
   {
     label: '已點',
@@ -87,6 +89,11 @@ export function MainFooter() {
   const audioTrackMode = usePlayerControlStore((state) => state.audioTrackMode);
   const togglePause = usePlayerControlStore((state) => state.togglePause);
   const toggleAudioTrackMode = usePlayerControlStore((state) => state.toggleAudioTrackMode);
+
+  const finishCurrentSong = usePlaybackQueueStore((state) => state.finishCurrent);
+  const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
+
+  const restartCurrentSong = usePlayerControlStore((state) => state.restartCurrentSong);
 
   return (
     <View style={styles.footer}>
@@ -120,6 +127,26 @@ export function MainFooter() {
                 );
 
                 toggleAudioTrackMode();
+                return;
+              }
+
+              if (item.action === 'skipSong') {
+                console.log('[MainFooter] skip current song:', {
+                  currentSongId: currentPlaybackItem?.songId,
+                  currentTitle: currentPlaybackItem?.title,
+                });
+
+                finishCurrentSong();
+                return;
+              }
+
+              if (item.action === 'restartSong') {
+                console.log('[MainFooter] restart current song:', {
+                  currentSongId: currentPlaybackItem?.songId,
+                  currentTitle: currentPlaybackItem?.title,
+                });
+
+                restartCurrentSong();
                 return;
               }
 

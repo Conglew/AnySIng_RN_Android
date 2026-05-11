@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -18,8 +18,8 @@ import {
 import { songCacheService } from '@/src/features/player/services/song-cache.service';
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
 
-import { getAccessToken } from '@/src/services/auth/auth-token-store';
-import { songClient } from '@/src/services/song/song-client';
+import { useRankingSongsCache } from '@/src/features/song/hook/use-ranking-songs-cache';
+
 import { SongDto } from '@/src/services/song/song.types';
 
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
@@ -46,8 +46,6 @@ type SongActionStatus = {
 };
 
 type SongActionStatusMap = Record<string, SongActionStatus | undefined>;
-
-const PAGE_SIZE = 20;
 
 const LANGUAGE_TABS: LanguageTab[] = [
   {
@@ -82,13 +80,7 @@ function formatArtists(artists: SongDto['artists']) {
   }
 
   return artists
-    .map((artist) => {
-      if (typeof artist === 'string') {
-        return artist;
-      }
-
-      return artist.name;
-    })
+    .map((artist) => String(artist))
     .filter(Boolean)
     .join('、');
 }
@@ -101,14 +93,6 @@ function truncateText(value: string, maxLength: number) {
   }
 
   return `${chars.slice(0, maxLength).join('')}...`;
-}
-
-function getTotalPages(total: number) {
-  if (total <= 0) {
-    return 1;
-  }
-
-  return Math.max(1, Math.ceil(total / PAGE_SIZE));
 }
 
 function getFileExtensionFromS3Key(key?: string) {
@@ -175,13 +159,29 @@ function createPlaybackQueueItem({
 }
 
 export function RankingSongsPanel({ visible, onClose }: Props) {
-  const [songs, setSongs] = useState<SongDto[]>([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
+  const songListRef = useRef<FlatList<SongDto>>(null);
+
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageTab>(LANGUAGE_TABS[0]);
+
+  const {
+    songs,
+    page,
+    totalPages,
+
+    isInitialLoading,
+    isLoadingMore,
+    canLoadMore,
+    errorMessage,
+    setErrorMessage,
+
+    loadFirstPage,
+    loadNextPage,
+  } = useRankingSongsCache({
+    languageValue: selectedLanguage.value,
+  });
+
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  const [resolvingSongId, setResolvingSongId] = useState<string | null>(null);
   const [resolvedSongAsset, setResolvedSongAsset] = useState<ResolvedSongAssets | null>(null);
 
   const enqueueSong = usePlaybackQueueStore((state) => state.enqueue);
@@ -189,97 +189,19 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
 
   const [songActionStatusMap, setSongActionStatusMap] = useState<SongActionStatusMap>({});
 
-  const [isInitialLoading, setIsInitialLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const handlePressLanguage = useCallback((tab: LanguageTab) => {
+    songListRef.current?.scrollToOffset({
+      offset: 0,
+      animated: false,
+    });
 
-  const totalPages = useMemo(() => getTotalPages(total), [total]);
-
-  const hasMore = useMemo(() => {
-    if (total === 0) {
-      return false;
-    }
-
-    return songs.length < total;
-  }, [songs.length, total]);
-
-  const loadSongs = useCallback(
-    async ({ targetPage, replace }: { targetPage: number; replace: boolean }) => {
-      const token = await getAccessToken();
-
-      if (!token) {
-        throw new Error('Missing access token.');
+    setSelectedLanguage((currentTab) => {
+      if (currentTab.label === tab.label) {
+        return currentTab;
       }
 
-      const response = await songClient.getSongs({
-        token,
-        params: {
-          page: targetPage,
-          limit: PAGE_SIZE,
-          sortBy: 'playCount',
-          order: 'desc',
-
-          // 後端 getSongs 使用 lan 過濾語系。
-          // 如果你的後端語系代碼不是 zh / yue / ms / jp / en，請只改 LANGUAGE_TABS 的 value。
-          lan: selectedLanguage.value,
-        },
-      });
-
-      setTotal(response.total);
-      setPage(response.page);
-
-      setSongs((previousSongs) => {
-        if (replace) {
-          return response.songs;
-        }
-
-        const existingIds = new Set(previousSongs.map((song) => song._id));
-        const newSongs = response.songs.filter((song) => !existingIds.has(song._id));
-
-        return [...previousSongs, ...newSongs];
-      });
-    },
-    [selectedLanguage.value],
-  );
-
-  const loadFirstPage = useCallback(async () => {
-    try {
-      setErrorMessage('');
-      setIsInitialLoading(true);
-
-      await loadSongs({
-        targetPage: 1,
-        replace: true,
-      });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsInitialLoading(false);
-    }
-  }, [loadSongs]);
-
-  const loadNextPage = useCallback(async () => {
-    if (isInitialLoading || isLoadingMore || !hasMore) {
-      return;
-    }
-
-    try {
-      setErrorMessage('');
-      setIsLoadingMore(true);
-
-      await loadSongs({
-        targetPage: page + 1,
-        replace: false,
-      });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [hasMore, isInitialLoading, isLoadingMore, loadSongs, page]);
-
-  const handlePressLanguage = useCallback((tab: LanguageTab) => {
-    setSelectedLanguage(tab);
+      return tab;
+    });
   }, []);
 
   /*
@@ -287,114 +209,8 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
     ↓
     有 cache：直接加入播放隊列
     ↓
-    沒 cache：下載完成後加入播放隊列
+    沒 cache：下載完成後加入播放隊
   */
-  const handlePressSong = useCallback(
-    async (song: SongDto) => {
-      const songId = song._id;
-
-      try {
-        setErrorMessage('');
-
-        setSongActionStatusMap((previous) => ({
-          ...previous,
-          [songId]: {
-            phase: 'preparing',
-          },
-        }));
-
-        const cachedSong = await songCacheService.getCachedSong(songId);
-
-        if (cachedSong?.videoUri) {
-          enqueueSong(
-            createPlaybackQueueItem({
-              song,
-              artistText: formatArtists(song.artists),
-              localVideoUri: cachedSong.videoUri,
-            }),
-          );
-
-          return;
-        }
-
-        const resolvedAssets = await songAssetResolverService.resolveFromS3Title({
-          songId,
-          title: song.title,
-        });
-
-        setSongActionStatusMap((previous) => ({
-          ...previous,
-          [songId]: {
-            phase: 'downloading',
-            progress: 0,
-          },
-        }));
-
-        const songDir = await songCacheService.ensureSongDir(songId);
-        const extension = getFileExtensionFromS3Key(resolvedAssets.s3Key);
-        const targetUri = `${songDir}video.${extension}`;
-
-        let lastProgress = -1;
-
-        const downloadResumable = ExpoFileSystem.createDownloadResumable(
-          resolvedAssets.videoUrl,
-          targetUri,
-          {},
-          (downloadProgress) => {
-            const progress = calculateDownloadProgress(
-              downloadProgress.totalBytesWritten,
-              downloadProgress.totalBytesExpectedToWrite,
-            );
-
-            if (progress === lastProgress) {
-              return;
-            }
-
-            lastProgress = progress;
-
-            setSongActionStatusMap((previous) => ({
-              ...previous,
-              [songId]: {
-                phase: 'downloading',
-                progress,
-              },
-            }));
-          },
-        );
-
-        const downloadResult = await downloadResumable.downloadAsync();
-
-        if (!downloadResult?.uri) {
-          throw new Error('Download failed: missing local uri.');
-        }
-
-        await songCacheService.saveCachedSong(songId, {
-          songId,
-          videoUri: downloadResult.uri,
-          downloadedAt: Date.now(),
-          totalBytes: resolvedAssets.size,
-        });
-
-        enqueueSong(
-          createPlaybackQueueItem({
-            song,
-            artistText: formatArtists(song.artists),
-            localVideoUri: downloadResult.uri,
-          }),
-        );
-      } catch (error) {
-        console.log('[RankingSongsPanel] handlePressSong failed:', error);
-        setErrorMessage(error instanceof Error ? error.message : String(error));
-      } finally {
-        setSongActionStatusMap((previous) => ({
-          ...previous,
-          [songId]: undefined,
-        }));
-      }
-    },
-    [enqueueSong],
-  );
-
   const handlePressInsert = useCallback(
     async (song: SongDto) => {
       const songId = song._id;
@@ -526,13 +342,17 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
   );
 
   useEffect(() => {
+    songListRef.current?.scrollToOffset({
+      offset: 0,
+      animated: false,
+    });
+  }, [selectedLanguage.value]);
+
+  useEffect(() => {
     if (!visible) {
       return;
     }
 
-    setSongs([]);
-    setPage(1);
-    setTotal(0);
     loadFirstPage();
   }, [loadFirstPage, visible]);
 
@@ -586,6 +406,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
               </View>
             ) : (
               <FlatList
+                ref={songListRef}
                 data={songs}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={styles.listContent}
@@ -665,7 +486,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                   </View>
                 }
                 ListFooterComponent={
-                  isLoadingMore ? (
+                  isLoadingMore && canLoadMore ? (
                     <View style={styles.footerLoading}>
                       <ActivityIndicator />
                       <Text style={styles.loadingText}>載入更多</Text>

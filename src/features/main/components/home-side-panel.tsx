@@ -1,6 +1,6 @@
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import Video, { SelectedTrackType, type SelectedTrack } from 'react-native-video';
 
@@ -23,6 +23,7 @@ const DEFAULT_ACCOMPANIMENT_TRACK_INDEX = 1;
 const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/demo/video/Test.mkv');
 
 export function HomeSidePanel({ videoUri, videoAsset }: Props) {
+  const videoRef = useRef<any>(null);
   const [resolvedVideoUri, setResolvedVideoUri] = useState<string | null>(null);
   const [videoLoadError, setVideoLoadError] = useState<string>('');
 
@@ -33,6 +34,9 @@ export function HomeSidePanel({ videoUri, videoAsset }: Props) {
 
   const isPaused = usePlayerControlStore((state) => state.isPaused);
   const audioTrackMode = usePlayerControlStore((state) => state.audioTrackMode);
+
+  const restartToken = usePlayerControlStore((state) => state.restartToken);
+
   const vocalAudioTrackIndex = usePlayerControlStore((state) => state.vocalAudioTrackIndex);
   const accompanimentAudioTrackIndex = usePlayerControlStore(
     (state) => state.accompanimentAudioTrackIndex,
@@ -53,6 +57,19 @@ export function HomeSidePanel({ videoUri, videoAsset }: Props) {
       value: selectedIndex,
     };
   }, [accompanimentAudioTrackIndex, audioTrackMode, vocalAudioTrackIndex]);
+
+  useEffect(() => {
+    if (!playbackVideoUri) {
+      return;
+    }
+
+    console.log('[HomeSidePanel] restart current video:', {
+      restartToken,
+      playbackVideoUri,
+    });
+
+    videoRef.current?.seek?.(0);
+  }, [playbackVideoUri, restartToken]);
 
   useEffect(() => {
     let isMounted = true;
@@ -197,6 +214,7 @@ export function HomeSidePanel({ videoUri, videoAsset }: Props) {
       <View style={styles.playerFrame}>
         {playbackVideoUri ? (
           <Video
+            ref={videoRef}
             key={currentPlaybackItem?.queueId ?? playbackVideoUri}
             source={{ uri: playbackVideoUri }}
             style={styles.video}

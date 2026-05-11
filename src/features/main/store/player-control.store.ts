@@ -13,11 +13,15 @@ type PlayerControlState = {
   vocalAudioTrackIndex: number | null;
   accompanimentAudioTrackIndex: number | null;
 
+  restartToken: number;
+
   togglePause: () => void;
   setPaused: (value: boolean) => void;
 
   toggleAudioTrackMode: () => void;
   setAudioTrackMode: (value: AudioTrackMode) => void;
+
+  restartCurrentSong: () => void;
 
   setAudioTrackIndexes: (value: {
     vocalAudioTrackIndex: number | null;
@@ -33,6 +37,8 @@ export const usePlayerControlStore = create<PlayerControlState>((set) => ({
 
   vocalAudioTrackIndex: null,
   accompanimentAudioTrackIndex: null,
+
+  restartToken: 0,
 
   togglePause: () => {
     set((state) => ({
@@ -63,6 +69,13 @@ export const usePlayerControlStore = create<PlayerControlState>((set) => ({
       vocalAudioTrackIndex: value.vocalAudioTrackIndex,
       accompanimentAudioTrackIndex: value.accompanimentAudioTrackIndex,
     });
+  },
+
+  restartCurrentSong: () => {
+    set((state) => ({
+      restartToken: state.restartToken + 1,
+      isPaused: false,
+    }));
   },
 
   resetAudioTrackIndexes: () => {
