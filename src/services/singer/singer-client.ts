@@ -29,6 +29,12 @@ function buildQuery(params: Record<string, string | number | undefined | null>) 
 }
 
 export const singerClient = {
+  /**
+   * 取得歌手列表
+   *
+   * 後端：
+   * GET /artists?q=&page=&limit=
+   */
   getSingers(params: GetSingersParams = {}) {
     const query = buildQuery({
       q: params.q,
@@ -42,6 +48,12 @@ export const singerClient = {
     });
   },
 
+  /**
+   * 搜尋歌手
+   *
+   * 後端：
+   * GET /artists/search?q=&page=&limit=&mode=
+   */
   searchSingers(params: SearchSingersParams) {
     const query = buildQuery({
       q: params.q,
@@ -56,6 +68,12 @@ export const singerClient = {
     });
   },
 
+  /**
+   * 取得單一歌手資料
+   *
+   * 後端：
+   * GET /artists/:id
+   */
   getSingerById(singerId: string) {
     return apiRequest<SingerDetailResponse>({
       method: 'GET',
@@ -63,7 +81,16 @@ export const singerClient = {
     });
   },
 
-  getSongsBySinger({ token, singerId }: { token: string; singerId: string }) {
+  /**
+   * 取得指定歌手底下的歌曲
+   *
+   * 後端：
+   * GET /artists/:id/songs
+   *
+   * 注意：
+   * 這支後端有 isAuth，所以一定要帶 token。
+   */
+  getSingerSongs({ token, singerId }: { token: string; singerId: string }) {
     return apiRequest<SingerSongsResponse>({
       method: 'GET',
       path: ENDPOINTS.singers.songs(singerId),
@@ -71,6 +98,12 @@ export const singerClient = {
     });
   },
 
+  /**
+   * 建立歌手
+   *
+   * 後端：
+   * POST /artists
+   */
   createSinger({ token, body }: { token: string; body: CreateSingerRequest }) {
     return apiRequest<SingerDetailResponse, CreateSingerRequest>({
       method: 'POST',
@@ -80,6 +113,12 @@ export const singerClient = {
     });
   },
 
+  /**
+   * 更新歌手
+   *
+   * 後端：
+   * PATCH /artists/:id
+   */
   updateSinger({
     token,
     singerId,
@@ -97,6 +136,12 @@ export const singerClient = {
     });
   },
 
+  /**
+   * 刪除歌手
+   *
+   * 後端：
+   * DELETE /artists/:id
+   */
   deleteSinger({ token, singerId }: { token: string; singerId: string }) {
     return apiRequest<DeleteSingerResponse>({
       method: 'DELETE',
