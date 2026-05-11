@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { useNowPlayingQuery } from '@/src/features/playlist/hook/use-now-playing-query';
+import { useNowPlayingSocket } from '@/src/features/playlist/hook/use-now-playing-socket';
 import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
 
 function formatSongTitle(title?: string) {
@@ -15,6 +16,8 @@ function formatSongTitle(title?: string) {
 export function NowPlayingMarquee() {
   const translateX = useRef(new Animated.Value(0)).current;
 
+  useNowPlayingSocket();
+
   const { data } = useNowPlayingQuery();
 
   const displayText = useMemo(() => {
@@ -22,7 +25,6 @@ export function NowPlayingMarquee() {
     const nextTitle = formatSongTitle(data?.next?.title);
 
     const currentText = currentTitle ? `目前播放：${currentTitle}` : '目前未播放歌曲';
-
     const nextText = nextTitle ? `下一首：${nextTitle}` : '下一首：尚未點歌';
 
     return `${currentText}     ${nextText}`;

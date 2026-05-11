@@ -1,5 +1,5 @@
 import { Slot } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,6 +7,8 @@ import { MainFooter } from '@/src/features/main/components/main-footer';
 import { MainHeader } from '@/src/features/main/components/main-header';
 import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
 import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
+
+import { useSocketConnection } from '@/src/services/socket/use-socket-connection';
 
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -18,7 +20,8 @@ export default function TabsLayout() {
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
 
   const hasClearedPendingPlaylistRef = useRef(false);
-  const [isInitialPlaylistCleared, setIsInitialPlaylistCleared] = useState(false);
+  // const [isInitialPlaylistCleared, setIsInitialPlaylistCleared] = useState(false);
+  const { isSocketInitialized } = useSocketConnection();
 
   const { clearPendingPlaylist } = usePlaybackQueueActions();
 
@@ -29,13 +32,16 @@ export default function TabsLayout() {
 
     hasClearedPendingPlaylistRef.current = true;
 
-    clearPendingPlaylist()
-      .catch((error) => {
-        console.log('[TabsLayout] clear pending playlist failed:', error);
-      })
-      .finally(() => {
-        setIsInitialPlaylistCleared(true);
-      });
+    // clearPendingPlaylist()
+    //   .catch((error) => {
+    //     console.log('[TabsLayout] clear pending playlist failed:', error);
+    //   })
+    //   .finally(() => {
+    //     setIsInitialPlaylistCleared(true);
+    //   });
+    clearPendingPlaylist().catch((error) => {
+      console.log('[TabsLayout] clear pending playlist failed:', error);
+    });
   }, [clearPendingPlaylist]);
 
   const isHomeBackground = backgroundMode === 'home';
@@ -85,7 +91,7 @@ export default function TabsLayout() {
 
       <View style={styles.page}>
         <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
-          <MainHeader showNowPlayingMarquee={isInitialPlaylistCleared} />
+          <MainHeader showNowPlayingMarquee={isSocketInitialized} />
         </SafeAreaView>
 
         <View style={styles.content}>

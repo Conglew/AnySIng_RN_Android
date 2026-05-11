@@ -39,6 +39,8 @@ export type PlaylistNowPlayingSong = {
 export type PlaylistNowPlayingResponse = {
   current: PlaylistNowPlayingSong | null;
   next: PlaylistNowPlayingSong | null;
+  index?: number;
+  ts?: number;
 };
 
 export type AddSongToPlaylistResponse = {
