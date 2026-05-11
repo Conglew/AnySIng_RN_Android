@@ -11,6 +11,7 @@ import {
   ViewStyle,
 } from 'react-native';
 
+import { CachedSongsPanel } from '@/src/features/main/components/cached-songs-panel';
 import { CategoryPanel } from '@/src/features/main/components/category-panel';
 import { HomeSidePanel } from '@/src/features/main/components/home-side-panel';
 import { NewSongsPanel } from '@/src/features/main/components/new-songs-panel';
@@ -76,6 +77,7 @@ export default function HomeScreen() {
   const [isNewSongsPanelVisible, setIsNewSongsPanelVisible] = useState(false);
   const [isRankingSongsPanelVisible, setIsRankingSongsPanelVisible] = useState(false);
   const [isSingerPanelVisible, setIsSingerPanelVisible] = useState(false);
+  const [isCachedSongsPanelVisible, setIsCachedSongsPanelVisible] = useState(false);
 
   const setMainBackgroundMode = useMainBackgroundStore((state) => state.setMode);
   const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
@@ -84,10 +86,12 @@ export default function HomeScreen() {
     isSingerPanelVisible ||
     isCategoryPanelVisible ||
     isNewSongsPanelVisible ||
-    isRankingSongsPanelVisible;
+    isRankingSongsPanelVisible ||
+    isCachedSongsPanelVisible;
 
   function handlePressHomeCard(title: string) {
     if (title === '歌手') {
+      setMainBackgroundMode('singer');
       setIsSingerPanelVisible(true);
       return;
     }
@@ -159,7 +163,13 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.sidePanel}>
-          <HomeSidePanel videoAsset={require('@/assets/demo/video/Test.mkv')} />
+          <HomeSidePanel
+            videoAsset={require('@/assets/demo/video/Test.mkv')}
+            onOpenCachedSongsPanel={() => {
+              setMainBackgroundMode('category');
+              setIsCachedSongsPanelVisible(true);
+            }}
+          />
         </View>
       </View>
 
@@ -187,7 +197,21 @@ export default function HomeScreen() {
         }}
       />
 
-      <SingerPanel visible={isSingerPanelVisible} onClose={() => setIsSingerPanelVisible(false)} />
+      <SingerPanel
+        visible={isSingerPanelVisible}
+        onClose={() => {
+          resetMainBackgroundMode();
+          setIsSingerPanelVisible(false);
+        }}
+      />
+
+      <CachedSongsPanel
+        visible={isCachedSongsPanelVisible}
+        onClose={() => {
+          setIsCachedSongsPanelVisible(false);
+          resetMainBackgroundMode();
+        }}
+      />
     </View>
   );
 }

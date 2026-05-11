@@ -11,6 +11,8 @@ import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-que
 type Props = {
   videoUri?: string;
   videoAsset?: number;
+
+  onOpenCachedSongsPanel?: () => void;
 };
 
 /*
@@ -22,7 +24,7 @@ const DEFAULT_ACCOMPANIMENT_TRACK_INDEX = 1;
 
 const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/demo/video/Test.mkv');
 
-export function HomeSidePanel({ videoUri, videoAsset }: Props) {
+export function HomeSidePanel({ videoUri, videoAsset, onOpenCachedSongsPanel }: Props) {
   const videoRef = useRef<any>(null);
   const [resolvedVideoUri, setResolvedVideoUri] = useState<string | null>(null);
   const [videoLoadError, setVideoLoadError] = useState<string>('');
@@ -199,6 +201,7 @@ export function HomeSidePanel({ videoUri, videoAsset }: Props) {
 
         <Pressable
           style={({ pressed }) => [styles.sideButton, pressed && styles.sideButtonPressed]}
+          onPress={onOpenCachedSongsPanel}
         >
           <ImageBackground
             source={require('@/assets/images/home-setting-btn.png')}

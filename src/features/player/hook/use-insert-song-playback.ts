@@ -203,6 +203,7 @@ export function useInsertSongPlayback() {
           videoUri: finalUri,
           downloadedAt: Date.now(),
           totalBytes: resolvedAssets.size,
+          song,
         });
 
         const item = createPlaybackQueueItem({

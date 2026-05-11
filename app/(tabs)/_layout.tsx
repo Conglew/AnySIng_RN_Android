@@ -10,6 +10,7 @@ const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const CATEGORY_BACKGROUND = require('@/assets/images/home-panel-background.png');
+const SINGER_BACKGROUND = require('@/assets/images/home-panel-background.png');
 
 export default function TabsLayout() {
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
@@ -18,6 +19,7 @@ export default function TabsLayout() {
   const isRankingBackground = backgroundMode === 'ranking';
   const isNewSongsBackground = backgroundMode === 'newsongs';
   const isCategoryBackground = backgroundMode === 'category';
+  const isSingreBackground = backgroundMode === 'singer';
 
   const isPanelBackground = isRankingBackground || isNewSongsBackground || isCategoryBackground;
 
@@ -47,6 +49,13 @@ export default function TabsLayout() {
       <ImageBackground
         style={[styles.backgroundLayer, !isCategoryBackground && styles.hiddenBackground]}
         source={CATEGORY_BACKGROUND}
+        resizeMode="cover"
+        fadeDuration={0}
+      />
+
+      <ImageBackground
+        style={[styles.backgroundLayer, !isSingreBackground && styles.hiddenBackground]}
+        source={SINGER_BACKGROUND}
         resizeMode="cover"
         fadeDuration={0}
       />

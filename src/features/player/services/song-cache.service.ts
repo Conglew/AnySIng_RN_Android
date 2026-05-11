@@ -88,6 +88,31 @@ async function cleanupTemporarySongFiles() {
   }
 }
 
+async function clearAllCachedSongs() {
+  try {
+    const songsRootDir = `${FileSystem.documentDirectory}songs/`;
+
+    const songsRootInfo = await FileSystem.getInfoAsync(songsRootDir);
+
+    if (songsRootInfo.exists) {
+      await FileSystem.deleteAsync(songsRootDir, {
+        idempotent: true,
+      });
+    }
+
+    await FileSystem.makeDirectoryAsync(songsRootDir, {
+      intermediates: true,
+    });
+
+    await writeCacheIndex({});
+
+    console.log('[songCacheService] cleared all cached songs');
+  } catch (error) {
+    console.log('[songCacheService] clearAllCachedSongs failed:', error);
+    throw error;
+  }
+}
+
 export const songCacheService = {
   async getCachedSong(songId: string) {
     const index = await readCacheIndex();
@@ -108,6 +133,32 @@ export const songCacheService = {
     }
 
     return cached;
+  },
+
+  async getAllCachedSongs() {
+    const index = await readCacheIndex();
+    const entries = Object.entries(index);
+
+    const validCachedSongs: CachedSongAsset[] = [];
+
+    for (const [songId, cached] of entries) {
+      const hasVideo = await fileExists(cached.videoUri);
+      const hasVocal = await fileExists(cached.vocalUri);
+      const hasInstrumental = await fileExists(cached.instrumentalUri);
+
+      if (!hasVideo || !hasVocal || !hasInstrumental) {
+        delete index[songId];
+        continue;
+      }
+
+      validCachedSongs.push(cached);
+    }
+
+    await writeCacheIndex(index);
+
+    return validCachedSongs.sort((a, b) => {
+      return (b.downloadedAt ?? 0) - (a.downloadedAt ?? 0);
+    });
   },
 
   async ensureSongDir(songId: string) {
@@ -140,6 +191,8 @@ export const songCacheService = {
   },
 
   cleanupTemporarySongFiles,
+
+  clearAllCachedSongs,
 
   getSongCacheDir,
 };
