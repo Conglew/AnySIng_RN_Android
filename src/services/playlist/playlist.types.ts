@@ -63,6 +63,7 @@ export type RemoveSongFromPlaylistResponse = {
 
 export type PlayNextResponse = {
   message: string;
+  playlist?: UserPlaylistDto;
   currentIndex?: number;
   currentSong?: PlaylistSongItemDto | null;
 };

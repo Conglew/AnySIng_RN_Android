@@ -1,4 +1,5 @@
 import { Slot } from 'expo-router';
+import { useEffect, useRef } from 'react';
 import { ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,8 +13,25 @@ const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png'
 const CATEGORY_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const SINGER_BACKGROUND = require('@/assets/images/home-panel-background.png');
 
+import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
+
 export default function TabsLayout() {
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
+
+  const hasClearedPendingPlaylistRef = useRef(false);
+  const { clearPendingPlaylist } = usePlaybackQueueActions();
+
+  useEffect(() => {
+    if (hasClearedPendingPlaylistRef.current) {
+      return;
+    }
+
+    hasClearedPendingPlaylistRef.current = true;
+
+    clearPendingPlaylist().catch((error) => {
+      console.log('[TabsLayout] clear pending playlist failed:', error);
+    });
+  }, [clearPendingPlaylist]);
 
   const isHomeBackground = backgroundMode === 'home';
   const isRankingBackground = backgroundMode === 'ranking';

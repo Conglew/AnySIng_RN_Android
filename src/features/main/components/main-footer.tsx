@@ -6,6 +6,8 @@ import type { SvgProps } from 'react-native-svg';
 
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
 
+import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
+
 import FooterIcon1 from '@/assets/images/footer-icons-1.svg';
 import FooterIcon2 from '@/assets/images/footer-icons-2.svg';
 import FooterIcon3 from '@/assets/images/footer-icons-3.svg';
@@ -90,8 +92,10 @@ export function MainFooter() {
   const togglePause = usePlayerControlStore((state) => state.togglePause);
   const toggleAudioTrackMode = usePlayerControlStore((state) => state.toggleAudioTrackMode);
 
-  const finishCurrentSong = usePlaybackQueueStore((state) => state.finishCurrent);
+  // const finishCurrentSong = usePlaybackQueueStore((state) => state.finishCurrent);
+  // const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
   const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
+  const { skipCurrent } = usePlaybackQueueActions();
 
   const restartCurrentSong = usePlayerControlStore((state) => state.restartCurrentSong);
 
@@ -105,7 +109,7 @@ export function MainFooter() {
           <Pressable
             key={String(item.route)}
             style={({ pressed }) => [styles.footerItem, pressed && styles.footerItemPressed]}
-            onPress={() => {
+            onPress={async () => {
               console.log('[MainFooter] pressed item:', item.label);
               console.log('[MainFooter] action:', item.action);
 
@@ -130,13 +134,28 @@ export function MainFooter() {
                 return;
               }
 
+              // if (item.action === 'skipSong') {
+              //   console.log('[MainFooter] skip current song:', {
+              //     currentSongId: currentPlaybackItem?.songId,
+              //     currentTitle: currentPlaybackItem?.title,
+              //   });
+
+              //   finishCurrentSong();
+              //   return;
+              // }
+
               if (item.action === 'skipSong') {
                 console.log('[MainFooter] skip current song:', {
                   currentSongId: currentPlaybackItem?.songId,
                   currentTitle: currentPlaybackItem?.title,
                 });
 
-                finishCurrentSong();
+                try {
+                  await skipCurrent();
+                } catch (error) {
+                  console.log('[MainFooter] skip current song failed:', error);
+                }
+
                 return;
               }
 
