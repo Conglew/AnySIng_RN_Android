@@ -1,5 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
+// import * as ExpoFileSystem from 'expo-file-system/legacy';
+
 import { storageManagerService } from './storage-manager.service';
 
 import { CachedSongAsset } from '../types/cached-song.types';
@@ -41,6 +43,49 @@ async function readCacheIndex(): Promise<Record<string, CachedSongAsset>> {
 
 async function writeCacheIndex(index: Record<string, CachedSongAsset>) {
   await FileSystem.writeAsStringAsync(CACHE_INDEX_URI, JSON.stringify(index));
+}
+
+async function cleanupTemporarySongFiles() {
+  const songsRootDir = `${FileSystem.documentDirectory}songs/`;
+
+  try {
+    const rootInfo = await FileSystem.getInfoAsync(songsRootDir);
+
+    if (!rootInfo.exists) {
+      return;
+    }
+
+    if (!rootInfo.isDirectory) {
+      return;
+    }
+
+    const songDirNames = await FileSystem.readDirectoryAsync(songsRootDir);
+
+    await Promise.all(
+      songDirNames.map(async (songDirName) => {
+        const songDir = `${songsRootDir}${songDirName}/`;
+        const songDirInfo = await FileSystem.getInfoAsync(songDir);
+
+        if (!songDirInfo.exists || !songDirInfo.isDirectory) {
+          return;
+        }
+
+        const filenames = await FileSystem.readDirectoryAsync(songDir);
+
+        const temporaryFiles = filenames.filter((filename) => filename.endsWith('.tmp'));
+
+        await Promise.all(
+          temporaryFiles.map((filename) =>
+            FileSystem.deleteAsync(`${songDir}${filename}`, {
+              idempotent: true,
+            }),
+          ),
+        );
+      }),
+    );
+  } catch (error) {
+    console.log('[songCacheService] cleanupTemporarySongFiles failed:', error);
+  }
 }
 
 export const songCacheService = {
@@ -93,6 +138,8 @@ export const songCacheService = {
       });
     }
   },
+
+  cleanupTemporarySongFiles,
 
   getSongCacheDir,
 };

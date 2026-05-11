@@ -9,6 +9,8 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
+import { songCacheService } from '@/src/features/player/services/song-cache.service';
+
 export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
@@ -58,6 +60,10 @@ export default function RootLayout() {
       throw error;
     }
   }, [error]);
+
+  useEffect(() => {
+    songCacheService.cleanupTemporarySongFiles();
+  }, []);
 
   useEffect(() => {
     if (loaded) {

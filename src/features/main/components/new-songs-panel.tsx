@@ -9,16 +9,15 @@ import {
   View,
 } from 'react-native';
 
-import * as ExpoFileSystem from 'expo-file-system/legacy';
+// import * as ExpoFileSystem from 'expo-file-system/legacy';
 
-import { songAssetResolverService } from '@/src/features/player/services/song-asset-resolver.service';
-import { songCacheService } from '@/src/features/player/services/song-cache.service';
-import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
+// import { songAssetResolverService } from '@/src/features/player/services/song-asset-resolver.service';
+// import { songCacheService } from '@/src/features/player/services/song-cache.service';
+// import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
 
-import {
-  SongDownloadStatus,
-  useSongDownloadStatusStore,
-} from '@/src/features/player/stores/song-download-status.store';
+import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
+
+import { SongDownloadStatus } from '@/src/features/player/stores/song-download-status.store';
 
 import { CustomKeyboard } from '@/src/features/main/components/custom-keyboard';
 // import { getAccessToken } from '@/src/services/auth/auth-token-store';
@@ -101,30 +100,30 @@ function truncateText(value: string, maxLength: number) {
   return `${chars.slice(0, maxLength).join('')}...`;
 }
 
-function getFileExtensionFromS3Key(key?: string) {
-  if (!key) {
-    return 'mkv';
-  }
+// function getFileExtensionFromS3Key(key?: string) {
+//   if (!key) {
+//     return 'mkv';
+//   }
 
-  const filename = key.split('/').pop() || '';
-  const extension = filename.split('.').pop();
+//   const filename = key.split('/').pop() || '';
+//   const extension = filename.split('.').pop();
 
-  if (!extension || extension.length > 8) {
-    return 'mkv';
-  }
+//   if (!extension || extension.length > 8) {
+//     return 'mkv';
+//   }
 
-  return extension;
-}
+//   return extension;
+// }
 
-function calculateDownloadProgress(totalBytesWritten: number, totalBytesExpectedToWrite: number) {
-  if (totalBytesExpectedToWrite <= 0) {
-    return 0;
-  }
+// function calculateDownloadProgress(totalBytesWritten: number, totalBytesExpectedToWrite: number) {
+//   if (totalBytesExpectedToWrite <= 0) {
+//     return 0;
+//   }
 
-  const progress = Math.floor((totalBytesWritten / totalBytesExpectedToWrite) * 100);
+//   const progress = Math.floor((totalBytesWritten / totalBytesExpectedToWrite) * 100);
 
-  return Math.max(0, Math.min(progress, 100));
-}
+//   return Math.max(0, Math.min(progress, 100));
+// }
 
 function getInsertButtonText(status?: SongDownloadStatus) {
   if (!status) {
@@ -142,26 +141,26 @@ function getInsertButtonText(status?: SongDownloadStatus) {
   return '插播';
 }
 
-function createPlaybackQueueItem({
-  song,
-  localVideoUri,
-  artistText,
-}: {
-  song: SongDto;
-  localVideoUri: string;
-  artistText?: string;
-}) {
-  return {
-    queueId: `${song._id}-${Date.now()}`,
-    songId: song._id,
-    song,
-    title: song.title,
-    artistText,
-    localVideoUri,
-    status: 'ready' as const,
-    createdAt: Date.now(),
-  };
-}
+// function createPlaybackQueueItem({
+//   song,
+//   localVideoUri,
+//   artistText,
+// }: {
+//   song: SongDto;
+//   localVideoUri: string;
+//   artistText?: string;
+// }) {
+//   return {
+//     queueId: `${song._id}-${Date.now()}`,
+//     songId: song._id,
+//     song,
+//     title: song.title,
+//     artistText,
+//     localVideoUri,
+//     status: 'ready' as const,
+//     createdAt: Date.now(),
+//   };
+// }
 
 // function getTotalPages(total: number) {
 //   if (total <= 0) {
@@ -182,12 +181,14 @@ export function NewSongsPanel({ visible, onClose }: Props) {
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageTab>(LANGUAGE_TABS[0]);
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  const enqueueNextSong = usePlaybackQueueStore((state) => state.enqueueNext);
+  // const enqueueNextSong = usePlaybackQueueStore((state) => state.enqueueNext);
   // const [songActionStatusMap, setSongActionStatusMap] = useState<SongActionStatusMap>({});
-  const songActionStatusMap = useSongDownloadStatusStore((state) => state.statusMap);
-  const setPreparing = useSongDownloadStatusStore((state) => state.setPreparing);
-  const setDownloading = useSongDownloadStatusStore((state) => state.setDownloading);
-  const clearDownloadStatus = useSongDownloadStatusStore((state) => state.clearStatus);
+  // const songActionStatusMap = useSongDownloadStatusStore((state) => state.statusMap);
+  // const setPreparing = useSongDownloadStatusStore((state) => state.setPreparing);
+  // const setDownloading = useSongDownloadStatusStore((state) => state.setDownloading);
+  // const clearDownloadStatus = useSongDownloadStatusStore((state) => state.clearStatus);
+
+  const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
 
   // const [isInitialLoading, setIsInitialLoading] = useState(false);
   // const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -328,88 +329,88 @@ export function NewSongsPanel({ visible, onClose }: Props) {
     });
   }, []);
 
-  const handlePressInsert = useCallback(
-    async (song: SongDto) => {
-      const songId = song._id;
+  // const handlePressInsert = useCallback(
+  //   async (song: SongDto) => {
+  //     const songId = song._id;
 
-      try {
-        setPreparing(songId);
+  //     try {
+  //       setPreparing(songId);
 
-        const cachedSong = await songCacheService.getCachedSong(songId);
+  //       const cachedSong = await songCacheService.getCachedSong(songId);
 
-        if (cachedSong?.videoUri) {
-          enqueueNextSong(
-            createPlaybackQueueItem({
-              song,
-              artistText: formatArtists(song.artists),
-              localVideoUri: cachedSong.videoUri,
-            }),
-          );
+  //       if (cachedSong?.videoUri) {
+  //         enqueueNextSong(
+  //           createPlaybackQueueItem({
+  //             song,
+  //             artistText: formatArtists(song.artists),
+  //             localVideoUri: cachedSong.videoUri,
+  //           }),
+  //         );
 
-          return;
-        }
+  //         return;
+  //       }
 
-        const resolvedAssets = await songAssetResolverService.resolveFromS3Title({
-          songId,
-          title: song.title,
-        });
+  //       const resolvedAssets = await songAssetResolverService.resolveFromS3Title({
+  //         songId,
+  //         title: song.title,
+  //       });
 
-        setDownloading(songId, 0);
+  //       setDownloading(songId, 0);
 
-        const songDir = await songCacheService.ensureSongDir(songId);
-        const extension = getFileExtensionFromS3Key(resolvedAssets.s3Key);
-        const targetUri = `${songDir}video.${extension}`;
+  //       const songDir = await songCacheService.ensureSongDir(songId);
+  //       const extension = getFileExtensionFromS3Key(resolvedAssets.s3Key);
+  //       const targetUri = `${songDir}video.${extension}`;
 
-        let lastProgress = -1;
+  //       let lastProgress = -1;
 
-        const downloadResumable = ExpoFileSystem.createDownloadResumable(
-          resolvedAssets.videoUrl,
-          targetUri,
-          {},
-          (downloadProgress) => {
-            const progress = calculateDownloadProgress(
-              downloadProgress.totalBytesWritten,
-              downloadProgress.totalBytesExpectedToWrite,
-            );
+  //       const downloadResumable = ExpoFileSystem.createDownloadResumable(
+  //         resolvedAssets.videoUrl,
+  //         targetUri,
+  //         {},
+  //         (downloadProgress) => {
+  //           const progress = calculateDownloadProgress(
+  //             downloadProgress.totalBytesWritten,
+  //             downloadProgress.totalBytesExpectedToWrite,
+  //           );
 
-            if (progress === lastProgress) {
-              return;
-            }
+  //           if (progress === lastProgress) {
+  //             return;
+  //           }
 
-            lastProgress = progress;
+  //           lastProgress = progress;
 
-            setDownloading(songId, progress);
-          },
-        );
+  //           setDownloading(songId, progress);
+  //         },
+  //       );
 
-        const downloadResult = await downloadResumable.downloadAsync();
+  //       const downloadResult = await downloadResumable.downloadAsync();
 
-        if (!downloadResult?.uri) {
-          throw new Error('Download failed: missing local uri.');
-        }
+  //       if (!downloadResult?.uri) {
+  //         throw new Error('Download failed: missing local uri.');
+  //       }
 
-        await songCacheService.saveCachedSong(songId, {
-          songId,
-          videoUri: downloadResult.uri,
-          downloadedAt: Date.now(),
-          totalBytes: resolvedAssets.size,
-        });
+  //       await songCacheService.saveCachedSong(songId, {
+  //         songId,
+  //         videoUri: downloadResult.uri,
+  //         downloadedAt: Date.now(),
+  //         totalBytes: resolvedAssets.size,
+  //       });
 
-        enqueueNextSong(
-          createPlaybackQueueItem({
-            song,
-            artistText: formatArtists(song.artists),
-            localVideoUri: downloadResult.uri,
-          }),
-        );
-      } catch (error) {
-        console.log('[NewSongsPanel] handlePressInsert failed:', error);
-      } finally {
-        clearDownloadStatus(songId);
-      }
-    },
-    [clearDownloadStatus, enqueueNextSong, setDownloading, setPreparing],
-  );
+  //       enqueueNextSong(
+  //         createPlaybackQueueItem({
+  //           song,
+  //           artistText: formatArtists(song.artists),
+  //           localVideoUri: downloadResult.uri,
+  //         }),
+  //       );
+  //     } catch (error) {
+  //       console.log('[NewSongsPanel] handlePressInsert failed:', error);
+  //     } finally {
+  //       clearDownloadStatus(songId);
+  //     }
+  //   },
+  //   [clearDownloadStatus, enqueueNextSong, setDownloading, setPreparing],
+  // );
 
   useEffect(() => {
     songListRef.current?.scrollToOffset({
@@ -495,7 +496,8 @@ export function NewSongsPanel({ visible, onClose }: Props) {
                         title: item.title,
                       });
 
-                      handlePressInsert(item);
+                      // handlePressInsert(item);
+                      insertSongNext(item);
                     }}
                   >
                     <View style={styles.songIconBox}>
@@ -523,7 +525,8 @@ export function NewSongsPanel({ visible, onClose }: Props) {
                       disabled={Boolean(songActionStatusMap[item._id])}
                       onPress={(event) => {
                         event.stopPropagation();
-                        handlePressInsert(item);
+                        // handlePressInsert(item);
+                        insertSongNext(item);
                       }}
                     >
                       <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">

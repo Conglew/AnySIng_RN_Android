@@ -93,6 +93,7 @@ export default function HomeScreen() {
     }
 
     if (title === '分類') {
+      setMainBackgroundMode('category');
       setIsCategoryPanelVisible(true);
       return;
     }
@@ -164,7 +165,10 @@ export default function HomeScreen() {
 
       <CategoryPanel
         visible={isCategoryPanelVisible}
-        onClose={() => setIsCategoryPanelVisible(false)}
+        onClose={() => {
+          setIsCategoryPanelVisible(false);
+          resetMainBackgroundMode();
+        }}
       />
 
       <NewSongsPanel
