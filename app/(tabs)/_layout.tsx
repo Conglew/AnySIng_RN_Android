@@ -1,11 +1,12 @@
 import { Slot } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MainFooter } from '@/src/features/main/components/main-footer';
 import { MainHeader } from '@/src/features/main/components/main-header';
 import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
+import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
 
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -13,12 +14,12 @@ const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png'
 const CATEGORY_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const SINGER_BACKGROUND = require('@/assets/images/home-panel-background.png');
 
-import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
-
 export default function TabsLayout() {
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
 
   const hasClearedPendingPlaylistRef = useRef(false);
+  const [isInitialPlaylistCleared, setIsInitialPlaylistCleared] = useState(false);
+
   const { clearPendingPlaylist } = usePlaybackQueueActions();
 
   useEffect(() => {
@@ -28,9 +29,13 @@ export default function TabsLayout() {
 
     hasClearedPendingPlaylistRef.current = true;
 
-    clearPendingPlaylist().catch((error) => {
-      console.log('[TabsLayout] clear pending playlist failed:', error);
-    });
+    clearPendingPlaylist()
+      .catch((error) => {
+        console.log('[TabsLayout] clear pending playlist failed:', error);
+      })
+      .finally(() => {
+        setIsInitialPlaylistCleared(true);
+      });
   }, [clearPendingPlaylist]);
 
   const isHomeBackground = backgroundMode === 'home';
@@ -80,7 +85,7 @@ export default function TabsLayout() {
 
       <View style={styles.page}>
         <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
-          <MainHeader />
+          <MainHeader showNowPlayingMarquee={isInitialPlaylistCleared} />
         </SafeAreaView>
 
         <View style={styles.content}>

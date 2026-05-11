@@ -2,7 +2,11 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { NowPlayingMarquee } from '@/src/features/main/components/now-playing-marquee';
 
-export function MainHeader() {
+type Props = {
+  showNowPlayingMarquee?: boolean;
+};
+
+export function MainHeader({ showNowPlayingMarquee = true }: Props) {
   return (
     <View style={styles.header}>
       <Image
@@ -11,7 +15,7 @@ export function MainHeader() {
         resizeMode="contain"
       />
 
-      <NowPlayingMarquee />
+      {showNowPlayingMarquee ? <NowPlayingMarquee /> : <View style={styles.marqueePlaceholder} />}
 
       <Pressable style={styles.languageButton}>
         <Image
@@ -39,6 +43,12 @@ const styles = StyleSheet.create({
     height: 240,
     marginLeft: -210,
     marginTop: 0,
+  },
+
+  marqueePlaceholder: {
+    flex: 1,
+    height: 38,
+    marginHorizontal: 20,
   },
 
   languageButton: {
