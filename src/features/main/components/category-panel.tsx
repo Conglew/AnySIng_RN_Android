@@ -14,6 +14,12 @@ import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-son
 import { SongDownloadStatus } from '@/src/features/player/stores/song-download-status.store';
 import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
 
+import { useQueryClient } from '@tanstack/react-query';
+
+import { getAccessToken } from '@/src/services/auth/auth-token-store';
+import { playlistClient } from '@/src/services/playlist/playlist-client';
+
+
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -93,6 +99,17 @@ export function CategoryPanel({ visible, onClose }: Props) {
 
   const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
 
+  const queryClient = useQueryClient();
+
+  const [favoriteActionStatusMap, setFavoriteActionStatusMap] = useState<Record<string, boolean>>(
+    {},
+  );
+
+  const [favoriteStateMap, setFavoriteStateMap] = useState<Record<string, boolean>>({});
+
+  const [favoriteErrorMessage, setFavoriteErrorMessage] = useState('');
+
+
   const {
     data: categoriesData,
     isLoading: isLoadingCategories,
@@ -167,6 +184,97 @@ export function CategoryPanel({ visible, onClose }: Props) {
     });
   }, []);
 
+  const handleToggleFavorite = useCallback(
+    async (song: SongDto) => {
+      const songId = song._id;
+
+      if (!songId) {
+        console.log('[NewSongsPanel] favorite ignored: missing songId', song);
+        return;
+      }
+
+      if (favoriteActionStatusMap[songId]) {
+        return;
+      }
+
+      setFavoriteActionStatusMap((previous) => ({
+        ...previous,
+        [songId]: true,
+      }));
+
+      try {
+        setFavoriteErrorMessage('');
+
+        const token = await getAccessToken();
+
+        if (!token) {
+          throw new Error('Missing access token.');
+        }
+
+        const currentIsCollected = favoriteStateMap[songId] ?? Boolean(song.isCollected);
+        const nextIsCollected = !currentIsCollected;
+
+        if (currentIsCollected) {
+          await playlistClient.removeSongFromPlaylist({
+            token,
+            type: 'collect',
+            songId,
+          });
+
+          console.log('[NewSongsPanel] removed favorite:', {
+            songId,
+            title: song.title,
+          });
+        } else {
+          await playlistClient.addSongToPlaylist({
+            token,
+            type: 'collect',
+            songId,
+          });
+
+          console.log('[NewSongsPanel] added favorite:', {
+            songId,
+            title: song.title,
+          });
+        }
+
+        setFavoriteStateMap((previous) => ({
+          ...previous,
+          [songId]: nextIsCollected,
+        }));
+
+        queryClient.invalidateQueries({
+          queryKey: ['songs'],
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ['playlist'],
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ['new-songs'],
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        console.log('[NewSongsPanel] toggle favorite failed:', {
+          songId,
+          title: song.title,
+          error: message,
+        });
+
+        setFavoriteErrorMessage(message);
+      } finally {
+        setFavoriteActionStatusMap((previous) => {
+          const next = { ...previous };
+          delete next[songId];
+          return next;
+        });
+      }
+    },
+    [favoriteActionStatusMap, favoriteStateMap, queryClient],
+  );
+
   // const handleBackToCategories = useCallback(() => {
   //   setSelectedCategory(null);
   // }, []);
@@ -198,6 +306,10 @@ export function CategoryPanel({ visible, onClose }: Props) {
     <View style={styles.panelLayer}>
       <View style={styles.panel}>
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+        {favoriteErrorMessage ? (
+              <Text style={styles.errorText}>{favoriteErrorMessage}</Text>
+            ) : null}
 
         {isCategoryListMode ? (
           <View style={styles.categoryView}>
@@ -368,8 +480,15 @@ export function CategoryPanel({ visible, onClose }: Props) {
                       {truncateText(formatArtists(item.artists), 10)}
                     </Text>
 
-                    <Pressable style={styles.favoriteButton}>
-                      {item.isCollected ? (
+                    <Pressable
+                      style={styles.favoriteButton}
+                      disabled={Boolean(favoriteActionStatusMap[item._id])}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        handleToggleFavorite(item);
+                      }}
+                    >
+                      {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
                         <SongLikedIcon width={42} height={42} />
                       ) : (
                         <SongLikeIcon width={42} height={42} />

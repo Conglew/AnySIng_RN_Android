@@ -9,14 +9,10 @@ import {
   View,
 } from 'react-native';
 
-// import * as ExpoFileSystem from 'expo-file-system/legacy';
+import { useQueryClient } from '@tanstack/react-query';
 
-// import {
-//   ResolvedSongAssets,
-//   songAssetResolverService,
-// } from '@/src/features/player/services/song-asset-resolver.service';
-// import { songCacheService } from '@/src/features/player/services/song-cache.service';
-// import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
+import { getAccessToken } from '@/src/services/auth/auth-token-store';
+import { playlistClient } from '@/src/services/playlist/playlist-client';
 
 import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
 
@@ -101,31 +97,6 @@ function truncateText(value: string, maxLength: number) {
   return `${chars.slice(0, maxLength).join('')}...`;
 }
 
-// function getFileExtensionFromS3Key(key?: string) {
-//   if (!key) {
-//     return 'mkv';
-//   }
-
-//   const filename = key.split('/').pop() || '';
-//   const extension = filename.split('.').pop();
-
-//   if (!extension || extension.length > 8) {
-//     return 'mkv';
-//   }
-
-//   return extension;
-// }
-
-// function calculateDownloadProgress(totalBytesWritten: number, totalBytesExpectedToWrite: number) {
-//   if (totalBytesExpectedToWrite <= 0) {
-//     return 0;
-//   }
-
-//   const progress = Math.floor((totalBytesWritten / totalBytesExpectedToWrite) * 100);
-
-//   return Math.max(0, Math.min(progress, 100));
-// }
-
 function getInsertButtonText(status?: SongDownloadStatus) {
   if (!status) {
     return '插播';
@@ -141,27 +112,6 @@ function getInsertButtonText(status?: SongDownloadStatus) {
 
   return '插播';
 }
-
-// function createPlaybackQueueItem({
-//   song,
-//   localVideoUri,
-//   artistText,
-// }: {
-//   song: SongDto;
-//   localVideoUri: string;
-//   artistText?: string;
-// }) {
-//   return {
-//     queueId: `${song._id}-${Date.now()}`,
-//     songId: song._id,
-//     song,
-//     title: song.title,
-//     artistText,
-//     localVideoUri,
-//     status: 'ready' as const,
-//     createdAt: Date.now(),
-//   };
-// }
 
 export function RankingSongsPanel({ visible, onClose }: Props) {
   const songListRef = useRef<FlatList<SongDto>>(null);
@@ -186,15 +136,15 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
   });
 
   const [searchKeyword, setSearchKeyword] = useState('');
-
-  // const [resolvedSongAsset, setResolvedSongAsset] = useState<ResolvedSongAssets | null>(null);
-
-  // const enqueueSong = usePlaybackQueueStore((state) => state.enqueue);
-  // const enqueueNextSong = usePlaybackQueueStore((state) => state.enqueueNext);
-
-  // const [songActionStatusMap, setSongActionStatusMap] = useState<SongActionStatusMap>({});
-
   const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
+
+  const queryClient = useQueryClient();
+
+  const [favoriteActionStatusMap, setFavoriteActionStatusMap] = useState<Record<string, boolean>>(
+    {},
+  );
+
+  const [favoriteStateMap, setFavoriteStateMap] = useState<Record<string, boolean>>({});
 
   const handlePressLanguage = useCallback((tab: LanguageTab) => {
     songListRef.current?.scrollToOffset({
@@ -210,6 +160,126 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
       return tab;
     });
   }, []);
+
+  const handleToggleFavorite = useCallback(
+    async (song: SongDto) => {
+      const songId = song._id;
+
+      if (!songId) {
+        console.log('[RankingSongsPanel] favorite ignored: missing songId', song);
+        return;
+      }
+
+      if (favoriteActionStatusMap[songId]) {
+        return;
+      }
+
+      setFavoriteActionStatusMap((previous) => ({
+        ...previous,
+        [songId]: true,
+      }));
+
+      try {
+        setErrorMessage('');
+
+        const token = await getAccessToken();
+
+        if (!token) {
+          throw new Error('Missing access token.');
+        }
+
+        // if (song.isCollected) {
+        //   await playlistClient.removeSongFromPlaylist({
+        //     token,
+        //     type: 'collect',
+        //     songId,
+        //   });
+
+        //   console.log('[RankingSongsPanel] removed favorite:', {
+        //     songId,
+        //     title: song.title,
+        //   });
+        // } else {
+        //   await playlistClient.addSongToPlaylist({
+        //     token,
+        //     type: 'collect',
+        //     songId,
+        //   });
+
+        //   console.log('[RankingSongsPanel] added favorite:', {
+        //     songId,
+        //     title: song.title,
+        //   });
+        // }
+        const currentIsCollected = favoriteStateMap[songId] ?? Boolean(song.isCollected);
+        const nextIsCollected = !currentIsCollected;
+
+        if (currentIsCollected) {
+          await playlistClient.removeSongFromPlaylist({
+            token,
+            type: 'collect',
+            songId,
+          });
+
+          console.log('[RankingSongsPanel] removed favorite:', {
+            songId,
+            title: song.title,
+          });
+        } else {
+          await playlistClient.addSongToPlaylist({
+            token,
+            type: 'collect',
+            songId,
+          });
+
+          console.log('[RankingSongsPanel] added favorite:', {
+            songId,
+            title: song.title,
+          });
+        }
+
+        setFavoriteStateMap((previous) => ({
+          ...previous,
+          [songId]: nextIsCollected,
+        }));
+
+        /**
+         * 讓排行榜歌曲列表重新取得 isCollected 狀態。
+         *
+         * 如果 useRankingSongsCache 有自己的 refetch / mutate 方法，
+         * 之後可以改成精準更新；目前先用 invalidateQueries 讓資料重新同步。
+         */
+        queryClient.invalidateQueries({
+          queryKey: ['ranking-songs'],
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ['songs'],
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ['playlist'],
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        console.log('[RankingSongsPanel] toggle favorite failed:', {
+          songId,
+          title: song.title,
+          error: message,
+        });
+
+        setErrorMessage(message);
+      } finally {
+        setFavoriteActionStatusMap((previous) => {
+          const next = { ...previous };
+          delete next[songId];
+          return next;
+        });
+      }
+    },
+    [favoriteActionStatusMap, favoriteStateMap, queryClient, setErrorMessage],
+  );
 
   /*
     點擊歌曲
@@ -468,8 +538,15 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                       {truncateText(formatArtists(item.artists), 5)}
                     </Text>
 
-                    <Pressable style={styles.favoriteButton}>
-                      {item.isCollected ? (
+                    <Pressable
+                      style={styles.favoriteButton}
+                      disabled={Boolean(favoriteActionStatusMap[item._id])}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        handleToggleFavorite(item);
+                      }}
+                    >
+                      {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
                         <SongLikedIcon width={42} height={42} />
                       ) : (
                         <SongLikeIcon width={42} height={42} />
