@@ -60,7 +60,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
+  const { songActionStatusMap, insertSongNext, enqueueSongAfterDownload } = useInsertSongPlayback();
 
   const totalPages = useMemo(() => {
     if (cachedSongs.length <= 0) {
@@ -157,7 +157,8 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                       return;
                     }
 
-                    insertSongNext(song);
+                    // insertSongNext(song);
+                    enqueueSongAfterDownload(song);
                   }}
                 >
                   <View style={styles.songIconBox}>
@@ -191,6 +192,8 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                       }
 
                       insertSongNext(song);
+                      // enqueueSongAfterDownload(song);
+                      console.log('isInsertSongNext');
                     }}
                   >
                     <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">

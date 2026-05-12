@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
+import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
@@ -11,6 +12,8 @@ export function usePlaybackQueueActions() {
   const finishCurrent = usePlaybackQueueStore((state) => state.finishCurrent);
   const removeByQueueId = usePlaybackQueueStore((state) => state.removeByQueueId);
   const clear = usePlaybackQueueStore((state) => state.clear);
+
+  const setPaused = usePlayerControlStore((state) => state.setPaused);
 
   const skipCurrent = useCallback(async () => {
     const token = await getAccessToken();
@@ -24,6 +27,8 @@ export function usePlaybackQueueActions() {
     });
 
     finishCurrent();
+
+    setPaused(false);
 
     await queryClient.invalidateQueries({
       queryKey: ['playlist', 'now-playing'],
@@ -69,6 +74,8 @@ export function usePlaybackQueueActions() {
     });
 
     clear();
+
+    // setPaused(true);
 
     await queryClient.invalidateQueries({
       queryKey: ['playlist', 'now-playing'],

@@ -20,6 +20,15 @@ export function NowPlayingMarquee() {
 
   const { data } = useNowPlayingQuery();
 
+  useEffect(() => {
+    console.log('[NowPlayingMarquee] data:', {
+      current: data?.current?.title,
+      next: data?.next?.title,
+      index: data?.index,
+      raw: data,
+    });
+  }, [data]);
+
   const displayText = useMemo(() => {
     const currentTitle = formatSongTitle(data?.current?.title);
     const nextTitle = formatSongTitle(data?.next?.title);

@@ -1,12 +1,21 @@
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ImageBackground,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  findNodeHandle,
+  UIManager,
+} from 'react-native';
 import Video, { SelectedTrackType, type SelectedTrack } from 'react-native-video';
 
 import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
-
+import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
+import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
 
 type Props = {
   videoUri?: string;
@@ -35,13 +44,27 @@ export function HomeSidePanel({
   const [resolvedVideoUri, setResolvedVideoUri] = useState<string | null>(null);
   const [videoLoadError, setVideoLoadError] = useState<string>('');
 
+  const playerFrameRef = useRef<View>(null);
+  const showFullscreenVideo = useFullscreenVideoStore((state) => state.showFullscreenVideo);
+
   const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
   const finishCurrentPlaybackItem = usePlaybackQueueStore((state) => state.finishCurrent);
 
-  const playbackVideoUri = currentPlaybackItem?.localVideoUri ?? resolvedVideoUri;
+  // const isPaused = usePlayerControlStore((state) => state.isPaused);
+  // const audioTrackMode = usePlayerControlStore((state) => state.audioTrackMode);
 
   const isPaused = usePlayerControlStore((state) => state.isPaused);
+  const setPaused = usePlayerControlStore((state) => state.setPaused);
   const audioTrackMode = usePlayerControlStore((state) => state.audioTrackMode);
+
+  // const setPaused = usePlayerControlStore((state) => state.setPaused);
+
+  const playbackVideoUri = currentPlaybackItem?.localVideoUri ?? resolvedVideoUri;
+  const isDefaultVideo = !currentPlaybackItem;
+  // const shouldPauseVideo = currentPlaybackItem ? isPaused : false;
+
+  const { skipCurrent } = usePlaybackQueueActions();
+  const isFinishingPlaybackRef = useRef(false);
 
   const restartToken = usePlayerControlStore((state) => state.restartToken);
 
@@ -65,6 +88,44 @@ export function HomeSidePanel({
       value: selectedIndex,
     };
   }, [accompanimentAudioTrackIndex, audioTrackMode, vocalAudioTrackIndex]);
+
+  const handleOpenFullscreenVideo = () => {
+    console.log('[HomeSidePanel] playerFrame pressed:', {
+      playbackVideoUri,
+    });
+
+    if (!playbackVideoUri) {
+      console.log('[HomeSidePanel] fullscreen ignored: missing playbackVideoUri');
+      return;
+    }
+
+    const nodeHandle = findNodeHandle(playerFrameRef.current);
+
+    if (!nodeHandle) {
+      console.log('[HomeSidePanel] fullscreen ignored: missing nodeHandle');
+      return;
+    }
+
+    UIManager.measureInWindow(nodeHandle, (x, y, width, height) => {
+      console.log('[HomeSidePanel] fullscreen origin rect:', {
+        x,
+        y,
+        width,
+        height,
+      });
+
+      showFullscreenVideo({
+        videoUri: playbackVideoUri,
+        originRect: {
+          x,
+          y,
+          width,
+          height,
+        },
+        isDefaultVideo,
+      });
+    });
+  };
 
   useEffect(() => {
     if (!playbackVideoUri) {
@@ -176,6 +237,10 @@ export function HomeSidePanel({
     console.log('[HomeSidePanel] selectedAudioTrack:', selectedAudioTrack);
   }, [audioTrackMode, selectedAudioTrack]);
 
+  useEffect(() => {
+    setPaused(false);
+  }, [setPaused]);
+
   return (
     <View style={styles.sidePanel}>
       <View style={styles.buttonGroup}>
@@ -221,52 +286,97 @@ export function HomeSidePanel({
         </Pressable>
       </View>
 
-      <View style={styles.playerFrame}>
+      <Pressable
+        ref={playerFrameRef as any}
+        style={({ pressed }) => [styles.playerFrame, pressed && styles.playerFramePressed]}
+        onPress={handleOpenFullscreenVideo}
+        pointerEvents="none"
+      >
         {playbackVideoUri ? (
-          <Video
-            ref={videoRef}
-            key={currentPlaybackItem?.queueId ?? playbackVideoUri}
-            source={{ uri: playbackVideoUri }}
-            style={styles.video}
-            resizeMode="contain"
-            controls={false}
-            repeat={false}
-            paused={isPaused}
-            muted={false}
-            selectedAudioTrack={selectedAudioTrack}
-            onLoad={(payload: any) => {
-              console.log('[ReactNativeVideo] playbackVideoUri:', playbackVideoUri);
-              console.log('[ReactNativeVideo] currentPlaybackItem:', currentPlaybackItem);
-              console.log('[ReactNativeVideo] onLoad payload:', payload);
-              console.log('[ReactNativeVideo] audioTracks:', payload?.audioTracks);
+          <View pointerEvents="none" style={styles.videoTouchBlocker}>
+            <Video
+              ref={videoRef}
+              key={currentPlaybackItem?.queueId ?? playbackVideoUri}
+              source={{ uri: playbackVideoUri }}
+              style={styles.video}
+              resizeMode="contain"
+              controls={false}
+              repeat={isDefaultVideo}
+              paused={isPaused}
+              muted={false}
+              selectedAudioTrack={selectedAudioTrack}
+              onLoad={(payload: any) => {
+                console.log('[ReactNativeVideo] playbackVideoUri:', playbackVideoUri);
+                console.log('[ReactNativeVideo] currentPlaybackItem:', currentPlaybackItem);
+                console.log('[ReactNativeVideo] isDefaultVideo:', isDefaultVideo);
+                console.log('[ReactNativeVideo] isPaused:', isPaused);
+                console.log('[ReactNativeVideo] onLoad payload:', payload);
+                console.log('[ReactNativeVideo] audioTracks:', payload?.audioTracks);
 
-              const audioTracks = payload?.audioTracks ?? [];
+                const audioTracks = payload?.audioTracks ?? [];
 
-              const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
-              const accompanimentTrack = audioTracks[DEFAULT_ACCOMPANIMENT_TRACK_INDEX];
+                const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
+                const accompanimentTrack = audioTracks[DEFAULT_ACCOMPANIMENT_TRACK_INDEX];
 
-              setAudioTrackIndexes({
-                vocalAudioTrackIndex: vocalTrack ? DEFAULT_VOCAL_TRACK_INDEX : null,
-                accompanimentAudioTrackIndex: accompanimentTrack
-                  ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX
-                  : null,
-              });
-            }}
-            onEnd={() => {
-              console.log('[ReactNativeVideo] playback ended:', {
-                songId: currentPlaybackItem?.songId,
-                song: currentPlaybackItem?.song,
-              });
+                setAudioTrackIndexes({
+                  vocalAudioTrackIndex: vocalTrack ? DEFAULT_VOCAL_TRACK_INDEX : null,
+                  accompanimentAudioTrackIndex: accompanimentTrack
+                    ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX
+                    : null,
+                });
+              }}
+              onEnd={() => {
+                console.log('[ReactNativeVideo] playback ended:', {
+                  isDefaultVideo,
+                  songId: currentPlaybackItem?.songId,
+                  song: currentPlaybackItem?.song,
+                });
 
-              finishCurrentPlaybackItem();
-            }}
-            onError={(event) => {
-              console.log('[ReactNativeVideo] error:', event);
-              setVideoLoadError(JSON.stringify(event));
+                if (isDefaultVideo) {
+                  videoRef.current?.seek?.(0);
+                  return;
+                }
 
-              finishCurrentPlaybackItem();
-            }}
-          />
+                if (isFinishingPlaybackRef.current) {
+                  return;
+                }
+
+                isFinishingPlaybackRef.current = true;
+
+                skipCurrent()
+                  .catch((error) => {
+                    console.log('[ReactNativeVideo] sync skipCurrent onEnd failed:', error);
+                    finishCurrentPlaybackItem();
+                  })
+                  .finally(() => {
+                    isFinishingPlaybackRef.current = false;
+                  });
+              }}
+              onError={(event) => {
+                console.log('[ReactNativeVideo] error:', event);
+                setVideoLoadError(JSON.stringify(event));
+
+                if (isDefaultVideo) {
+                  return;
+                }
+
+                if (isFinishingPlaybackRef.current) {
+                  return;
+                }
+
+                isFinishingPlaybackRef.current = true;
+
+                skipCurrent()
+                  .catch((error) => {
+                    console.log('[ReactNativeVideo] sync skipCurrent onError failed:', error);
+                    finishCurrentPlaybackItem();
+                  })
+                  .finally(() => {
+                    isFinishingPlaybackRef.current = false;
+                  });
+              }}
+            />
+          </View>
         ) : (
           <View style={styles.videoPlaceholder}>
             <Text style={styles.videoPlaceholderText}>
@@ -274,7 +384,7 @@ export function HomeSidePanel({
             </Text>
           </View>
         )}
-      </View>
+      </Pressable>
 
       {/* <Text style={styles.audioModeText}>
         {audioTrackMode === 'vocal' ? '原唱模式' : '伴奏模式'}
@@ -361,5 +471,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+  },
+
+  playerFramePressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.985 }],
+  },
+
+  videoTouchBlocker: {
+    width: '100%',
+    height: '100%',
   },
 });

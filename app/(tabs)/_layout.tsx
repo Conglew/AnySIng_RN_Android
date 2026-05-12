@@ -10,6 +10,8 @@ import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback
 
 import { useSocketConnection } from '@/src/services/socket/use-socket-connection';
 
+// import { FullscreenVideoBackground } from '@/src/features/main/components/fullscreen-video-background';
+
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -89,6 +91,8 @@ export default function TabsLayout() {
         fadeDuration={0}
       />
 
+      {/* <FullscreenVideoBackground /> */}
+
       <View style={styles.page}>
         <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
           <MainHeader showNowPlayingMarquee={isSocketInitialized} />
@@ -126,6 +130,7 @@ const styles = StyleSheet.create({
 
   page: {
     flex: 1,
+    zIndex: 10,
   },
 
   headerSafeArea: {

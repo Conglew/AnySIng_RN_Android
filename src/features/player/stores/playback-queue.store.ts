@@ -141,10 +141,32 @@ export const usePlaybackQueueStore = create<PlaybackQueueStore>((set) => ({
     });
   },
 
+  // enqueueNext: (item) => {
+  //   set((state) => {
+  //     const nextItem = createPlaybackQueueItem(item, 'ready');
+
+  //     if (!state.currentItem) {
+  //       return {
+  //         currentItem: {
+  //           ...nextItem,
+  //           status: 'playing',
+  //         },
+  //       };
+  //     }
+
+  //     return {
+  //       queue: [nextItem, ...state.queue],
+  //     };
+  //   });
+  // },
   enqueueNext: (item) => {
     set((state) => {
       const nextItem = createPlaybackQueueItem(item, 'ready');
 
+      /**
+       * 如果目前沒有正在播放的歌曲：
+       * 插播行為等同於直接開始播放這首歌。
+       */
       if (!state.currentItem) {
         return {
           currentItem: {
@@ -154,8 +176,24 @@ export const usePlaybackQueueStore = create<PlaybackQueueStore>((set) => ({
         };
       }
 
+      /**
+       * 插播時要避免本地 queue 出現重複項目。
+       *
+       * 原因：
+       * 後端 interjectSongNext 的邏輯是：
+       * - 如果歌曲已經存在於 pending playlist，會「移動」那一筆 occurrence 到下一首
+       * - 如果歌曲不存在，才會新增一筆 occurrence
+       *
+       * 因此前端也要做相同語意：
+       * - 如果 queue 裡已經有同一個 queueId，先移除舊位置
+       * - 再把它插到 queue 最前面，也就是 currentItem 的下一首
+       */
+      const queueWithoutSameItem = state.queue.filter(
+        (queueItem) => queueItem.queueId !== nextItem.queueId,
+      );
+
       return {
-        queue: [nextItem, ...state.queue],
+        queue: [nextItem, ...queueWithoutSameItem],
       };
     });
   },
