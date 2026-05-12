@@ -121,6 +121,21 @@ type InsertSongParams = {
   mode?: InsertSongMode;
 };
 
+function formatDownloadSpeed(bytesPerSecond: number) {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) {
+    return '-- MB/s';
+  }
+
+  const mbPerSecond = bytesPerSecond / 1024 / 1024;
+
+  if (mbPerSecond >= 1) {
+    return `${mbPerSecond.toFixed(1)} MB/s`;
+  }
+
+  const kbPerSecond = bytesPerSecond / 1024;
+  return `${Math.max(kbPerSecond, 0).toFixed(0)} KB/s`;
+}
+
 export function useInsertSongPlayback() {
   const enqueueSong = usePlaybackQueueStore((state) => state.enqueue);
   const enqueueNextSong = usePlaybackQueueStore((state) => state.enqueueNext);
@@ -225,7 +240,8 @@ export function useInsertSongPlayback() {
       }
 
       try {
-        setPreparing(songId);
+        // setPreparing(songId);
+        setPreparing(song);
 
         const cachedSong = await songCacheService.getCachedSong(songId);
 
@@ -260,7 +276,8 @@ export function useInsertSongPlayback() {
           title: song.title,
         });
 
-        setDownloading(songId, 0);
+        // setDownloading(songId, 0);
+        setDownloading(song, 0);
 
         const songDir = await songCacheService.ensureSongDir(songId);
         const extension = getFileExtensionFromS3Key(resolvedAssets.s3Key);
@@ -272,6 +289,30 @@ export function useInsertSongPlayback() {
         const tempUri = `${songDir}video.${extension}.tmp`;
 
         let lastProgress = -1;
+        let lastBytesWritten = 0;
+        let lastSpeedTimestamp = Date.now();
+        let lastSpeedText = '-- MB/s';
+
+        // const downloadResumable = ExpoFileSystem.createDownloadResumable(
+        //   resolvedAssets.videoUrl,
+        //   tempUri,
+        //   {},
+        //   (downloadProgress) => {
+        //     const progress = calculateDownloadProgress(
+        //       downloadProgress.totalBytesWritten,
+        //       downloadProgress.totalBytesExpectedToWrite,
+        //     );
+
+        //     if (progress === lastProgress) {
+        //       return;
+        //     }
+
+        //     lastProgress = progress;
+
+        //     // setDownloading(songId, progress);
+        //     setDownloading(song, progress);
+        //   },
+        // );
 
         const downloadResumable = ExpoFileSystem.createDownloadResumable(
           resolvedAssets.videoUrl,
@@ -283,13 +324,25 @@ export function useInsertSongPlayback() {
               downloadProgress.totalBytesExpectedToWrite,
             );
 
+            const now = Date.now();
+            const elapsedSeconds = (now - lastSpeedTimestamp) / 1000;
+            const bytesDelta = downloadProgress.totalBytesWritten - lastBytesWritten;
+
+            if (elapsedSeconds >= 0.5 && bytesDelta >= 0) {
+              const bytesPerSecond = bytesDelta / elapsedSeconds;
+
+              lastSpeedText = formatDownloadSpeed(bytesPerSecond);
+              lastSpeedTimestamp = now;
+              lastBytesWritten = downloadProgress.totalBytesWritten;
+            }
+
             if (progress === lastProgress) {
               return;
             }
 
             lastProgress = progress;
 
-            setDownloading(songId, progress);
+            setDownloading(song, progress, lastSpeedText);
           },
         );
 
