@@ -195,8 +195,14 @@ export default function HomeScreen() {
             }}
           /> */}
           <HomeSidePanel
-            onOpenMySongsPanel={() => setIsMySongsPanelVisible(true)}
-            onOpenCachedSongsPanel={() => setIsCachedSongsPanelVisible(true)}
+            onOpenMySongsPanel={() => {
+              setMainBackgroundMode('category');
+              setIsMySongsPanelVisible(true);
+            }}
+            onOpenCachedSongsPanel={() => {
+              setMainBackgroundMode('category');
+              setIsCachedSongsPanelVisible(true);
+            }}
           />
         </View>
       </View>

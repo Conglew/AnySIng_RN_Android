@@ -13,6 +13,8 @@ import { useSocketConnection } from '@/src/services/socket/use-socket-connection
 // import { FullscreenVideoBackground } from '@/src/features/main/components/fullscreen-video-background';
 import { SharedVideoPlayer } from '@/src/features/main/components/shared-video-player';
 
+import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
+
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -21,6 +23,9 @@ const SINGER_BACKGROUND = require('@/assets/images/home-panel-background.png');
 
 export default function TabsLayout() {
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
+
+  const videoMode = useFullscreenVideoStore((state) => state.mode);
+const isVideoFullscreen = videoMode === 'fullscreen';
 
   const hasClearedPendingPlaylistRef = useRef(false);
   // const [isInitialPlaylistCleared, setIsInitialPlaylistCleared] = useState(false);
@@ -53,7 +58,7 @@ export default function TabsLayout() {
   const isCategoryBackground = backgroundMode === 'category';
   const isSingreBackground = backgroundMode === 'singer';
 
-  const isPanelBackground = isRankingBackground || isNewSongsBackground || isCategoryBackground;
+  const isPanelBackground = isRankingBackground || isNewSongsBackground || isCategoryBackground || isSingreBackground;
 
   return (
     <View style={styles.root}>
@@ -93,7 +98,7 @@ export default function TabsLayout() {
       />
 
       {/* <FullscreenVideoBackground /> */}
-      <SharedVideoPlayer />
+      {/* <SharedVideoPlayer /> */}
 
       <View style={styles.page}>
         <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
@@ -105,11 +110,13 @@ export default function TabsLayout() {
         </View>
 
         <SafeAreaView
-          style={[styles.footerSafeArea, !isPanelBackground && styles.footerSafeAreaDark]}
+          style={[styles.footerSafeArea, !isVideoFullscreen && !isPanelBackground && styles.footerSafeAreaDark,]}
           edges={['bottom']}
         >
           <MainFooter />
         </SafeAreaView>
+
+        <SharedVideoPlayer />
       </View>
     </View>
   );
@@ -133,18 +140,22 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
     zIndex: 10,
+    position: 'relative',
   },
 
   headerSafeArea: {
     backgroundColor: 'transparent',
+    zIndex: 40,
   },
 
   content: {
     flex: 1,
+    zIndex: 10,
   },
 
   footerSafeArea: {
     backgroundColor: 'transparent',
+    zIndex: 40,
   },
 
   footerSafeAreaDark: {
