@@ -12,6 +12,8 @@ import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-vi
 import { useHomePanelStore } from '@/src/features/main/store/home-panel.store';
 import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
 
+import { useQueuedSongsPanelStore } from '@/src/features/main/store/queued-songs-panel.store';
+
 import FooterIcon1 from '@/assets/images/footer-icons-1.svg';
 import FooterIcon2 from '@/assets/images/footer-icons-2.svg';
 import FooterIcon3 from '@/assets/images/footer-icons-3.svg';
@@ -109,6 +111,8 @@ export function MainFooter() {
   const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
   const closeFullscreen = useFullscreenVideoStore((state) => state.closeFullscreen);
 
+  const openQueuedSongsPanel = useQueuedSongsPanelStore((state) => state.openPanel);
+
   return (
     <View style={styles.footer}>
       {FOOTER_ITEMS.map((item) => {
@@ -129,6 +133,11 @@ export function MainFooter() {
                 closeFullscreen();
 
                 router.replace('/(tabs)/home');
+                return;
+              }
+
+              if (item.label === '已點') {
+                openQueuedSongsPanel();
                 return;
               }
 
@@ -189,9 +198,6 @@ export function MainFooter() {
               }
 
               // router.replace(item.route);
-              if (item.action === 'navigate') {
-                router.replace(item.route);
-              }
             }}
           >
             <Icon

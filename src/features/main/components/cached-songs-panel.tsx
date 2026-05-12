@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 
 import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
 import { songCacheService } from '@/src/features/player/services/song-cache.service';
@@ -62,6 +63,10 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
 
   const { songActionStatusMap, insertSongNext, enqueueSongAfterDownload } = useInsertSongPlayback();
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [isClearConfirmVisible, setIsClearConfirmVisible] = useState(false);
+  const [removingSongIdMap, setRemovingSongIdMap] = useState<Record<string, boolean>>({});
+
   const totalPages = useMemo(() => {
     if (cachedSongs.length <= 0) {
       return 1;
@@ -100,6 +105,40 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
     }
   }, []);
 
+  const handleRemoveCachedSong = useCallback(
+    async (songId: string) => {
+      if (!songId) {
+        return;
+      }
+
+      if (removingSongIdMap[songId]) {
+        return;
+      }
+
+      setRemovingSongIdMap((previous) => ({
+        ...previous,
+        [songId]: true,
+      }));
+
+      try {
+        setErrorMessage('');
+
+        await songCacheService.removeCachedSong(songId);
+
+        setCachedSongs((previous) => previous.filter((item) => item.songId !== songId));
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      } finally {
+        setRemovingSongIdMap((previous) => {
+          const next = { ...previous };
+          delete next[songId];
+          return next;
+        });
+      }
+    },
+    [removingSongIdMap],
+  );
+
   useEffect(() => {
     if (!visible) {
       return;
@@ -115,16 +154,62 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
   return (
     <View style={styles.panelLayer}>
       <View style={styles.panel}>
-        <View style={styles.headerRow}>
+        {/* <View style={styles.headerRow}>
           <Text style={styles.title}>緩存下載</Text>
 
           <Pressable style={styles.editButton}>
             <Text style={styles.editButtonText}>編輯</Text>
           </Pressable>
 
-          {/* <Pressable style={styles.editButton} onPress={handleClearAllCachedSongs}>
+          <Pressable style={styles.editButton} onPress={handleClearAllCachedSongs}>
             <Text style={styles.editButtonText}>清除</Text>
-          </Pressable> */}
+          </Pressable>
+        </View> */}
+
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>緩存下載</Text>
+
+          {isEditing ? (
+            <View style={styles.editActionGroup}>
+              <Pressable
+                style={[styles.editActionButton, styles.removeAllButton]}
+                onPress={() => {
+                  setIsClearConfirmVisible(true);
+                }}
+              >
+                <Text style={[styles.editButtonText, styles.removeAllText]}>全部移除</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.editActionButton}
+                onPress={() => {
+                  setIsEditing(false);
+                  setIsClearConfirmVisible(false);
+                }}
+              >
+                <Text style={styles.editButtonText}>完成</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.editActionButton}
+                onPress={() => {
+                  setIsEditing(false);
+                  setIsClearConfirmVisible(false);
+                }}
+              >
+                <Text style={styles.editButtonText}>取消</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              style={styles.editButton}
+              onPress={() => {
+                setIsEditing(true);
+              }}
+            >
+              <Text style={styles.editButtonText}>編輯</Text>
+            </Pressable>
+          )}
         </View>
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -145,62 +230,83 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
               const artists = song?.artists;
 
               return (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.songRow,
-                    pressed && styles.songRowPressed,
-                    songActionStatusMap[item.songId] && styles.songRowResolving,
-                  ]}
-                  disabled={!song}
-                  onPress={() => {
-                    if (!song) {
-                      return;
-                    }
-
-                    // insertSongNext(song);
-                    enqueueSongAfterDownload(song);
-                  }}
+                <Swipeable
+                  enabled={isEditing}
+                  renderRightActions={() => (
+                    <Pressable
+                      style={styles.swipeRemoveButton}
+                      disabled={Boolean(removingSongIdMap[item.songId])}
+                      onPress={() => {
+                        handleRemoveCachedSong(item.songId);
+                      }}
+                    >
+                      <Text style={styles.swipeRemoveText}>
+                        {removingSongIdMap[item.songId] ? '移除中' : '移除'}
+                      </Text>
+                    </Pressable>
+                  )}
                 >
-                  <View style={styles.songIconBox}>
-                    <SongReadyIcon width={32} height={32} />
-                  </View>
-
-                  <Text style={styles.songTitle} numberOfLines={1}>
-                    {truncateText(formatDisplaySongTitle(title), 16)}
-                  </Text>
-
-                  <Text style={styles.artistText} numberOfLines={1}>
-                    {truncateText(formatArtists(artists), 10)}
-                  </Text>
-
-                  <Pressable style={styles.favoriteButton}>
-                    {song?.isCollected ? (
-                      <SongLikedIcon width={42} height={42} />
-                    ) : (
-                      <SongLikeIcon width={42} height={42} />
-                    )}
-                  </Pressable>
-
                   <Pressable
-                    style={styles.insertButton}
-                    disabled={!song || Boolean(songActionStatusMap[item.songId])}
-                    onPress={(event) => {
-                      event.stopPropagation();
-
+                    style={({ pressed }) => [
+                      styles.songRow,
+                      pressed && styles.songRowPressed,
+                      songActionStatusMap[item.songId] && styles.songRowResolving,
+                    ]}
+                    disabled={!song}
+                    onPress={() => {
                       if (!song) {
                         return;
                       }
 
-                      insertSongNext(song);
-                      // enqueueSongAfterDownload(song);
-                      console.log('isInsertSongNext');
+                      if (isEditing) {
+                        return;
+                      }
+
+                      // insertSongNext(song);
+                      enqueueSongAfterDownload(song);
                     }}
                   >
-                    <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                      {getInsertButtonText(songActionStatusMap[item.songId])}
+                    <View style={styles.songIconBox}>
+                      <SongReadyIcon width={32} height={32} />
+                    </View>
+
+                    <Text style={styles.songTitle} numberOfLines={1}>
+                      {truncateText(formatDisplaySongTitle(title), 16)}
                     </Text>
+
+                    <Text style={styles.artistText} numberOfLines={1}>
+                      {truncateText(formatArtists(artists), 10)}
+                    </Text>
+
+                    <Pressable style={styles.favoriteButton}>
+                      {song?.isCollected ? (
+                        <SongLikedIcon width={42} height={42} />
+                      ) : (
+                        <SongLikeIcon width={42} height={42} />
+                      )}
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.insertButton}
+                      disabled={!song || Boolean(songActionStatusMap[item.songId])}
+                      onPress={(event) => {
+                        event.stopPropagation();
+
+                        if (!song) {
+                          return;
+                        }
+
+                        insertSongNext(song);
+                        // enqueueSongAfterDownload(song);
+                        console.log('isInsertSongNext');
+                      }}
+                    >
+                      <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
+                        {getInsertButtonText(songActionStatusMap[item.songId])}
+                      </Text>
+                    </Pressable>
                   </Pressable>
-                </Pressable>
+                </Swipeable>
               );
             }}
             ListEmptyComponent={
@@ -210,6 +316,36 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
             }
           />
         )}
+
+        {isClearConfirmVisible ? (
+          <View style={styles.confirmLayer}>
+            <View style={styles.confirmBox}>
+              <Text style={styles.confirmText}>是否清除所有歌曲？</Text>
+
+              <View style={styles.confirmButtonRow}>
+                <Pressable
+                  style={styles.confirmCancelButton}
+                  onPress={() => {
+                    setIsClearConfirmVisible(false);
+                  }}
+                >
+                  <Text style={styles.confirmCancelText}>取消</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.confirmClearButton}
+                  onPress={async () => {
+                    await handleClearAllCachedSongs();
+                    setIsEditing(false);
+                    setIsClearConfirmVisible(false);
+                  }}
+                >
+                  <Text style={styles.confirmClearText}>清除</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.footerRow}>
           {/* <Text style={styles.pageText}>1/{totalPages}</Text> */}
@@ -397,5 +533,110 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.72)',
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  editActionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  editActionButton: {
+    height: 44,
+    minWidth: 80,
+    borderRadius: 8,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 24, 58, 0.88)',
+  },
+
+  removeAllButton: {
+    // minWidth: 160,
+  },
+
+  editActionText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+
+  removeAllText: {
+    color: '#FF4D4F',
+  },
+
+  swipeRemoveButton: {
+    width: 96,
+    height: 60,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF3B30',
+  },
+
+  swipeRemoveText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+
+  confirmLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+  },
+
+  confirmBox: {
+    width: 530,
+    borderRadius: 18,
+    paddingHorizontal: 44,
+    paddingVertical: 34,
+    backgroundColor: 'rgba(18, 28, 34, 0.96)',
+  },
+
+  confirmText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+
+  confirmButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+
+  confirmCancelButton: {
+    flex: 1,
+    height: 72,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+
+  confirmClearButton: {
+    flex: 1,
+    height: 72,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF7A00',
+  },
+
+  confirmCancelText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+
+  confirmClearText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
   },
 });

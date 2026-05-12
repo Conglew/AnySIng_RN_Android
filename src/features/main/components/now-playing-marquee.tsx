@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.32)',
+    // backgroundColor: 'transpent',
   },
 
   marqueeContent: {

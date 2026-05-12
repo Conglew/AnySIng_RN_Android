@@ -191,9 +191,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
 
         {error ? <Text style={styles.errorText}>{error.message}</Text> : null}
 
-        {favoriteErrorMessage ? (
-              <Text style={styles.errorText}>{favoriteErrorMessage}</Text>
-            ) : null}
+        {favoriteErrorMessage ? <Text style={styles.errorText}>{favoriteErrorMessage}</Text> : null}
 
         {isLoading ? (
           <View style={styles.centerContent}>
@@ -228,19 +226,19 @@ export function MySongsPanel({ visible, onClose }: Props) {
                 </Text>
 
                 <Pressable
-                      style={styles.favoriteButton}
-                      disabled={Boolean(favoriteActionStatusMap[item._id])}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        handleToggleFavorite(item);
-                      }}
-                    >
-                      {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
-                        <SongLikedIcon width={42} height={42} />
-                      ) : (
-                        <SongLikeIcon width={42} height={42} />
-                      )}
-                    </Pressable>
+                  style={styles.favoriteButton}
+                  disabled={Boolean(favoriteActionStatusMap[item._id])}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    handleToggleFavorite(item);
+                  }}
+                >
+                  {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
+                    <SongLikedIcon width={42} height={42} />
+                  ) : (
+                    <SongLikeIcon width={42} height={42} />
+                  )}
+                </Pressable>
 
                 <Pressable
                   style={styles.insertButton}
@@ -297,7 +295,7 @@ const styles = StyleSheet.create({
 
   title: {
     color: '#FFFFFF',
-    fontSize: 30,
+    fontSize: 36,
     fontWeight: '900',
     marginBottom: 10,
   },

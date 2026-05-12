@@ -15,6 +15,8 @@ import { SharedVideoPlayer } from '@/src/features/main/components/shared-video-p
 
 import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
 
+import { QueuedSongsPanel } from '@/src/features/main/components/queued-songs-panel';
+
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -121,6 +123,8 @@ export default function TabsLayout() {
         </SafeAreaView>
 
         <SharedVideoPlayer />
+
+        <QueuedSongsPanel />
       </View>
     </View>
   );

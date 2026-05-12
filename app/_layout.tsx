@@ -11,6 +11,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 
 import { songCacheService } from '@/src/features/player/services/song-cache.service';
 
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
@@ -76,9 +78,11 @@ export default function RootLayout() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <QueryClientProvider client={queryClient}>
       <RootLayoutNav />
     </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -19,7 +19,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
 
-
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -108,7 +107,6 @@ export function CategoryPanel({ visible, onClose }: Props) {
   const [favoriteStateMap, setFavoriteStateMap] = useState<Record<string, boolean>>({});
 
   const [favoriteErrorMessage, setFavoriteErrorMessage] = useState('');
-
 
   const {
     data: categoriesData,
@@ -307,9 +305,7 @@ export function CategoryPanel({ visible, onClose }: Props) {
       <View style={styles.panel}>
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
-        {favoriteErrorMessage ? (
-              <Text style={styles.errorText}>{favoriteErrorMessage}</Text>
-            ) : null}
+        {favoriteErrorMessage ? <Text style={styles.errorText}>{favoriteErrorMessage}</Text> : null}
 
         {isCategoryListMode ? (
           <View style={styles.categoryView}>

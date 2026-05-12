@@ -98,6 +98,11 @@ export type PlaybackQueueStore = {
   clear: () => void;
 
   removeByQueueId: (queueId: string) => void;
+
+  /**
+   * 將既有待播歌曲移到目前播放歌曲的下一首。
+   */
+  moveToNext: (queueId: string) => void;
 };
 
 /**
@@ -238,6 +243,35 @@ export const usePlaybackQueueStore = create<PlaybackQueueStore>((set) => ({
           status: 'playing',
         },
         queue: remainingQueue,
+      };
+    });
+  },
+
+  moveToNext: (queueId) => {
+    set((state) => {
+      /**
+       * 目前播放中的歌曲不需要移動。
+       */
+      if (state.currentItem?.queueId === queueId) {
+        return state;
+      }
+
+      const targetItem = state.queue.find((item) => item.queueId === queueId);
+
+      if (!targetItem) {
+        return state;
+      }
+
+      const queueWithoutTarget = state.queue.filter((item) => item.queueId !== queueId);
+
+      return {
+        queue: [
+          {
+            ...targetItem,
+            status: 'ready',
+          },
+          ...queueWithoutTarget,
+        ],
       };
     });
   },

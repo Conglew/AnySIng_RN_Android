@@ -15,7 +15,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
 
-
 import { CustomKeyboard } from '@/src/features/main/components/custom-keyboard';
 import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
 import { SongDownloadStatus } from '@/src/features/player/stores/song-download-status.store';
@@ -392,7 +391,6 @@ export function SingerPanel({ visible, onClose }: Props) {
     [favoriteActionStatusMap, favoriteStateMap, queryClient],
   );
 
-
   const handlePressBack = useCallback(() => {
     if (selectedSinger) {
       setSelectedSinger(null);
@@ -423,8 +421,8 @@ export function SingerPanel({ visible, onClose }: Props) {
           {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
           {favoriteErrorMessage ? (
-              <Text style={styles.errorText}>{favoriteErrorMessage}</Text>
-            ) : null}
+            <Text style={styles.errorText}>{favoriteErrorMessage}</Text>
+          ) : null}
 
           {isSingerListMode ? (
             <View style={styles.singerView}>
@@ -539,19 +537,19 @@ export function SingerPanel({ visible, onClose }: Props) {
                       </Text>
 
                       <Pressable
-                      style={styles.favoriteButton}
-                      disabled={Boolean(favoriteActionStatusMap[item._id])}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        handleToggleFavorite(item);
-                      }}
-                    >
-                      {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
-                        <SongLikedIcon width={42} height={42} />
-                      ) : (
-                        <SongLikeIcon width={42} height={42} />
-                      )}
-                    </Pressable>
+                        style={styles.favoriteButton}
+                        disabled={Boolean(favoriteActionStatusMap[item._id])}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          handleToggleFavorite(item);
+                        }}
+                      >
+                        {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
+                          <SongLikedIcon width={42} height={42} />
+                        ) : (
+                          <SongLikeIcon width={42} height={42} />
+                        )}
+                      </Pressable>
 
                       <Pressable
                         style={styles.insertButton}
