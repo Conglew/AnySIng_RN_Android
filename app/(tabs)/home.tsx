@@ -20,6 +20,8 @@ import { NewSongsPanel } from '@/src/features/main/components/new-songs-panel';
 import { RankingSongsPanel } from '@/src/features/main/components/ranking-songs-panel';
 import { SingerPanel } from '@/src/features/main/components/singer-panel';
 
+import { useHomePanelStore } from '@/src/features/main/store/home-panel.store';
+
 type HomeCard = {
   title: string;
   image: ImageSourcePropType;
@@ -75,12 +77,16 @@ const HOME_CARDS: HomeCard[] = [
 ];
 
 export default function HomeScreen() {
-  const [isCategoryPanelVisible, setIsCategoryPanelVisible] = useState(false);
-  const [isNewSongsPanelVisible, setIsNewSongsPanelVisible] = useState(false);
-  const [isRankingSongsPanelVisible, setIsRankingSongsPanelVisible] = useState(false);
-  const [isSingerPanelVisible, setIsSingerPanelVisible] = useState(false);
-  const [isCachedSongsPanelVisible, setIsCachedSongsPanelVisible] = useState(false);
-  const [isMySongsPanelVisible, setIsMySongsPanelVisible] = useState(false);
+  // const [isCategoryPanelVisible, setIsCategoryPanelVisible] = useState(false);
+  // const [isNewSongsPanelVisible, setIsNewSongsPanelVisible] = useState(false);
+  // const [isRankingSongsPanelVisible, setIsRankingSongsPanelVisible] = useState(false);
+  // const [isSingerPanelVisible, setIsSingerPanelVisible] = useState(false);
+  // const [isCachedSongsPanelVisible, setIsCachedSongsPanelVisible] = useState(false);
+  // const [isMySongsPanelVisible, setIsMySongsPanelVisible] = useState(false);
+
+  const activePanel = useHomePanelStore((state) => state.activePanel);
+  const openPanel = useHomePanelStore((state) => state.openPanel);
+  const closePanel = useHomePanelStore((state) => state.closePanel);
 
   const setMainBackgroundMode = useMainBackgroundStore((state) => state.setMode);
   const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
@@ -88,13 +94,15 @@ export default function HomeScreen() {
   // const isFullscreenVideoVisible = useFullscreenVideoStore((state) => state.isVisible);
   const isFullscreenVideoVisible = useFullscreenVideoStore((state) => state.mode === 'fullscreen');
 
-  const shouldHideHomeContent =
-    isSingerPanelVisible ||
-    isCategoryPanelVisible ||
-    isNewSongsPanelVisible ||
-    isRankingSongsPanelVisible ||
-    isCachedSongsPanelVisible ||
-    isMySongsPanelVisible;
+  // const shouldHideHomeContent =
+  //   isSingerPanelVisible ||
+  //   isCategoryPanelVisible ||
+  //   isNewSongsPanelVisible ||
+  //   isRankingSongsPanelVisible ||
+  //   isCachedSongsPanelVisible ||
+  //   isMySongsPanelVisible;
+
+  const shouldHideHomeContent = activePanel !== null;
 
   const setVideoBlockedByPanel = useFullscreenVideoStore((state) => state.setBlockedByPanel);
 
@@ -109,25 +117,29 @@ export default function HomeScreen() {
   function handlePressHomeCard(title: string) {
     if (title === '歌手') {
       setMainBackgroundMode('singer');
-      setIsSingerPanelVisible(true);
+      // setIsSingerPanelVisible(true);
+      openPanel('singer');
       return;
     }
 
     if (title === '分類') {
       setMainBackgroundMode('category');
-      setIsCategoryPanelVisible(true);
+      // setIsCategoryPanelVisible(true);
+      openPanel('category');
       return;
     }
 
     if (title === '新歌') {
       setMainBackgroundMode('newsongs');
-      setIsNewSongsPanelVisible(true);
+      // setIsNewSongsPanelVisible(true);
+      openPanel('newsongs');
       return;
     }
 
     if (title === '排行榜') {
       setMainBackgroundMode('ranking');
-      setIsRankingSongsPanelVisible(true);
+      // setIsRankingSongsPanelVisible(true);
+      openPanel('ranking');
       return;
     }
   }
@@ -197,60 +209,90 @@ export default function HomeScreen() {
           <HomeSidePanel
             onOpenMySongsPanel={() => {
               setMainBackgroundMode('category');
-              setIsMySongsPanelVisible(true);
+              openPanel('mySongs');
             }}
             onOpenCachedSongsPanel={() => {
               setMainBackgroundMode('category');
-              setIsCachedSongsPanelVisible(true);
+              openPanel('cachedSongs');
             }}
           />
         </View>
       </View>
 
       <CategoryPanel
-        visible={isCategoryPanelVisible}
+        // visible={isCategoryPanelVisible}
+        // onClose={() => {
+        //   setIsCategoryPanelVisible(false);
+        //   resetMainBackgroundMode();
+        // }}
+        visible={activePanel === 'category'}
         onClose={() => {
-          setIsCategoryPanelVisible(false);
+          closePanel();
           resetMainBackgroundMode();
         }}
       />
 
       <NewSongsPanel
-        visible={isNewSongsPanelVisible}
+        // visible={isNewSongsPanelVisible}
+        // onClose={() => {
+        //   setIsNewSongsPanelVisible(false);
+        //   resetMainBackgroundMode();
+        // }}
+        visible={activePanel === 'newsongs'}
         onClose={() => {
-          setIsNewSongsPanelVisible(false);
+          closePanel();
           resetMainBackgroundMode();
         }}
       />
 
       <RankingSongsPanel
-        visible={isRankingSongsPanelVisible}
+        // visible={isRankingSongsPanelVisible}
+        // onClose={() => {
+        //   setIsRankingSongsPanelVisible(false);
+        //   resetMainBackgroundMode();
+        // }}
+        visible={activePanel === 'ranking'}
         onClose={() => {
-          setIsRankingSongsPanelVisible(false);
+          closePanel();
           resetMainBackgroundMode();
         }}
       />
 
       <SingerPanel
-        visible={isSingerPanelVisible}
+        // visible={isSingerPanelVisible}
+        // onClose={() => {
+        //   resetMainBackgroundMode();
+        //   setIsSingerPanelVisible(false);
+        // }}
+        visible={activePanel === 'singer'}
         onClose={() => {
+          closePanel();
           resetMainBackgroundMode();
-          setIsSingerPanelVisible(false);
         }}
       />
 
       <CachedSongsPanel
-        visible={isCachedSongsPanelVisible}
+        // visible={isCachedSongsPanelVisible}
+        // onClose={() => {
+        //   setIsCachedSongsPanelVisible(false);
+        //   resetMainBackgroundMode();
+        // }}
+        visible={activePanel === 'cachedSongs'}
         onClose={() => {
-          setIsCachedSongsPanelVisible(false);
+          closePanel();
           resetMainBackgroundMode();
         }}
       />
 
       <MySongsPanel
-        visible={isMySongsPanelVisible}
+        // visible={isMySongsPanelVisible}
+        // onClose={() => {
+        //   setIsMySongsPanelVisible(false);
+        //   resetMainBackgroundMode();
+        // }}
+        visible={activePanel === 'mySongs'}
         onClose={() => {
-          setIsMySongsPanelVisible(false);
+          closePanel();
           resetMainBackgroundMode();
         }}
       />

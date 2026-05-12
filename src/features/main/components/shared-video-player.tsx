@@ -391,6 +391,6 @@ const styles = StyleSheet.create({
 
   hiddenLayer: {
     opacity: 0,
-    pointerEvents: 'none'
+    pointerEvents: 'none',
   },
 });

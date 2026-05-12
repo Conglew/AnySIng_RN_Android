@@ -1,5 +1,5 @@
 import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
-import { Href, usePathname } from 'expo-router';
+import { Href, usePathname, useRouter } from 'expo-router';
 import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SvgProps } from 'react-native-svg';
@@ -7,6 +7,10 @@ import type { SvgProps } from 'react-native-svg';
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
 
 import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
+
+import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
+import { useHomePanelStore } from '@/src/features/main/store/home-panel.store';
+import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
 
 import FooterIcon1 from '@/assets/images/footer-icons-1.svg';
 import FooterIcon2 from '@/assets/images/footer-icons-2.svg';
@@ -99,6 +103,12 @@ export function MainFooter() {
 
   const restartCurrentSong = usePlayerControlStore((state) => state.restartCurrentSong);
 
+  const router = useRouter();
+
+  const closeHomePanel = useHomePanelStore((state) => state.closePanel);
+  const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
+  const closeFullscreen = useFullscreenVideoStore((state) => state.closeFullscreen);
+
   return (
     <View style={styles.footer}>
       {FOOTER_ITEMS.map((item) => {
@@ -112,6 +122,15 @@ export function MainFooter() {
             onPress={async () => {
               console.log('[MainFooter] pressed item:', item.label);
               console.log('[MainFooter] action:', item.action);
+
+              if (item.label === '主頁') {
+                closeHomePanel();
+                resetMainBackgroundMode();
+                closeFullscreen();
+
+                router.replace('/(tabs)/home');
+                return;
+              }
 
               if (item.action === 'togglePause') {
                 console.log('[MainFooter] before toggle isPaused:', isPaused);
@@ -170,6 +189,9 @@ export function MainFooter() {
               }
 
               // router.replace(item.route);
+              if (item.action === 'navigate') {
+                router.replace(item.route);
+              }
             }}
           >
             <Icon

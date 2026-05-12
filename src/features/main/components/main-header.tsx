@@ -41,7 +41,9 @@ const styles = StyleSheet.create({
   logo: {
     width: 560,
     height: 240,
-    marginLeft: -210,
+    // marginLeft: -210,
+    marginLeft: -415,
+    transform: [{ translateX: 210 }],
     marginTop: 0,
   },
 

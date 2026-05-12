@@ -25,7 +25,7 @@ export default function TabsLayout() {
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
 
   const videoMode = useFullscreenVideoStore((state) => state.mode);
-const isVideoFullscreen = videoMode === 'fullscreen';
+  const isVideoFullscreen = videoMode === 'fullscreen';
 
   const hasClearedPendingPlaylistRef = useRef(false);
   // const [isInitialPlaylistCleared, setIsInitialPlaylistCleared] = useState(false);
@@ -58,7 +58,8 @@ const isVideoFullscreen = videoMode === 'fullscreen';
   const isCategoryBackground = backgroundMode === 'category';
   const isSingreBackground = backgroundMode === 'singer';
 
-  const isPanelBackground = isRankingBackground || isNewSongsBackground || isCategoryBackground || isSingreBackground;
+  const isPanelBackground =
+    isRankingBackground || isNewSongsBackground || isCategoryBackground || isSingreBackground;
 
   return (
     <View style={styles.root}>
@@ -110,7 +111,10 @@ const isVideoFullscreen = videoMode === 'fullscreen';
         </View>
 
         <SafeAreaView
-          style={[styles.footerSafeArea, !isVideoFullscreen && !isPanelBackground && styles.footerSafeAreaDark,]}
+          style={[
+            styles.footerSafeArea,
+            !isVideoFullscreen && !isPanelBackground && styles.footerSafeAreaDark,
+          ]}
           edges={['bottom']}
         >
           <MainFooter />

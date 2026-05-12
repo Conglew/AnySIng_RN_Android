@@ -33,28 +33,60 @@ export function NowPlayingMarquee() {
     const currentTitle = formatSongTitle(data?.current?.title);
     const nextTitle = formatSongTitle(data?.next?.title);
 
-    const currentText = currentTitle ? `目前播放：${currentTitle}` : '目前未播放歌曲';
+    const currentText = currentTitle ? `目前：${currentTitle}` : '目前未播放歌曲';
     const nextText = nextTitle ? `下一首：${nextTitle}` : '下一首：尚未點歌';
 
     return `${currentText}     ${nextText}`;
   }, [data?.current?.title, data?.next?.title]);
 
   useEffect(() => {
-    translateX.setValue(260);
+    let isMounted = true;
+    let pauseTimer: ReturnType<typeof setTimeout> | null = null;
+    let currentAnimation: Animated.CompositeAnimation | null = null;
 
-    const animation = Animated.loop(
-      Animated.timing(translateX, {
-        toValue: -520,
-        duration: 12000,
+    const startX = -1200;
+    const endX = 1000;
+    const duration = 25000;
+    const pauseDuration = 3000;
+
+    const runMarquee = () => {
+      if (!isMounted) {
+        return;
+      }
+
+      /**
+       * 每一輪開始前，先把文字放回右側。
+       */
+      translateX.setValue(startX);
+
+      currentAnimation = Animated.timing(translateX, {
+        toValue: endX,
+        duration,
         easing: Easing.linear,
         useNativeDriver: true,
-      }),
-    );
+      });
 
-    animation.start();
+      currentAnimation.start(({ finished }) => {
+        if (!finished || !isMounted) {
+          return;
+        }
+
+        pauseTimer = setTimeout(() => {
+          runMarquee();
+        }, pauseDuration);
+      });
+    };
+
+    runMarquee();
 
     return () => {
-      animation.stop();
+      isMounted = false;
+
+      if (pauseTimer) {
+        clearTimeout(pauseTimer);
+      }
+
+      currentAnimation?.stop();
     };
   }, [displayText, translateX]);
 
