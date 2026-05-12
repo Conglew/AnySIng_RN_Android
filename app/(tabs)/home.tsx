@@ -1,5 +1,6 @@
 import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
-import { useState } from 'react';
+import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
+import { useEffect, useState } from 'react';
 import {
   Image,
   ImageBackground,
@@ -84,6 +85,9 @@ export default function HomeScreen() {
   const setMainBackgroundMode = useMainBackgroundStore((state) => state.setMode);
   const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
 
+  // const isFullscreenVideoVisible = useFullscreenVideoStore((state) => state.isVisible);
+  const isFullscreenVideoVisible = useFullscreenVideoStore((state) => state.mode === 'fullscreen');
+
   const shouldHideHomeContent =
     isSingerPanelVisible ||
     isCategoryPanelVisible ||
@@ -91,6 +95,16 @@ export default function HomeScreen() {
     isRankingSongsPanelVisible ||
     isCachedSongsPanelVisible ||
     isMySongsPanelVisible;
+
+  const setVideoBlockedByPanel = useFullscreenVideoStore((state) => state.setBlockedByPanel);
+
+  useEffect(() => {
+    setVideoBlockedByPanel(shouldHideHomeContent);
+
+    return () => {
+      setVideoBlockedByPanel(false);
+    };
+  }, [setVideoBlockedByPanel, shouldHideHomeContent]);
 
   function handlePressHomeCard(title: string) {
     if (title === '歌手') {
@@ -124,7 +138,10 @@ export default function HomeScreen() {
         pointerEvents={shouldHideHomeContent ? 'none' : 'auto'}
         style={[styles.homeContentLayer, shouldHideHomeContent && styles.homeContentLayerHidden]}
       >
-        <View style={styles.cardSection}>
+        <View
+          pointerEvents={isFullscreenVideoVisible ? 'none' : 'auto'}
+          style={[styles.cardSection, isFullscreenVideoVisible && styles.cardSectionHidden]}
+        >
           {HOME_CARDS.map((item) => (
             <View key={item.title} style={styles.cardWrapper}>
               <Pressable
@@ -166,7 +183,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.sidePanel}>
-          <HomeSidePanel
+          {/* <HomeSidePanel
             videoAsset={require('@/assets/demo/video/Test.mkv')}
             onOpenMySongsPanel={() => {
               setMainBackgroundMode('category');
@@ -176,6 +193,10 @@ export default function HomeScreen() {
               setMainBackgroundMode('category');
               setIsCachedSongsPanelVisible(true);
             }}
+          /> */}
+          <HomeSidePanel
+            onOpenMySongsPanel={() => setIsMySongsPanelVisible(true)}
+            onOpenCachedSongsPanel={() => setIsCachedSongsPanelVisible(true)}
           />
         </View>
       </View>
@@ -318,5 +339,9 @@ const styles = StyleSheet.create({
 
   sidePanel: {
     width: 358,
+  },
+
+  cardSectionHidden: {
+    opacity: 0,
   },
 });

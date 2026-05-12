@@ -11,6 +11,7 @@ import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback
 import { useSocketConnection } from '@/src/services/socket/use-socket-connection';
 
 // import { FullscreenVideoBackground } from '@/src/features/main/components/fullscreen-video-background';
+import { SharedVideoPlayer } from '@/src/features/main/components/shared-video-player';
 
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -92,6 +93,7 @@ export default function TabsLayout() {
       />
 
       {/* <FullscreenVideoBackground /> */}
+      <SharedVideoPlayer />
 
       <View style={styles.page}>
         <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
