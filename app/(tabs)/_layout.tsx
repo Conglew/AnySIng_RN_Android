@@ -73,12 +73,7 @@ export default function TabsLayout() {
     fullscreenChromeTimerRef.current = setTimeout(() => {
       hideFullscreenChrome();
     }, 5000);
-  }, [
-    clearFullscreenChromeTimer,
-    hideFullscreenChrome,
-    isVideoFullscreen,
-    showFullscreenChrome,
-  ]);
+  }, [clearFullscreenChromeTimer, hideFullscreenChrome, isVideoFullscreen, showFullscreenChrome]);
 
   useEffect(() => {
     if (!isVideoFullscreen) {
@@ -86,9 +81,9 @@ export default function TabsLayout() {
       showFullscreenChrome();
       return;
     }
-  
+
     resetFullscreenChromeTimer();
-  
+
     return () => {
       clearFullscreenChromeTimer();
     };
@@ -136,11 +131,11 @@ export default function TabsLayout() {
       //   if (!isVideoFullscreen) {
       //     return false;
       //   }
-    
+
       //   if (!isFullscreenChromeVisible) {
       //     return false;
       //   }
-    
+
       //   resetFullscreenChromeTimer();
       //   return false;
       // }}

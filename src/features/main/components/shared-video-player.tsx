@@ -93,12 +93,12 @@ export function SharedVideoPlayer() {
       activeMiniRect,
       isFullscreenChromeVisible,
     });
-  
+
     if (!activeMiniRect) {
       console.log('[SharedVideoPlayer] toggle ignored: missing activeMiniRect');
       return;
     }
-  
+
     if (isFullscreen) {
       /**
        * fullscreen 且 Header/Footer 已隱藏：
@@ -108,7 +108,7 @@ export function SharedVideoPlayer() {
         showFullscreenChrome();
         return;
       }
-  
+
       /**
        * fullscreen 且 Header/Footer 顯示中：
        * 再次點擊才退出 fullscreen，回到 mini。
@@ -116,7 +116,7 @@ export function SharedVideoPlayer() {
       closeFullscreen();
       return;
     }
-  
+
     openFullscreen();
   };
 

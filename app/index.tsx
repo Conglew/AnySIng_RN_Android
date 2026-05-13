@@ -1,5 +1,10 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { getAccessToken, saveAuthSession } from '@/src/services/auth/auth-token-store';
+import { authClient } from '@/src/services/auth/auth-client';
+import { getRememberedLogin } from '@/src/services/auth/remembered-login-store';
+
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -41,11 +46,63 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
 
 export default function LanguageSelectScreen() {
   const [isBackgroundLoaded, setIsBackgroundLoaded] = useState(false);
+
+  const [isAutoLoginChecking, setIsAutoLoginChecking] = useState(true);
+  const autoLoginAttemptedRef = useRef(false);
+
   const [selectedLanguageValue, setSelectedLanguageValue] = useState<LanguageValue | null>(null);
 
   const selectedLanguage = useMemo(() => {
     return LANGUAGE_OPTIONS.find((language) => language.value === selectedLanguageValue) ?? null;
   }, [selectedLanguageValue]);
+
+  useEffect(() => {
+    if (autoLoginAttemptedRef.current) {
+      return;
+    }
+
+    autoLoginAttemptedRef.current = true;
+
+    const tryAutoLogin = async () => {
+      try {
+        const existingToken = await getAccessToken();
+
+        if (existingToken) {
+          console.log('[LanguageSelectScreen] existing token found, redirect to home');
+          router.replace('/(tabs)/home');
+          return;
+        }
+
+        const rememberedLogin = await getRememberedLogin();
+
+        const email = rememberedLogin?.email;
+        const password = rememberedLogin?.password;
+
+        if (!email || !password) {
+          console.log('[LanguageSelectScreen] no remembered login');
+          return;
+        }
+
+        console.log('[LanguageSelectScreen] remembered login found, start auto login');
+
+        const session = await authClient.login({
+          email,
+          password,
+        });
+
+        await saveAuthSession(session);
+
+        console.log('[LanguageSelectScreen] auto login success');
+        router.replace('/(tabs)/home');
+      } catch (error) {
+        console.log('[LanguageSelectScreen] auto login failed:', error);
+      } finally {
+        setIsAutoLoginChecking(false);
+      }
+    };
+
+    tryAutoLogin();
+  }, []);
 
   const displayTitle = selectedLanguage?.title ?? '歡迎加入，先選擇語言，我們馬上開始。';
 
@@ -76,7 +133,7 @@ export default function LanguageSelectScreen() {
       onLoadEnd={() => setIsBackgroundLoaded(true)}
     >
       <View style={styles.overlay}>
-        {isBackgroundLoaded ? (
+        {isBackgroundLoaded && !isAutoLoginChecking ? (
           <SafeAreaView style={styles.safeArea}>
             <View style={styles.content}>
               <Text style={styles.title}>{displayTitle}</Text>
