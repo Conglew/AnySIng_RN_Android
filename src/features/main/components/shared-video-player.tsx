@@ -42,7 +42,8 @@ export function SharedVideoPlayer() {
   const [resolvedDefaultVideoUri, setResolvedDefaultVideoUri] = useState<string | null>(null);
 
   const mode = useFullscreenVideoStore((state) => state.mode);
-  const miniRect = useFullscreenVideoStore((state) => state.miniRect);
+  const homeMiniRect = useFullscreenVideoStore((state) => state.homeMiniRect);
+  const footerMiniRect = useFullscreenVideoStore((state) => state.footerMiniRect);
   const openFullscreen = useFullscreenVideoStore((state) => state.openFullscreen);
   const closeFullscreen = useFullscreenVideoStore((state) => state.closeFullscreen);
 
@@ -61,15 +62,16 @@ export function SharedVideoPlayer() {
   const resetAudioTrackIndexes = usePlayerControlStore((state) => state.resetAudioTrackIndexes);
 
   const isFullscreen = mode === 'fullscreen';
+  const activeMiniRect = mode === 'footerMini' ? footerMiniRect : homeMiniRect;
 
   const handleToggleFullscreen = () => {
     console.log('[SharedVideoPlayer] press video:', {
       mode,
-      miniRect,
+      activeMiniRect,
     });
 
-    if (!miniRect) {
-      console.log('[SharedVideoPlayer] toggle ignored: missing miniRect');
+    if (!activeMiniRect) {
+      console.log('[SharedVideoPlayer] toggle ignored: missing activeMiniRect');
       return;
     }
 
@@ -78,7 +80,7 @@ export function SharedVideoPlayer() {
       return;
     }
 
-    openFullscreen(miniRect);
+    openFullscreen();
   };
 
   /**
@@ -114,7 +116,7 @@ export function SharedVideoPlayer() {
       height: 200,
     };
 
-    const rect = miniRect ?? fallbackRect;
+    const rect = activeMiniRect ?? fallbackRect;
 
     return {
       left: progress.interpolate({
@@ -138,7 +140,7 @@ export function SharedVideoPlayer() {
         outputRange: [10, 0],
       }),
     };
-  }, [miniRect, progress]);
+  }, [activeMiniRect, progress]);
 
   /**
    * 載入預設影片。
@@ -319,9 +321,10 @@ export function SharedVideoPlayer() {
   };
 
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
-  const isBlockedByPanel = useFullscreenVideoStore((state) => state.isBlockedByPanel);
+  // const isBlockedByPanel = useFullscreenVideoStore((state) => state.isBlockedByPanel);
 
-  const shouldHideVideoPlayer = backgroundMode !== 'home' || isBlockedByPanel;
+  // const shouldHideVideoPlayer = backgroundMode !== 'home' || isBlockedByPanel;
+  const shouldHideVideoPlayer = backgroundMode !== 'home' && mode !== 'footerMini';
 
   //   if (shouldHideVideoPlayer) {
   //     return null;
@@ -330,14 +333,14 @@ export function SharedVideoPlayer() {
   /**
    * 預設影片還沒準備好時，不渲染 Video。
    */
-  if (!playbackVideoUri || !miniRect) {
+  if (!playbackVideoUri || !activeMiniRect) {
     return null;
   }
 
   return (
     <View
-      pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
-      style={[styles.layer, shouldHideVideoPlayer && styles.hiddenLayer]}
+      pointerEvents="box-none"
+      style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
     >
       <Animated.View style={[styles.videoFrame, animatedStyle]}>
         <Video
@@ -392,5 +395,9 @@ const styles = StyleSheet.create({
   hiddenLayer: {
     opacity: 0,
     pointerEvents: 'none',
+  },
+
+  footerMiniLayer: {
+    zIndex: 50,
   },
 });

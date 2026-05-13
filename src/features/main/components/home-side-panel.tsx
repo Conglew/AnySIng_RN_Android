@@ -21,7 +21,7 @@ export function HomeSidePanel({ onOpenMySongsPanel, onOpenCachedSongsPanel }: Pr
 
   const mode = useFullscreenVideoStore((state) => state.mode);
   const openFullscreen = useFullscreenVideoStore((state) => state.openFullscreen);
-  const setMiniRect = useFullscreenVideoStore((state) => state.setMiniRect);
+  const setMiniRect = useFullscreenVideoStore((state) => state.setHomeMiniRect);
 
   const isFullscreenVideoVisible = mode === 'fullscreen';
 
@@ -98,7 +98,8 @@ export function HomeSidePanel({ onOpenMySongsPanel, onOpenCachedSongsPanel }: Pr
 
       console.log('[HomeSidePanel] open fullscreen rect:', rect);
 
-      openFullscreen(rect);
+      setMiniRect(rect);
+      openFullscreen();
     });
   };
 

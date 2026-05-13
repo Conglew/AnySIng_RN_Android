@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import * as SecureStore from 'expo-secure-store';
+import { getAccessToken, getUserId } from '@/src/services/auth/auth-token-store';
 
 import { useSongRequestQrPanelStore } from '@/src/features/main/store/song-request-qr-panel.store';
 
@@ -18,7 +20,7 @@ import { useSongRequestQrPanelStore } from '@/src/features/main/store/song-reque
 const QR_PANEL_HAND_IMAGE = require('@/assets/images/footer-qr-panel-hand.png');
 const QR_PANEL_BG_IMAGE = require('@/assets/images/footer-qr-panel-bg.png');
 
-const SONG_REQUEST_URL = 'https://your-domain.com/song-request';
+const SONG_REQUEST_WEB_URL = 'https://www.any-sing.com/';
 
 const SCREEN = Dimensions.get('window');
 
@@ -37,6 +39,8 @@ const INITIAL_PANEL_Y = Math.max(
 export function SongRequestQrPanel() {
   const isVisible = useSongRequestQrPanelStore((state) => state.isVisible);
   const closePanel = useSongRequestQrPanelStore((state) => state.closePanel);
+
+  const [qrUrl, setQrUrl] = useState<string>('');
 
   const panelPosition = useRef(
     new Animated.ValueXY({
@@ -119,6 +123,42 @@ export function SongRequestQrPanel() {
     [panelPosition],
   );
 
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+
+    const buildQrUrl = async () => {
+      try {
+        const token = await getAccessToken();
+        const userId = await getUserId();
+
+        if (!token || !userId) {
+          console.log('[SongRequestQrPanel] missing token or userId', {
+            hasToken: Boolean(token),
+            hasUserId: Boolean(userId),
+          });
+
+          setQrUrl('');
+          return;
+        }
+
+        const params = new URLSearchParams({
+          token,
+          userId,
+          room: userId,
+        });
+
+        setQrUrl(`${SONG_REQUEST_WEB_URL}?${params.toString()}`);
+      } catch (error) {
+        console.log('[SongRequestQrPanel] build QR url failed:', error);
+        setQrUrl('');
+      }
+    };
+
+    buildQrUrl();
+  }, [isVisible]);
+
   if (!isVisible) {
     return null;
   }
@@ -144,14 +184,19 @@ export function SongRequestQrPanel() {
           blurRadius={8}
           {...panResponder.panHandlers}
         >
-          <View pointerEvents="none"  style={styles.qrCard}>
+          <View pointerEvents="none" style={styles.qrCard}>
             <View style={styles.qrBox}>
-              <QRCode
+              {/* <QRCode
                 value={SONG_REQUEST_URL}
                 size={200}
                 backgroundColor="#FFFFFF"
                 color="#111111"
-              />
+              /> */}
+              {qrUrl ? (
+                <QRCode value={qrUrl} size={200} backgroundColor="#FFFFFF" color="#111111" />
+              ) : (
+                <Text style={styles.qrLoadingText}>QR Code 載入中</Text>
+              )}
             </View>
 
             <View style={styles.titleContainer}>
@@ -290,5 +335,11 @@ const styles = StyleSheet.create({
     bottom: -50,
     width: 131.6,
     height: 118,
+  },
+
+  qrLoadingText: {
+    color: '#111111',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

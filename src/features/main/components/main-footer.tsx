@@ -1,7 +1,8 @@
 import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
 import { Href, usePathname, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef } from 'react';
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, findNodeHandle, UIManager } from 'react-native';
 import type { SvgProps } from 'react-native-svg';
 
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
@@ -113,6 +114,43 @@ export function MainFooter() {
   const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
   const closeFullscreen = useFullscreenVideoStore((state) => state.closeFullscreen);
 
+  const videoMode = useFullscreenVideoStore((state) => state.mode);
+  const setFooterMiniRect = useFullscreenVideoStore((state) => state.setFooterMiniRect);
+
+  const recordSlotRef = useRef<View>(null);
+
+  const measureRecordSlot = useCallback(() => {
+    const nodeHandle = findNodeHandle(recordSlotRef.current);
+
+    if (!nodeHandle) {
+      console.log('[MainFooter] measure footer mini ignored: missing nodeHandle');
+      return;
+    }
+
+    UIManager.measureInWindow(nodeHandle, (x, y, width, height) => {
+      const rect = {
+        x,
+        y,
+        width,
+        height,
+      };
+
+      console.log('[MainFooter] measured footerMiniRect:', rect);
+
+      setFooterMiniRect(rect);
+    });
+  }, [setFooterMiniRect]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      measureRecordSlot();
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [measureRecordSlot]);
+
   const openQueuedSongsPanel = useQueuedSongsPanelStore((state) => state.openPanel);
 
   const openSongRequestQrPanel = useSongRequestQrPanelStore((state) => state.openPanel);
@@ -123,10 +161,19 @@ export function MainFooter() {
         const isActive = pathname === item.route;
         const Icon = item.Icon;
 
+        const isRecordItem = item.label === '錄製';
+        const shouldHideRecordItem = isRecordItem && videoMode === 'footerMini';
+
         return (
           <Pressable
+            ref={isRecordItem ? (recordSlotRef as any) : undefined}
             key={String(item.route)}
             style={({ pressed }) => [styles.footerItem, pressed && styles.footerItemPressed]}
+            onLayout={() => {
+              if (isRecordItem) {
+                measureRecordSlot();
+              }
+            }}
             onPress={async () => {
               console.log('[MainFooter] pressed item:', item.label);
               console.log('[MainFooter] action:', item.action);
@@ -209,7 +256,7 @@ export function MainFooter() {
               // router.replace(item.route);
             }}
           >
-            <Icon
+            {/* <Icon
               width={28}
               height={28}
               color={isActive ? '#A78BFA' : '#FFFFFF'}
@@ -218,7 +265,22 @@ export function MainFooter() {
 
             <Text style={[styles.footerLabel, isActive && styles.footerLabelActive]}>
               {item.label}
-            </Text>
+            </Text> */}
+
+            {!shouldHideRecordItem ? (
+              <>
+                <Icon
+                  width={28}
+                  height={28}
+                  color={isActive ? '#A78BFA' : '#FFFFFF'}
+                  fill={isActive ? '#A78BFA' : '#FFFFFF'}
+                />
+
+                <Text style={[styles.footerLabel, isActive && styles.footerLabelActive]}>
+                  {item.label}
+                </Text>
+              </>
+            ) : null}
           </Pressable>
         );
       })}
@@ -242,6 +304,7 @@ const styles = StyleSheet.create({
     height: 90,
     alignItems: 'center',
     justifyContent: 'center',
+    // backgroundColor: 'red',
   },
 
   footerItemPressed: {

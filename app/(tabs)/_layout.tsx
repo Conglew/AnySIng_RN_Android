@@ -19,6 +19,8 @@ import { QueuedSongsPanel } from '@/src/features/main/components/queued-songs-pa
 
 import { SongRequestQrPanel } from '@/src/features/main/components/song-request-qr-panel';
 
+import { usePlayerSocketControls } from '@/src/features/player/hook/use-player-socket-controls';
+
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -36,6 +38,12 @@ export default function TabsLayout() {
   const { isSocketInitialized } = useSocketConnection();
 
   const { clearPendingPlaylist } = usePlaybackQueueActions();
+
+  /**
+   * 監聽 Web 端透過 Socket 發來的播放控制指令。
+   * 例如：Web 按「切歌」後，App 收到 nextSong 並執行本機 finishCurrent。
+   */
+  usePlayerSocketControls(isSocketInitialized);
 
   useEffect(() => {
     if (hasClearedPendingPlaylistRef.current) {
