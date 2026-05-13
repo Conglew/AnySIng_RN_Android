@@ -289,7 +289,7 @@ export function QueuedSongsPanel() {
           >
             {downloadingItems.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyText}>目前沒有正在下載的歌曲</Text>
+                <Text style={styles.emptyText}>目前尚未下載的歌曲</Text>
               </View>
             ) : (
               downloadingItems.map(({ songId, status }) => {
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     width: 474,
     height: 600,
     borderRadius: 10,
-    paddingTop: 32,
+    paddingTop: 22,
     paddingHorizontal: 20,
     backgroundColor: 'rgba(24, 24, 24, 0.95)',
     marginBottom: 70,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
 
   tabText: {
     color: 'rgba(255, 255, 255, 0.55)',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
   },
 

@@ -17,6 +17,8 @@ import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-vi
 
 import { QueuedSongsPanel } from '@/src/features/main/components/queued-songs-panel';
 
+import { SongRequestQrPanel } from '@/src/features/main/components/song-request-qr-panel';
+
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -125,6 +127,8 @@ export default function TabsLayout() {
         <SharedVideoPlayer />
 
         <QueuedSongsPanel />
+
+        <SongRequestQrPanel />
       </View>
     </View>
   );

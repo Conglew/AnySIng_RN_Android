@@ -14,6 +14,8 @@ import { useMainBackgroundStore } from '@/src/features/main/store/main-backgroun
 
 import { useQueuedSongsPanelStore } from '@/src/features/main/store/queued-songs-panel.store';
 
+import { useSongRequestQrPanelStore } from '@/src/features/main/store/song-request-qr-panel.store';
+
 import FooterIcon1 from '@/assets/images/footer-icons-1.svg';
 import FooterIcon2 from '@/assets/images/footer-icons-2.svg';
 import FooterIcon3 from '@/assets/images/footer-icons-3.svg';
@@ -46,12 +48,12 @@ const FOOTER_ITEMS: FooterItem[] = [
     Icon: FooterIcon2,
     action: 'navigate',
   },
-  {
-    label: '調音',
-    route: '/(tabs)/tuning' as Href,
-    Icon: FooterIcon3,
-    action: 'navigate',
-  },
+  // {
+  //   label: '調音',
+  //   route: '/(tabs)/tuning' as Href,
+  //   Icon: FooterIcon3,
+  //   action: 'navigate',
+  // },
   {
     label: '切歌',
     route: '/(tabs)/switch-song' as Href,
@@ -113,6 +115,8 @@ export function MainFooter() {
 
   const openQueuedSongsPanel = useQueuedSongsPanelStore((state) => state.openPanel);
 
+  const openSongRequestQrPanel = useSongRequestQrPanelStore((state) => state.openPanel);
+
   return (
     <View style={styles.footer}>
       {FOOTER_ITEMS.map((item) => {
@@ -133,6 +137,11 @@ export function MainFooter() {
                 closeFullscreen();
 
                 router.replace('/(tabs)/home');
+                return;
+              }
+
+              if (item.label === '點歌') {
+                openSongRequestQrPanel();
                 return;
               }
 

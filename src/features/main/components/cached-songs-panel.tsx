@@ -153,6 +153,8 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
 
   return (
     <View style={styles.panelLayer}>
+      <Pressable style={styles.backdrop} onPress={onClose} />
+
       <View style={styles.panel}>
         {/* <View style={styles.headerRow}>
           <Text style={styles.title}>緩存下載</Text>
@@ -317,36 +319,6 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
           />
         )}
 
-        {isClearConfirmVisible ? (
-          <View style={styles.confirmLayer}>
-            <View style={styles.confirmBox}>
-              <Text style={styles.confirmText}>是否清除所有歌曲？</Text>
-
-              <View style={styles.confirmButtonRow}>
-                <Pressable
-                  style={styles.confirmCancelButton}
-                  onPress={() => {
-                    setIsClearConfirmVisible(false);
-                  }}
-                >
-                  <Text style={styles.confirmCancelText}>取消</Text>
-                </Pressable>
-
-                <Pressable
-                  style={styles.confirmClearButton}
-                  onPress={async () => {
-                    await handleClearAllCachedSongs();
-                    setIsEditing(false);
-                    setIsClearConfirmVisible(false);
-                  }}
-                >
-                  <Text style={styles.confirmClearText}>清除</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
         <View style={styles.footerRow}>
           {/* <Text style={styles.pageText}>1/{totalPages}</Text> */}
 
@@ -355,6 +327,47 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
           </Pressable>
         </View>
       </View>
+
+      {isClearConfirmVisible ? (
+        <Pressable
+          style={styles.confirmLayer}
+          onPress={() => {
+            // 點擊黑色遮罩時不做任何事
+            // 目的：吃掉點擊事件，避免穿透到後面的 UI
+          }}
+        >
+          <Pressable
+            style={styles.confirmBox}
+            onPress={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <Text style={styles.confirmText}>是否清除所有歌曲？</Text>
+
+            <View style={styles.confirmButtonRow}>
+              <Pressable
+                style={styles.confirmCancelButton}
+                onPress={() => {
+                  setIsClearConfirmVisible(false);
+                }}
+              >
+                <Text style={styles.confirmCancelText}>取消</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.confirmClearButton}
+                onPress={async () => {
+                  await handleClearAllCachedSongs();
+                  setIsEditing(false);
+                  setIsClearConfirmVisible(false);
+                }}
+              >
+                <Text style={styles.confirmClearText}>清除</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -376,6 +389,11 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 18,
     backgroundColor: 'transparent',
+  },
+
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0)',
   },
 
   headerRow: {
@@ -583,9 +601,10 @@ const styles = StyleSheet.create({
 
   confirmLayer: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+    // backgroundColor: 'rgba(0, 0, 0, 0.42)',
   },
 
   confirmBox: {
