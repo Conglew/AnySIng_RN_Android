@@ -15,6 +15,7 @@ import { Animated, Dimensions, Pressable, StyleSheet, View } from 'react-native'
 import Video, { SelectedTrackType, type SelectedTrack } from 'react-native-video';
 
 import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
+import type { VideoFrameRect } from '@/src/features/main/store/fullscreen-video.store';
 import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
 import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
@@ -22,6 +23,23 @@ import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-que
 import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
 
 const SCREEN = Dimensions.get('window');
+
+const FOOTER_MINI_WIDTH = 120;
+const FOOTER_MINI_HEIGHT = 68;
+const FOOTER_MINI_OFFSET_X = 0;
+const FOOTER_MINI_OFFSET_Y = -30;
+
+function getFooterMiniDisplayRect(rect: VideoFrameRect): VideoFrameRect {
+  const centerX = rect.x + rect.width / 2;
+  const centerY = rect.y + rect.height / 2;
+
+  return {
+    x: centerX - FOOTER_MINI_WIDTH / 2 + FOOTER_MINI_OFFSET_X,
+    y: centerY - FOOTER_MINI_HEIGHT / 2 + FOOTER_MINI_OFFSET_Y,
+    width: FOOTER_MINI_WIDTH,
+    height: FOOTER_MINI_HEIGHT,
+  };
+}
 
 const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/demo/video/Test.mkv');
 
@@ -47,6 +65,11 @@ export function SharedVideoPlayer() {
   const openFullscreen = useFullscreenVideoStore((state) => state.openFullscreen);
   const closeFullscreen = useFullscreenVideoStore((state) => state.closeFullscreen);
 
+  const isFullscreenChromeVisible = useFullscreenVideoStore(
+    (state) => state.isFullscreenChromeVisible,
+  );
+  const showFullscreenChrome = useFullscreenVideoStore((state) => state.showFullscreenChrome);
+
   const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
   const finishCurrentPlaybackItem = usePlaybackQueueStore((state) => state.finishCurrent);
 
@@ -68,18 +91,32 @@ export function SharedVideoPlayer() {
     console.log('[SharedVideoPlayer] press video:', {
       mode,
       activeMiniRect,
+      isFullscreenChromeVisible,
     });
-
+  
     if (!activeMiniRect) {
       console.log('[SharedVideoPlayer] toggle ignored: missing activeMiniRect');
       return;
     }
-
+  
     if (isFullscreen) {
+      /**
+       * fullscreen 且 Header/Footer 已隱藏：
+       * 第一次點擊只顯示 Header/Footer，不退出 fullscreen。
+       */
+      if (!isFullscreenChromeVisible) {
+        showFullscreenChrome();
+        return;
+      }
+  
+      /**
+       * fullscreen 且 Header/Footer 顯示中：
+       * 再次點擊才退出 fullscreen，回到 mini。
+       */
       closeFullscreen();
       return;
     }
-
+  
     openFullscreen();
   };
 
@@ -116,7 +153,12 @@ export function SharedVideoPlayer() {
       height: 200,
     };
 
-    const rect = activeMiniRect ?? fallbackRect;
+    // const rect = activeMiniRect ?? fallbackRect;
+
+    const baseRect = activeMiniRect ?? fallbackRect;
+
+    const rect =
+      mode === 'footerMini' && activeMiniRect ? getFooterMiniDisplayRect(activeMiniRect) : baseRect;
 
     return {
       left: progress.interpolate({
@@ -140,7 +182,7 @@ export function SharedVideoPlayer() {
         outputRange: [10, 0],
       }),
     };
-  }, [activeMiniRect, progress]);
+  }, [activeMiniRect, mode, progress]);
 
   /**
    * 載入預設影片。

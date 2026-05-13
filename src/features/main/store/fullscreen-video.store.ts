@@ -39,6 +39,8 @@ type FullscreenVideoStore = {
    */
   isBlockedByPanel: boolean;
 
+  isFullscreenChromeVisible: boolean;
+
   /**
    * 打開全螢幕。
    */
@@ -76,6 +78,10 @@ type FullscreenVideoStore = {
    * 設定是否因為 Panel 開啟而切換播放器位置。
    */
   setBlockedByPanel: (isBlocked: boolean) => void;
+
+  showFullscreenChrome: () => void;
+  hideFullscreenChrome: () => void;
+  setFullscreenChromeVisible: (isVisible: boolean) => void;
 };
 
 export const useFullscreenVideoStore = create<FullscreenVideoStore>((set) => ({
@@ -89,12 +95,14 @@ export const useFullscreenVideoStore = create<FullscreenVideoStore>((set) => ({
   openFullscreen: () => {
     set({
       mode: 'fullscreen',
+      isFullscreenChromeVisible: true,
     });
   },
 
   closeFullscreen: () => {
     set((state) => ({
       mode: state.isBlockedByPanel ? 'footerMini' : 'homeMini',
+      isFullscreenChromeVisible: true,
     }));
   },
 
@@ -134,6 +142,26 @@ export const useFullscreenVideoStore = create<FullscreenVideoStore>((set) => ({
         isBlockedByPanel: isBlocked,
         mode: isBlocked ? 'footerMini' : 'homeMini',
       };
+    });
+  },
+
+  isFullscreenChromeVisible: true,
+
+  showFullscreenChrome: () => {
+    set({
+      isFullscreenChromeVisible: true,
+    });
+  },
+
+  hideFullscreenChrome: () => {
+    set({
+      isFullscreenChromeVisible: false,
+    });
+  },
+
+  setFullscreenChromeVisible: (isVisible) => {
+    set({
+      isFullscreenChromeVisible: isVisible,
     });
   },
 }));

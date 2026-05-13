@@ -1,5 +1,5 @@
 import { Slot } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -33,6 +33,15 @@ export default function TabsLayout() {
   const videoMode = useFullscreenVideoStore((state) => state.mode);
   const isVideoFullscreen = videoMode === 'fullscreen';
 
+  // const [isFullscreenChromeVisible, setIsFullscreenChromeVisible] = useState(true);
+  const isFullscreenChromeVisible = useFullscreenVideoStore(
+    (state) => state.isFullscreenChromeVisible,
+  );
+  const showFullscreenChrome = useFullscreenVideoStore((state) => state.showFullscreenChrome);
+  const hideFullscreenChrome = useFullscreenVideoStore((state) => state.hideFullscreenChrome);
+
+  const fullscreenChromeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const hasClearedPendingPlaylistRef = useRef(false);
   // const [isInitialPlaylistCleared, setIsInitialPlaylistCleared] = useState(false);
   const { isSocketInitialized } = useSocketConnection();
@@ -44,6 +53,51 @@ export default function TabsLayout() {
    * 例如：Web 按「切歌」後，App 收到 nextSong 並執行本機 finishCurrent。
    */
   usePlayerSocketControls(isSocketInitialized);
+
+  const clearFullscreenChromeTimer = useCallback(() => {
+    if (fullscreenChromeTimerRef.current) {
+      clearTimeout(fullscreenChromeTimerRef.current);
+      fullscreenChromeTimerRef.current = null;
+    }
+  }, []);
+
+  const resetFullscreenChromeTimer = useCallback(() => {
+    if (!isVideoFullscreen) {
+      return;
+    }
+
+    showFullscreenChrome();
+
+    clearFullscreenChromeTimer();
+
+    fullscreenChromeTimerRef.current = setTimeout(() => {
+      hideFullscreenChrome();
+    }, 5000);
+  }, [
+    clearFullscreenChromeTimer,
+    hideFullscreenChrome,
+    isVideoFullscreen,
+    showFullscreenChrome,
+  ]);
+
+  useEffect(() => {
+    if (!isVideoFullscreen) {
+      clearFullscreenChromeTimer();
+      showFullscreenChrome();
+      return;
+    }
+  
+    resetFullscreenChromeTimer();
+  
+    return () => {
+      clearFullscreenChromeTimer();
+    };
+  }, [
+    clearFullscreenChromeTimer,
+    isVideoFullscreen,
+    resetFullscreenChromeTimer,
+    showFullscreenChrome,
+  ]);
 
   useEffect(() => {
     if (hasClearedPendingPlaylistRef.current) {
@@ -73,8 +127,28 @@ export default function TabsLayout() {
   const isPanelBackground =
     isRankingBackground || isNewSongsBackground || isCategoryBackground || isSingreBackground;
 
+  const shouldShowChrome = !isVideoFullscreen || isFullscreenChromeVisible;
+
   return (
-    <View style={styles.root}>
+    <View
+      style={styles.root}
+      // onStartShouldSetResponderCapture={() => {
+      //   if (!isVideoFullscreen) {
+      //     return false;
+      //   }
+    
+      //   if (!isFullscreenChromeVisible) {
+      //     return false;
+      //   }
+    
+      //   resetFullscreenChromeTimer();
+      //   return false;
+      // }}
+      onMoveShouldSetResponderCapture={() => {
+        resetFullscreenChromeTimer();
+        return false;
+      }}
+    >
       <ImageBackground
         style={[styles.backgroundLayer, !isHomeBackground && styles.hiddenBackground]}
         source={HOME_BACKGROUND}
@@ -114,7 +188,14 @@ export default function TabsLayout() {
       {/* <SharedVideoPlayer /> */}
 
       <View style={styles.page}>
-        <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
+        <SafeAreaView
+          style={[
+            styles.headerSafeArea,
+            isVideoFullscreen && !shouldShowChrome && styles.hiddenChrome,
+          ]}
+          edges={['top']}
+          pointerEvents={shouldShowChrome ? 'auto' : 'none'}
+        >
           <MainHeader showNowPlayingMarquee={isSocketInitialized} />
         </SafeAreaView>
 
@@ -126,8 +207,11 @@ export default function TabsLayout() {
           style={[
             styles.footerSafeArea,
             !isVideoFullscreen && !isPanelBackground && styles.footerSafeAreaDark,
+            isVideoFullscreen && styles.footerSafeAreaTransparent,
+            isVideoFullscreen && !shouldShowChrome && styles.hiddenChrome,
           ]}
           edges={['bottom']}
+          pointerEvents={shouldShowChrome ? 'auto' : 'none'}
         >
           <MainFooter />
         </SafeAreaView>
@@ -180,5 +264,13 @@ const styles = StyleSheet.create({
 
   footerSafeAreaDark: {
     backgroundColor: '#000000',
+  },
+
+  hiddenChrome: {
+    opacity: 0,
+  },
+
+  footerSafeAreaTransparent: {
+    backgroundColor: 'transparent',
   },
 });
