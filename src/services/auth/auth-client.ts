@@ -2,6 +2,7 @@ import { apiRequest } from '../api/api-client';
 import { ENDPOINTS } from '../api/endpoints';
 import {
   AuthLoginRequest,
+  AuthLoginResponse,
   AuthSession,
   DeleteAccountRequest,
   DeleteAccountResponse,
@@ -17,7 +18,6 @@ import {
   VerifyResetCodeResponse,
   VerifySignupCodeRequest,
   VerifySignupCodeResponse,
-  AuthLoginResponse,
 } from './auth.types';
 
 function toAuthSession(response: AuthLoginResponse): AuthSession {
@@ -37,6 +37,23 @@ export const authClient = {
       method: 'POST',
       path: ENDPOINTS.auth.login,
       body,
+      timeoutMs: 30000,
+    });
+
+    return toAuthSession(response);
+  },
+
+  /**
+   * 驗證目前本機 token 是否仍然有效。
+   * 注意：這不是 refresh token。
+   * 它只會確認 token 是否有效，成功代表可以繼續進入 home。
+   */
+  async me(token: string) {
+    const response = await apiRequest<AuthLoginResponse, undefined>({
+      method: 'GET',
+      path: ENDPOINTS.user.me,
+      token,
+      timeoutMs: 15000,
     });
 
     return toAuthSession(response);

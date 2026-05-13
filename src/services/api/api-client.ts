@@ -61,6 +61,12 @@ export async function apiRequest<TResponse, TBody = unknown>({
   const controller = new AbortController();
 
   const timeoutId = setTimeout(() => {
+    console.log('[ApiClient] timeout reached, abort request:', {
+      method,
+      url,
+      timeoutMs,
+    });
+
     controller.abort();
   }, timeoutMs);
 
@@ -77,6 +83,7 @@ export async function apiRequest<TResponse, TBody = unknown>({
     url,
     hasToken: Boolean(token),
     body,
+    timeoutMs,
   });
 
   try {

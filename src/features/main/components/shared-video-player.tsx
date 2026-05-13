@@ -14,9 +14,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Pressable, StyleSheet, View } from 'react-native';
 import Video, { SelectedTrackType, type SelectedTrack } from 'react-native-video';
 
-import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
 import type { VideoFrameRect } from '@/src/features/main/store/fullscreen-video.store';
 import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
+import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
 import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
 
@@ -41,7 +41,8 @@ function getFooterMiniDisplayRect(rect: VideoFrameRect): VideoFrameRect {
   };
 }
 
-const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/demo/video/Test.mkv');
+// const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/demo/video/Test.mkv');
+const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/defaut_loop.mp4');
 
 /**
  * 依照你的 MKV 音軌順序調整。
@@ -207,7 +208,8 @@ export function SharedVideoPlayer() {
         }
 
         const videoCacheDirectory = `${FileSystem.cacheDirectory}video-media/`;
-        const targetUri = `${videoCacheDirectory}Test.mkv`;
+        // const targetUri = `${videoCacheDirectory}Test.mkv`;
+        const targetUri = `${videoCacheDirectory}defaut_loop.mp4`;
 
         const directoryInfo = await FileSystem.getInfoAsync(videoCacheDirectory);
 
