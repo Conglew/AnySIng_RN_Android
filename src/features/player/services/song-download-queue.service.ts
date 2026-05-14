@@ -5,7 +5,7 @@ import { SongDownloadTask } from '../types/download.types';
 import { songAssetResolverService } from './song-asset-resolver.service';
 import { songCacheService } from './song-cache.service';
 
-const MAX_CONCURRENT_DOWNLOADS = 3;
+const MAX_CONCURRENT_DOWNLOADS = 1;
 
 function createTaskId(songId: string) {
   return `${songId}-${Date.now()}`;

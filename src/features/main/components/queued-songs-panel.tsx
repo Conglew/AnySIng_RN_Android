@@ -11,6 +11,8 @@ import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-for
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
 
+import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
+
 type PanelTab = 'queued' | 'downloading';
 
 function truncateText(text: string, maxLength: number) {
@@ -28,6 +30,8 @@ function truncateText(text: string, maxLength: number) {
 export function QueuedSongsPanel() {
   const isVisible = useQueuedSongsPanelStore((state) => state.isVisible);
   const closePanel = useQueuedSongsPanelStore((state) => state.closePanel);
+
+  const { cancelSongDownload } = useInsertSongPlayback();
 
   const currentItem = usePlaybackQueueStore((state) => state.currentItem);
   const queue = usePlaybackQueueStore((state) => state.queue);
@@ -363,6 +367,23 @@ export function QueuedSongsPanel() {
 
                       <Text style={styles.downloadSpeedText}>{speedText}</Text>
                     </View>
+
+                    <Pressable
+                      style={styles.cancelDownloadButton}
+                      onPress={() => {
+                        console.log('[QueuedSongsPanel] press cancel download:', songId);
+
+                        cancelSongDownload(songId).catch((error) => {
+                          console.log('[QueuedSongsPanel] cancel download failed:', {
+                            songId,
+                            error,
+                          });
+                        });
+                      }}
+                      hitSlop={10}
+                    >
+                      <Text style={styles.cancelDownloadButtonText}>×</Text>
+                    </Pressable>
                   </View>
                 );
               })
@@ -530,7 +551,7 @@ const styles = StyleSheet.create({
   },
 
   downloadStatusGroup: {
-    minWidth: 112,
+    minWidth: 96,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
@@ -637,5 +658,28 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
     backgroundColor: '#FFFFFF',
+  },
+
+  cancelDownloadButton: {
+    width: 34,
+    height: 34,
+    marginLeft: 10,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.26)',
+  },
+  
+  cancelDownloadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '300',
+    lineHeight: 32,
+    includeFontPadding: false,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    transform: [{ translateY: -1 }],
   },
 });

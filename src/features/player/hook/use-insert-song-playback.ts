@@ -9,8 +9,44 @@ import { songCacheService } from '../services/song-cache.service';
 import { usePlaybackQueueStore } from '../stores/playback-queue.store';
 import { useSongDownloadStatusStore } from '../stores/song-download-status.store';
 
+import { songDownloadCancelService } from '@/src/features/player/services/song-download-cancel.service';
+
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
+
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+
+let globalDownloadQueue: Promise<void> = Promise.resolve();
+
+function enqueueGlobalDownloadJob(job: () => Promise<void>) {
+  const nextJob = globalDownloadQueue
+    .catch(() => undefined)
+    .then(async () => {
+      await job();
+
+      /**
+       * 下載任務完成後讓 JS thread / UI / video player 稍微喘息。
+       * 數值不要太大，200~500ms 即可。
+       */
+      await sleep(300);
+    });
+
+  globalDownloadQueue = nextJob.catch(() => undefined);
+
+  return nextJob;
+}
+
+function throwIfDownloadCancelled(songId: string) {
+  if (songDownloadCancelService.isCancelled(songId)) {
+    throw new Error('Download cancelled.');
+  }
+}
 
 function formatArtists(artists: SongDto['artists']) {
   if (!Array.isArray(artists) || artists.length === 0) {
@@ -108,13 +144,13 @@ function createPlaybackQueueItem({
 
 type InsertSongMode = 'queue' | 'next';
 
-type ActiveDownloadTask = {
-  downloadResumable: ExpoFileSystem.DownloadResumable;
-  tempUri: string;
-};
+// type ActiveDownloadTask = {
+//   downloadResumable: ExpoFileSystem.DownloadResumable;
+//   tempUri: string;
+// };
 
-const activeDownloadTasks = new Map<string, ActiveDownloadTask>();
-const cancelledSongIds = new Set<string>();
+// const activeDownloadTasks = new Map<string, ActiveDownloadTask>();
+// const cancelledSongIds = new Set<string>();
 
 type InsertSongParams = {
   song: SongDto;
@@ -225,6 +261,8 @@ export function useInsertSongPlayback() {
     async ({ song, mode = 'next' }: InsertSongParams) => {
       const songId = song._id;
 
+      let tempUri: string | null = null;
+
       const currentStatus = useSongDownloadStatusStore.getState().statusMap[songId];
 
       /**
@@ -286,12 +324,8 @@ export function useInsertSongPlayback() {
          * 先下載到暫存檔，避免下載失敗時留下半成品正式檔案。
          */
         const finalUri = `${songDir}video.${extension}`;
-        const tempUri = `${songDir}video.${extension}.tmp`;
+        tempUri = `${songDir}video.${extension}.tmp`;
 
-        let lastProgress = -1;
-        let lastBytesWritten = 0;
-        let lastSpeedTimestamp = Date.now();
-        let lastSpeedText = '-- MB/s';
 
         // const downloadResumable = ExpoFileSystem.createDownloadResumable(
         //   resolvedAssets.videoUrl,
@@ -313,6 +347,13 @@ export function useInsertSongPlayback() {
         //     setDownloading(song, progress);
         //   },
         // );
+
+
+        let lastProgress = -1;
+        let lastProgressUpdateAt = 0;
+        let lastSpeedText = '-- MB/s';
+        let lastSpeedTimestamp = Date.now();
+        let lastBytesWritten = 0;
 
         const downloadResumable = ExpoFileSystem.createDownloadResumable(
           resolvedAssets.videoUrl,
@@ -336,30 +377,53 @@ export function useInsertSongPlayback() {
               lastBytesWritten = downloadProgress.totalBytesWritten;
             }
 
-            if (progress === lastProgress) {
+            // if (progress === lastProgress) {
+            //   return;
+            // }
+
+            // lastProgress = progress;
+
+            // setDownloading(song, progress, lastSpeedText);
+
+
+            const progressDelta = progress - lastProgress;
+            const isProgressChangedEnough = progressDelta >= 0.05;
+            const isTimePassedEnough = now - lastProgressUpdateAt >= 300;
+            const isCompleted = progress >= 1;
+        
+            if (!isProgressChangedEnough && !isTimePassedEnough && !isCompleted) {
               return;
             }
-
+        
             lastProgress = progress;
-
+            lastProgressUpdateAt = now;
+        
             setDownloading(song, progress, lastSpeedText);
           },
         );
 
-        activeDownloadTasks.set(songId, {
-          downloadResumable,
-          tempUri,
-        });
+        songDownloadCancelService.register(songId, downloadResumable);
+
+        // activeDownloadTasks.set(songId, {
+        //   downloadResumable,
+        //   tempUri,
+        // });
+
+        throwIfDownloadCancelled(songId);
 
         const downloadResult = await downloadResumable.downloadAsync();
 
-        if (cancelledSongIds.has(songId)) {
-          throw new Error('Download cancelled.');
-        }
+        // if (cancelledSongIds.has(songId)) {
+        //   throw new Error('Download cancelled.');
+        // }
+        
+        throwIfDownloadCancelled(songId);
 
         if (!downloadResult?.uri) {
           throw new Error('Download failed: missing local uri.');
         }
+
+        throwIfDownloadCancelled(songId);
 
         /**
          * 如果正式檔案已存在，先刪除，避免 moveAsync 失敗。
@@ -372,10 +436,14 @@ export function useInsertSongPlayback() {
           });
         }
 
+        throwIfDownloadCancelled(songId);
+
         await ExpoFileSystem.moveAsync({
           from: tempUri,
           to: finalUri,
         });
+
+        throwIfDownloadCancelled(songId);
 
         await songCacheService.saveCachedSong(songId, {
           songId,
@@ -397,37 +465,58 @@ export function useInsertSongPlayback() {
         //   enqueueNextSong(item);
         // }
 
+        throwIfDownloadCancelled(songId);
+
         await syncPendingPlaylistAndEnqueue({
           song,
           localVideoUri: finalUri,
           mode,
         });
       } catch (error) {
-        if (error instanceof Error && error.message === 'Download cancelled.') {
+        if (
+          songDownloadCancelService.isCancelled(songId) ||
+          (error instanceof Error && error.message === 'Download cancelled.')
+        ) {
           console.log('[useInsertSongPlayback] download cancelled:', {
             songId,
             title: song.title,
           });
-
+      
           return;
         }
-
+      
         console.log('[useInsertSongPlayback] insert song failed:', {
           songId,
           title: song.title,
           error,
         });
       } finally {
-        const activeTask = activeDownloadTasks.get(songId);
+        // const activeTask = activeDownloadTasks.get(songId);
 
-        if (activeTask) {
-          await ExpoFileSystem.deleteAsync(activeTask.tempUri, {
-            idempotent: true,
-          });
+        // if (activeTask) {
+        //   await ExpoFileSystem.deleteAsync(activeTask.tempUri, {
+        //     idempotent: true,
+        //   });
+        // }
+
+        if (tempUri) {
+          try {
+            await ExpoFileSystem.deleteAsync(tempUri, {
+              idempotent: true,
+            });
+          } catch (error) {
+            console.log('[useInsertSongPlayback] delete temp file failed:', {
+              songId,
+              tempUri,
+              error,
+            });
+          }
         }
+        
+        // activeDownloadTasks.delete(songId);
+        // cancelledSongIds.delete(songId);
 
-        activeDownloadTasks.delete(songId);
-        cancelledSongIds.delete(songId);
+        songDownloadCancelService.unregister(songId);
         clearDownloadStatus(songId);
       }
     },
@@ -435,57 +524,89 @@ export function useInsertSongPlayback() {
     [clearDownloadStatus, setDownloading, setPreparing, syncPendingPlaylistAndEnqueue],
   );
 
+  // const cancelSongDownload = useCallback(
+  //   async (songId: string) => {
+  //     const activeTask = activeDownloadTasks.get(songId);
+
+  //     cancelledSongIds.add(songId);
+
+  //     if (!activeTask) {
+  //       clearDownloadStatus(songId);
+  //       return;
+  //     }
+
+  //     try {
+  //       await activeTask.downloadResumable.pauseAsync();
+
+  //       await ExpoFileSystem.deleteAsync(activeTask.tempUri, {
+  //         idempotent: true,
+  //       });
+  //     } catch (error) {
+  //       console.log('[useInsertSongPlayback] cancel download failed:', {
+  //         songId,
+  //         error,
+  //       });
+  //     } finally {
+  //       activeDownloadTasks.delete(songId);
+  //       cancelledSongIds.delete(songId);
+  //       clearDownloadStatus(songId);
+  //     }
+  //   },
+  //   [clearDownloadStatus],
+  // );
+
+  // const insertSongNext = useCallback(
+  //   async (song: SongDto) => {
+  //     await insertSong({
+  //       song,
+  //       mode: 'next',
+  //     });
+  //   },
+  //   [insertSong],
+  // );
+
   const cancelSongDownload = useCallback(
     async (songId: string) => {
-      const activeTask = activeDownloadTasks.get(songId);
-
-      cancelledSongIds.add(songId);
-
-      if (!activeTask) {
-        clearDownloadStatus(songId);
-        return;
-      }
-
-      try {
-        await activeTask.downloadResumable.pauseAsync();
-
-        await ExpoFileSystem.deleteAsync(activeTask.tempUri, {
-          idempotent: true,
-        });
-      } catch (error) {
-        console.log('[useInsertSongPlayback] cancel download failed:', {
-          songId,
-          error,
-        });
-      } finally {
-        activeDownloadTasks.delete(songId);
-        cancelledSongIds.delete(songId);
-        clearDownloadStatus(songId);
-      }
+      await songDownloadCancelService.cancel(songId);
+      clearDownloadStatus(songId);
     },
     [clearDownloadStatus],
   );
 
   const insertSongNext = useCallback(
     async (song: SongDto) => {
-      await insertSong({
-        song,
-        mode: 'next',
+      await enqueueGlobalDownloadJob(async () => {
+        await insertSong({
+          song,
+          mode: 'next',
+        });
       });
     },
     [insertSong],
   );
+
+  // const enqueueSongAfterDownload = useCallback(
+  //   async (song: SongDto) => {
+  //     await insertSong({
+  //       song,
+  //       mode: 'queue',
+  //     });
+  //   },
+  //   [insertSong],
+  // );
 
   const enqueueSongAfterDownload = useCallback(
     async (song: SongDto) => {
-      await insertSong({
-        song,
-        mode: 'queue',
+      await enqueueGlobalDownloadJob(async () => {
+        await insertSong({
+          song,
+          mode: 'queue',
+        });
       });
     },
     [insertSong],
   );
-
+  
   return {
     songActionStatusMap,
     insertSong,
