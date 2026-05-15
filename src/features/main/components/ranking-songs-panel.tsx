@@ -30,7 +30,7 @@ import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
 
 const SONG_TITLE_BACKGROUND = require('@/assets/images/songPrefab/song-title-bg-slc.png');
 
-import { CustomKeyboard } from '@/src/features/main/components/custom-keyboard';
+import { CustomKeyboard, CustomKeyboardMode } from '@/src/features/main/components/custom-keyboard';
 
 type Props = {
   visible: boolean;
@@ -48,6 +48,20 @@ type LanguageTab = {
 // };
 
 // type SongActionStatusMap = Record<string, SongActionStatus | undefined>;
+
+type RankingSongSearchMode = 'title' | 'initials' | 'zhuyin';
+
+function getRankingSongSearchMode(keyboardMode: CustomKeyboardMode): RankingSongSearchMode {
+  if (keyboardMode === 'zhuyin') {
+    return 'zhuyin';
+  }
+
+  if (keyboardMode === 'pinyin') {
+    return 'initials';
+  }
+
+  return 'title';
+}
 
 const LANGUAGE_TABS: LanguageTab[] = [
   {
@@ -77,14 +91,37 @@ const LANGUAGE_TABS: LanguageTab[] = [
 ];
 
 function formatArtists(artists: SongDto['artists']) {
-  if (!Array.isArray(artists) || artists.length === 0) {
+  if (!Array.isArray(artists)) {
     return '未知歌手';
   }
 
-  return artists
-    .map((artist) => String(artist))
-    .filter(Boolean)
-    .join('、');
+  const artistNames = artists
+    .map((artist) => {
+      if (typeof artist === 'string') {
+        return artist;
+      }
+
+      if (artist && typeof artist === 'object') {
+        const record = artist as Record<string, unknown>;
+
+        if (typeof record.name === 'string') {
+          return record.name;
+        }
+
+        if (typeof record.artistName === 'string') {
+          return record.artistName;
+        }
+
+        if (typeof record.singerName === 'string') {
+          return record.singerName;
+        }
+      }
+
+      return '';
+    })
+    .filter(Boolean);
+
+  return artistNames.length > 0 ? artistNames.join(' , ') : '未知歌手';
 }
 
 function truncateText(value: string, maxLength: number) {
@@ -115,6 +152,9 @@ function getInsertButtonText(status?: SongDownloadStatus) {
 
 export function RankingSongsPanel({ visible, onClose }: Props) {
   const songListRef = useRef<FlatList<SongDto>>(null);
+
+  const [keyboardMode, setKeyboardMode] = useState<CustomKeyboardMode>('pinyin');
+  const songSearchMode = getRankingSongSearchMode(keyboardMode);
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageTab>(LANGUAGE_TABS[0]);
 
@@ -175,6 +215,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
      */
     languageValue: isSearchMode ? undefined : selectedLanguage.value,
     searchKeyword: debouncedSearchKeyword,
+    searchMode: songSearchMode,
   });
 
   const queryClient = useQueryClient();
@@ -597,7 +638,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                     </Text>
 
                     <Text style={styles.artistText} numberOfLines={1}>
-                      {truncateText(formatArtists(item.artists), 5)}
+                      {truncateText(formatArtists(item.artists), 8)}
                     </Text>
 
                     <Pressable
@@ -659,7 +700,13 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
         </View>
 
         <View style={styles.rightArea}>
-          <CustomKeyboard value={searchKeyword} onChangeText={setSearchKeyword} onClose={onClose} />
+          <CustomKeyboard
+            value={searchKeyword}
+            onChangeText={setSearchKeyword}
+            onClose={onClose}
+            onModeChange={setKeyboardMode}
+            placeholder='搜尋歌曲'
+          />
         </View>
       </View>
     </View>

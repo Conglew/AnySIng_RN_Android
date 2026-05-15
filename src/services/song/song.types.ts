@@ -1,8 +1,12 @@
 export type SongArtistDto =
   | string
   | {
-      _id: string;
-      name: string;
+      _id?: string;
+      name?: string;
+      artistName?: string;
+      singerName?: string;
+      initials?: string;
+      zhuyin?: string;
     };
 
 export type SongCategoryDto =
@@ -29,7 +33,7 @@ export type SongDto = {
   title: string;
   initials?: string;
   zhuyin?: string;
-  artists: SongArtistDto[];
+  artists?: SongArtistDto[];
   categories?: SongCategoryDto[];
   album?: string;
   language?: string;
@@ -82,6 +86,8 @@ export type SearchSongsParams = {
   limit?: number;
   mode?: SongSearchMode;
   artistId?: string;
+  sortBy?: 'createdAt' | 'playCount' | 'title';
+  order?: 'asc' | 'desc';
 };
 
 export type FilterSongsByLanguageParams = {

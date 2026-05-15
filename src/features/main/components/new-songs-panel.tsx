@@ -89,11 +89,39 @@ function formatArtists(artists: SongDto['artists']) {
     return '未知歌手';
   }
 
-  return artists
-    .map((artist) => String(artist))
-    .filter(Boolean)
-    .join('、');
+  const artistNames = artists
+    .map((artist) => {
+      if (typeof artist === 'string') {
+        return artist;
+      }
+
+      if (artist && typeof artist === 'object') {
+        const artistRecord = artist as Record<string, unknown>;
+
+        if (typeof artistRecord.name === 'string') {
+          return artistRecord.name;
+        }
+
+        if (typeof artistRecord.artistName === 'string') {
+          return artistRecord.artistName;
+        }
+
+        if (typeof artistRecord.singerName === 'string') {
+          return artistRecord.singerName;
+        }
+      }
+
+      return '';
+    })
+    .filter(Boolean);
+
+  if (artistNames.length === 0) {
+    return '未知歌手';
+  }
+
+  return artistNames.join('、');
 }
+
 
 function truncateText(value: string, maxLength: number) {
   const chars = Array.from(value);
@@ -719,7 +747,7 @@ export function NewSongsPanel({ visible, onClose }: Props) {
         </View>
 
         <View style={styles.rightArea}>
-          <CustomKeyboard value={searchKeyword} onChangeText={setSearchKeyword} onClose={onClose} />
+          <CustomKeyboard value={searchKeyword} onChangeText={setSearchKeyword} onClose={onClose} placeholder='搜尋歌曲'/>
         </View>
       </View>
     </View>

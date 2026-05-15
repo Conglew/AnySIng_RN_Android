@@ -322,11 +322,11 @@ export function SharedVideoPlayer() {
   };
 
   const handleVideoEnd = () => {
-    console.log('[SharedVideoPlayer] playback ended:', {
-      isDefaultVideo,
-      songId: currentPlaybackItem?.songId,
-      song: currentPlaybackItem?.song,
-    });
+    // console.log('[SharedVideoPlayer] playback ended:', {
+    //   isDefaultVideo,
+    //   songId: currentPlaybackItem?.songId,
+    //   song: currentPlaybackItem?.song,
+    // });
 
     if (isDefaultVideo) {
       videoRef.current?.seek?.(0);

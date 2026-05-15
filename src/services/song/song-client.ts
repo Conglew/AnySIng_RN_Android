@@ -54,6 +54,8 @@ export const songClient = {
       limit: params.limit ?? 20,
       mode: params.mode,
       artistId: params.artistId,
+      sortBy: params.sortBy,
+      order: params.order,
     });
 
     return apiRequest<SongListResponse>({

@@ -4,6 +4,8 @@ import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { songClient } from '@/src/services/song/song-client';
 import { SongDto } from '@/src/services/song/song.types';
 
+import type { SongSearchMode } from '@/src/services/song/song.types';
+
 const PAGE_SIZE = 20;
 
 /**
@@ -28,15 +30,16 @@ type LoadSongsParams = {
 type UseRankingSongsCacheParams = {
   languageValue?: string;
   searchKeyword?: string;
+  searchMode?: SongSearchMode;
 };
 
 const rankingSongsCache = new Map<string, RankingSongsCacheEntry>();
 
-function getCacheKey(languageValue?: string, searchKeyword?: string) {
+function getCacheKey(languageValue?: string, searchKeyword?: string, searchMode?: string) {
   const normalizedSearchKeyword = searchKeyword?.trim() ?? '';
 
   if (normalizedSearchKeyword.length > 0) {
-    return `search:${normalizedSearchKeyword}`;
+    return `search:${searchMode ?? 'auto'}:${normalizedSearchKeyword}`;
   }
 
   return `ranking:${languageValue ?? 'all'}`;
@@ -61,13 +64,14 @@ function getTotalPages(total: number) {
 export function useRankingSongsCache({
   languageValue,
   searchKeyword = '',
+  searchMode,
 }: UseRankingSongsCacheParams) {
   const normalizedSearchKeyword = searchKeyword.trim();
   const isSearchMode = normalizedSearchKeyword.length > 0;
 
   const cacheKey = useMemo(
-    () => getCacheKey(languageValue, normalizedSearchKeyword),
-    [languageValue, normalizedSearchKeyword],
+    () => getCacheKey(languageValue, normalizedSearchKeyword, searchMode),
+    [languageValue, normalizedSearchKeyword, searchMode],
   );
 
   const [songs, setSongs] = useState<SongDto[]>([]);
@@ -138,6 +142,9 @@ export function useRankingSongsCache({
               q: normalizedSearchKeyword,
               page: targetPage,
               limit: PAGE_SIZE,
+              mode: searchMode,
+              sortBy: 'playCount',
+              order: 'desc',
             },
           })
         : await songClient.getSongs({
@@ -150,6 +157,13 @@ export function useRankingSongsCache({
               lan: languageValue,
             },
           });
+
+          if (isSearchMode) {
+            console.log(
+              '[useRankingSongsCache] searchSongs response:',
+              JSON.stringify(response, null, 2),
+            );
+          }
 
       setTotal(response.total);
       setPage(response.page);
@@ -176,7 +190,7 @@ export function useRankingSongsCache({
         return nextSongs;
       });
     },
-    [cacheKey, isSearchMode, languageValue, normalizedSearchKeyword],
+    [cacheKey, isSearchMode, languageValue, normalizedSearchKeyword, searchMode],
   );
 
   const loadFirstPage = useCallback(
