@@ -42,12 +42,12 @@ type LanguageTab = {
   value?: string;
 };
 
-type SongActionStatus = {
-  phase: 'preparing' | 'downloading';
-  progress?: number;
-};
+// type SongActionStatus = {
+//   phase: 'preparing' | 'downloading';
+//   progress?: number;
+// };
 
-type SongActionStatusMap = Record<string, SongActionStatus | undefined>;
+// type SongActionStatusMap = Record<string, SongActionStatus | undefined>;
 
 const LANGUAGE_TABS: LanguageTab[] = [
   {
@@ -118,6 +118,39 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageTab>(LANGUAGE_TABS[0]);
 
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState('');
+
+  const isSearchMode = debouncedSearchKeyword.length > 0;
+
+  const isSearchLanguageFilterMode = isSearchMode && Boolean(selectedLanguage.value);
+
+  const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchKeyword(searchKeyword.trim());
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchKeyword]);
+
+  useEffect(() => {
+    if (!debouncedSearchKeyword) {
+      return;
+    }
+
+    setSelectedLanguage((currentTab) => {
+      if (currentTab.label === LANGUAGE_TABS[0].label) {
+        return currentTab;
+      }
+
+      return LANGUAGE_TABS[0];
+    });
+  }, [debouncedSearchKeyword]);
+
   const {
     songs,
     page,
@@ -132,11 +165,17 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
     loadFirstPage,
     loadNextPage,
   } = useRankingSongsCache({
-    languageValue: selectedLanguage.value,
+    /**
+     * 搜尋模式：
+     * 不把語系帶進 API。
+     * API 只負責取得全部搜尋結果。
+     *
+     * 非搜尋模式：
+     * 才依照 selectedLanguage.value 打語系 API。
+     */
+    languageValue: isSearchMode ? undefined : selectedLanguage.value,
+    searchKeyword: debouncedSearchKeyword,
   });
-
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
 
   const queryClient = useQueryClient();
 
@@ -423,7 +462,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
       offset: 0,
       animated: false,
     });
-  }, [selectedLanguage.value]);
+  }, [selectedLanguage.value, debouncedSearchKeyword]);
 
   useEffect(() => {
     if (!visible) {
@@ -433,21 +472,36 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
     loadFirstPage();
   }, [loadFirstPage, visible]);
 
+  useEffect(() => {
+    if (!isSearchMode) {
+      return;
+    }
+
+    setSelectedLanguage(LANGUAGE_TABS[0]);
+  }, [isSearchMode]);
+
   if (!visible) {
     return null;
   }
+
+  const displaySongs =
+    isSearchMode && selectedLanguage.value
+      ? songs.filter((song) => song.language === selectedLanguage.value)
+      : songs;
 
   return (
     <View style={styles.panelLayer}>
       <View style={styles.panel}>
         <View style={styles.leftArea}>
           <View style={styles.leftTopRow}>
-            <View style={styles.titleAnchor}>
-              <Image
-                source={SONG_TITLE_BACKGROUND}
-                style={styles.titleBackgroundImage}
-                resizeMode="contain"
-              />
+            <View style={styles.titleAnchor} pointerEvents="box-none">
+              <View style={styles.titleBackgroundImageWrapper} pointerEvents="none">
+                <Image
+                  source={SONG_TITLE_BACKGROUND}
+                  style={styles.titleBackgroundImage}
+                  resizeMode="contain"
+                />
+              </View>
 
               <Text style={styles.title}>排行</Text>
             </View>
@@ -460,7 +514,13 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                   <Pressable
                     key={tab.label}
                     style={[styles.languageTab, isActive && styles.languageTabActive]}
-                    onPress={() => handlePressLanguage(tab)}
+                    onPress={() => {
+                      console.log('[RankingSongsPanel] press language tab:', {
+                        label: tab.label,
+                        value: tab.value,
+                      });
+                      handlePressLanguage(tab);
+                    }}
                   >
                     <Text
                       style={[styles.languageTabText, isActive && styles.languageTabTextActive]}
@@ -484,10 +544,12 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
             ) : (
               <FlatList
                 ref={songListRef}
-                data={songs}
+                // data={songs}
+                data={displaySongs}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={styles.listContent}
-                onEndReached={loadNextPage}
+                // onEndReached={loadNextPage}
+                onEndReached={isSearchLanguageFilterMode ? undefined : loadNextPage}
                 onEndReachedThreshold={0.35}
                 renderItem={({ item }) => (
                   // <View style={styles.songRow}>
@@ -574,7 +636,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                   </View>
                 }
                 ListFooterComponent={
-                  isLoadingMore && canLoadMore ? (
+                  !isSearchLanguageFilterMode && isLoadingMore && canLoadMore ? (
                     <View style={styles.footerLoading}>
                       <ActivityIndicator />
                       <Text style={styles.loadingText}>載入更多</Text>
@@ -641,29 +703,40 @@ const styles = StyleSheet.create({
     height: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    // backgroundColor: 'red',
+    position: 'relative',
+    zIndex: 30,
+    elevation: 30,
   },
 
   titleAnchor: {
     position: 'relative',
     marginRight: 28,
     justifyContent: 'center',
+    zIndex: 1,
+    elevation: 1,
   },
 
-  titleBackgroundImage: {
+  titleBackgroundImageWrapper: {
     position: 'absolute',
     left: -215,
     top: -229,
     width: 500,
     height: 500,
-    zIndex: 0,
+    zIndex: -1,
+    elevation: -1,
+  },
+
+  titleBackgroundImage: {
+    width: '100%',
+    height: '100%',
   },
 
   title: {
     color: '#FFFFFF',
     fontSize: 34,
     fontWeight: '900',
-    zIndex: 1,
+    zIndex: 2,
+    elevation: 2,
   },
 
   languageTabs: {
@@ -673,6 +746,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 50,
     marginLeft: 20,
+    elevation: 50,
   },
 
   languageTab: {

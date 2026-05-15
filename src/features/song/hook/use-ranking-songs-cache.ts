@@ -27,12 +27,19 @@ type LoadSongsParams = {
 
 type UseRankingSongsCacheParams = {
   languageValue?: string;
+  searchKeyword?: string;
 };
 
 const rankingSongsCache = new Map<string, RankingSongsCacheEntry>();
 
-function getCacheKey(languageValue?: string) {
-  return languageValue ?? 'all';
+function getCacheKey(languageValue?: string, searchKeyword?: string) {
+  const normalizedSearchKeyword = searchKeyword?.trim() ?? '';
+
+  if (normalizedSearchKeyword.length > 0) {
+    return `search:${normalizedSearchKeyword}`;
+  }
+
+  return `ranking:${languageValue ?? 'all'}`;
 }
 
 function isCacheValid(entry: RankingSongsCacheEntry | undefined): entry is RankingSongsCacheEntry {
@@ -51,8 +58,17 @@ function getTotalPages(total: number) {
   return Math.max(1, Math.ceil(total / PAGE_SIZE));
 }
 
-export function useRankingSongsCache({ languageValue }: UseRankingSongsCacheParams) {
-  const cacheKey = useMemo(() => getCacheKey(languageValue), [languageValue]);
+export function useRankingSongsCache({
+  languageValue,
+  searchKeyword = '',
+}: UseRankingSongsCacheParams) {
+  const normalizedSearchKeyword = searchKeyword.trim();
+  const isSearchMode = normalizedSearchKeyword.length > 0;
+
+  const cacheKey = useMemo(
+    () => getCacheKey(languageValue, normalizedSearchKeyword),
+    [languageValue, normalizedSearchKeyword],
+  );
 
   const [songs, setSongs] = useState<SongDto[]>([]);
   const [page, setPage] = useState(1);
@@ -104,16 +120,36 @@ export function useRankingSongsCache({ languageValue }: UseRankingSongsCachePara
         throw new Error('Missing access token.');
       }
 
-      const response = await songClient.getSongs({
-        token,
-        params: {
-          page: targetPage,
-          limit: PAGE_SIZE,
-          sortBy: 'playCount',
-          order: 'desc',
-          lan: languageValue,
-        },
-      });
+      // const response = await songClient.getSongs({
+      //   token,
+      //   params: {
+      //     page: targetPage,
+      //     limit: PAGE_SIZE,
+      //     sortBy: 'playCount',
+      //     order: 'desc',
+      //     lan: languageValue,
+      //   },
+      // });
+
+      const response = isSearchMode
+        ? await songClient.searchSongs({
+            token,
+            params: {
+              q: normalizedSearchKeyword,
+              page: targetPage,
+              limit: PAGE_SIZE,
+            },
+          })
+        : await songClient.getSongs({
+            token,
+            params: {
+              page: targetPage,
+              limit: PAGE_SIZE,
+              sortBy: 'playCount',
+              order: 'desc',
+              lan: languageValue,
+            },
+          });
 
       setTotal(response.total);
       setPage(response.page);
@@ -140,7 +176,7 @@ export function useRankingSongsCache({ languageValue }: UseRankingSongsCachePara
         return nextSongs;
       });
     },
-    [cacheKey, languageValue],
+    [cacheKey, isSearchMode, languageValue, normalizedSearchKeyword],
   );
 
   const loadFirstPage = useCallback(

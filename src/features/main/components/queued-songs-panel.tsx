@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.26)',
   },
-  
+
   cancelDownloadButtonText: {
     color: '#FFFFFF',
     fontSize: 28,

@@ -14,13 +14,11 @@ import { songDownloadCancelService } from '@/src/features/player/services/song-d
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
 
-
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
   });
 }
-
 
 let globalDownloadQueue: Promise<void> = Promise.resolve();
 
@@ -326,7 +324,6 @@ export function useInsertSongPlayback() {
         const finalUri = `${songDir}video.${extension}`;
         tempUri = `${songDir}video.${extension}.tmp`;
 
-
         // const downloadResumable = ExpoFileSystem.createDownloadResumable(
         //   resolvedAssets.videoUrl,
         //   tempUri,
@@ -347,7 +344,6 @@ export function useInsertSongPlayback() {
         //     setDownloading(song, progress);
         //   },
         // );
-
 
         let lastProgress = -1;
         let lastProgressUpdateAt = 0;
@@ -385,19 +381,18 @@ export function useInsertSongPlayback() {
 
             // setDownloading(song, progress, lastSpeedText);
 
-
             const progressDelta = progress - lastProgress;
             const isProgressChangedEnough = progressDelta >= 0.05;
             const isTimePassedEnough = now - lastProgressUpdateAt >= 300;
             const isCompleted = progress >= 1;
-        
+
             if (!isProgressChangedEnough && !isTimePassedEnough && !isCompleted) {
               return;
             }
-        
+
             lastProgress = progress;
             lastProgressUpdateAt = now;
-        
+
             setDownloading(song, progress, lastSpeedText);
           },
         );
@@ -416,7 +411,7 @@ export function useInsertSongPlayback() {
         // if (cancelledSongIds.has(songId)) {
         //   throw new Error('Download cancelled.');
         // }
-        
+
         throwIfDownloadCancelled(songId);
 
         if (!downloadResult?.uri) {
@@ -481,10 +476,10 @@ export function useInsertSongPlayback() {
             songId,
             title: song.title,
           });
-      
+
           return;
         }
-      
+
         console.log('[useInsertSongPlayback] insert song failed:', {
           songId,
           title: song.title,
@@ -512,7 +507,7 @@ export function useInsertSongPlayback() {
             });
           }
         }
-        
+
         // activeDownloadTasks.delete(songId);
         // cancelledSongIds.delete(songId);
 
@@ -606,7 +601,7 @@ export function useInsertSongPlayback() {
     },
     [insertSong],
   );
-  
+
   return {
     songActionStatusMap,
     insertSong,

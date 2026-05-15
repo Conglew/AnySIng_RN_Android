@@ -9,11 +9,13 @@ type Props = {
 export function MainHeader({ showNowPlayingMarquee = true }: Props) {
   return (
     <View style={styles.header}>
-      <Image
-        source={require('@/assets/images/payment-logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      <View pointerEvents="none">
+        <Image
+          source={require('@/assets/images/payment-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </View>
 
       {showNowPlayingMarquee ? <NowPlayingMarquee /> : <View style={styles.marqueePlaceholder} />}
 
