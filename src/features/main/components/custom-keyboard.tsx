@@ -13,6 +13,7 @@ type Props = {
   onChangeText: (value: string) => void;
   onClose?: () => void;
   placeholder?: string;
+  onModeChange?: (mode: CustomKeyboardMode) => void;
 };
 
 const KEYBOARD_MODE_TABS: KeyboardModeTab[] = [
@@ -57,6 +58,7 @@ export function CustomKeyboard({
   onChangeText,
   onClose,
   placeholder = '搜尋歌曲或歌手',
+  onModeChange,
 }: Props) {
   const [keyboardMode, setKeyboardMode] = useState<CustomKeyboardMode>('zhuyin');
 
@@ -77,9 +79,10 @@ export function CustomKeyboard({
   const handlePressKeyboardMode = useCallback(
     (mode: CustomKeyboardMode) => {
       setKeyboardMode(mode);
+      onModeChange?.(mode);
       onChangeText('');
     },
-    [onChangeText],
+    [onChangeText, onModeChange],
   );
 
   const handlePressKeyboardKey = useCallback(

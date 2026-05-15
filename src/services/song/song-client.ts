@@ -53,6 +53,7 @@ export const songClient = {
       page: params.page ?? 1,
       limit: params.limit ?? 20,
       mode: params.mode,
+      artistId: params.artistId,
     });
 
     return apiRequest<SongListResponse>({

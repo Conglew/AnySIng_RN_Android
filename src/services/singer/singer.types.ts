@@ -32,6 +32,7 @@ export type SearchSingersParams = {
   page?: number;
   limit?: number;
   mode?: SingerSearchMode;
+  artistId?: string;
 };
 
 export type SingerSongsResponse = {

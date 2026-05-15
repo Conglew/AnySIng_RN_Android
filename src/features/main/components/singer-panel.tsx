@@ -15,7 +15,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
 
-import { CustomKeyboard } from '@/src/features/main/components/custom-keyboard';
+import { CustomKeyboard, CustomKeyboardMode } from '@/src/features/main/components/custom-keyboard';
+
+import { useSearchSingersQuery } from '@/src/features/singer/hook/singer-use-search-singers-query';
+
+import { useQuery } from '@tanstack/react-query';
+
+import { songClient } from '@/src/services/song/song-client';
+
 import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
 import { SongDownloadStatus } from '@/src/features/player/stores/song-download-status.store';
 import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
@@ -72,6 +79,53 @@ function getInsertButtonText(status?: SongDownloadStatus) {
   }
 
   return '插播';
+}
+
+function formatSongArtistText(song: SongDto, fallbackArtistName: string) {
+  const record = song as unknown as Record<string, unknown>;
+  const artists = record.artists;
+
+  if (Array.isArray(artists)) {
+    const artistNames = artists
+      .map((artist) => {
+        if (typeof artist === 'string') {
+          return artist;
+        }
+
+        if (artist && typeof artist === 'object') {
+          const artistRecord = artist as Record<string, unknown>;
+
+          if (typeof artistRecord.name === 'string') {
+            return artistRecord.name;
+          }
+
+          if (typeof artistRecord.artistName === 'string') {
+            return artistRecord.artistName;
+          }
+
+          if (typeof artistRecord.singerName === 'string') {
+            return artistRecord.singerName;
+          }
+        }
+
+        return '';
+      })
+      .filter(Boolean);
+
+    if (artistNames.length > 0) {
+      return artistNames.join('、');
+    }
+  }
+
+  if (typeof record.artistName === 'string') {
+    return record.artistName;
+  }
+
+  if (typeof record.singerName === 'string') {
+    return record.singerName;
+  }
+
+  return fallbackArtistName || '未知歌手';
 }
 
 /**
@@ -136,15 +190,66 @@ function getSingerId(singer: SingerDto) {
   return getSingerName(singer);
 }
 
+type ArtistSearchMode = 'name' | 'initials' | 'zhuyin';
+type SongSearchMode = 'title' | 'initials' | 'zhuyin';
+
+function getArtistSearchMode(keyboardMode: CustomKeyboardMode): ArtistSearchMode {
+  if (keyboardMode === 'zhuyin') {
+    return 'zhuyin';
+  }
+
+  if (keyboardMode === 'pinyin') {
+    return 'initials';
+  }
+
+  return 'name';
+}
+
+function getSongSearchMode(keyboardMode: CustomKeyboardMode): SongSearchMode {
+  if (keyboardMode === 'zhuyin') {
+    return 'zhuyin';
+  }
+
+  if (keyboardMode === 'pinyin') {
+    return 'initials';
+  }
+
+  return 'title';
+}
+
 export function SingerPanel({ visible, onClose }: Props) {
   const songListRef = useRef<FlatList<SongDto>>(null);
 
   const [selectedSinger, setSelectedSinger] = useState<SingerDto | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState('');
+
+  const [keyboardMode, setKeyboardMode] = useState<CustomKeyboardMode>('zhuyin');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchKeyword(searchKeyword.trim());
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchKeyword]);
 
   const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
 
   const isSingerListMode = selectedSinger === null;
+
+  const isSearchMode = debouncedSearchKeyword.length > 0;
+
+  const artistSearchMode = useMemo(() => {
+    return getArtistSearchMode(keyboardMode);
+  }, [keyboardMode]);
+
+  const songSearchMode = useMemo(() => {
+    return getSongSearchMode(keyboardMode);
+  }, [keyboardMode]);
+
   const selectedSingerId = selectedSinger ? getSingerId(selectedSinger) : '';
   const selectedSingerName = selectedSinger ? getSingerName(selectedSinger) : '';
 
@@ -164,6 +269,18 @@ export function SingerPanel({ visible, onClose }: Props) {
    * 如果你的 hook 支援 keyword，可以把 keyword 傳進去。
    * 如果不支援，保留目前寫法，下面會用前端 filter 做已載入資料搜尋。
    */
+  // const {
+  //   data: singersData,
+  //   isLoading: isLoadingSingers,
+  //   isFetchingNextPage: isLoadingMoreSingers,
+  //   fetchNextPage: fetchNextSingersPage,
+  //   hasNextPage: hasNextSingersPage,
+  //   error: singersError,
+  // } = useSingersInfiniteQuery({
+  //   enabled: visible && isSingerListMode,
+  //   limit: PAGE_SIZE,
+  // });
+
   const {
     data: singersData,
     isLoading: isLoadingSingers,
@@ -172,19 +289,54 @@ export function SingerPanel({ visible, onClose }: Props) {
     hasNextPage: hasNextSingersPage,
     error: singersError,
   } = useSingersInfiniteQuery({
-    enabled: visible && isSingerListMode,
+    enabled: visible && isSingerListMode && !isSearchMode,
     limit: PAGE_SIZE,
   });
 
+  const {
+    data: searchSingersData,
+    isLoading: isSearchingSingers,
+    error: searchSingersError,
+  } = useSearchSingersQuery(
+    {
+      q: debouncedSearchKeyword,
+      page: 1,
+      limit: PAGE_SIZE,
+      mode: artistSearchMode,
+    },
+    visible && isSingerListMode && isSearchMode,
+  );
+
+  // const singers = useMemo(() => {
+  //   return singersData?.pages.flatMap((page) => page.artists) ?? [];
+  // }, [singersData]);
+
   const singers = useMemo(() => {
+    if (isSingerListMode && isSearchMode) {
+      return searchSingersData?.artists ?? [];
+    }
+
     return singersData?.pages.flatMap((page) => page.artists) ?? [];
-  }, [singersData]);
+  }, [isSearchMode, isSingerListMode, searchSingersData, singersData]);
 
   /**
    * 第二層：指定歌手底下的歌曲
    *
    * 如果你的 hook 支援 keyword，也可以把 keyword 傳進去。
    */
+  // const {
+  //   data: singerSongsData,
+  //   isLoading: isLoadingSongs,
+  //   isFetchingNextPage: isLoadingMoreSongs,
+  //   fetchNextPage: fetchNextSongsPage,
+  //   hasNextPage: hasNextSongsPage,
+  //   error: singerSongsError,
+  // } = useSingerSongsInfiniteQuery({
+  //   singerId: selectedSingerId,
+  //   enabled: visible && selectedSingerId.length > 0,
+  //   limit: PAGE_SIZE,
+  // });
+
   const {
     data: singerSongsData,
     isLoading: isLoadingSongs,
@@ -194,13 +346,54 @@ export function SingerPanel({ visible, onClose }: Props) {
     error: singerSongsError,
   } = useSingerSongsInfiniteQuery({
     singerId: selectedSingerId,
-    enabled: visible && selectedSingerId.length > 0,
+    enabled: visible && selectedSingerId.length > 0 && !isSearchMode,
     limit: PAGE_SIZE,
   });
 
+  const {
+    data: searchSingerSongsData,
+    isLoading: isSearchingSingerSongs,
+    error: searchSingerSongsError,
+  } = useQuery({
+    queryKey: [
+      'songs',
+      'search-by-singer',
+      selectedSingerId,
+      debouncedSearchKeyword,
+      songSearchMode,
+    ],
+    enabled: visible && !isSingerListMode && selectedSingerId.length > 0 && isSearchMode,
+    queryFn: async () => {
+      const token = await getAccessToken();
+
+      if (!token) {
+        throw new Error('Missing access token.');
+      }
+
+      return songClient.searchSongs({
+        token,
+        params: {
+          q: debouncedSearchKeyword,
+          page: 1,
+          limit: PAGE_SIZE,
+          artistId: selectedSingerId,
+          mode: songSearchMode,
+        },
+      });
+    },
+  });
+
+  // const songs = useMemo(() => {
+  //   return singerSongsData?.pages.flatMap((page) => page.songs) ?? [];
+  // }, [singerSongsData]);
+
   const songs = useMemo(() => {
+    if (!isSingerListMode && isSearchMode) {
+      return searchSingerSongsData?.songs ?? [];
+    }
+
     return singerSongsData?.pages.flatMap((page) => page.songs) ?? [];
-  }, [singerSongsData]);
+  }, [isSearchMode, isSingerListMode, searchSingerSongsData, singerSongsData]);
 
   /**
    * 第一層搜尋：搜尋歌手
@@ -209,15 +402,19 @@ export function SingerPanel({ visible, onClose }: Props) {
    * 這是前端過濾，只會過濾目前已載入的 singers。
    * 如果你要搜尋全部歌手，應該讓後端 API 支援 keyword。
    */
-  const filteredSingers = useMemo(() => {
-    const keyword = searchKeyword.trim();
+  // const filteredSingers = useMemo(() => {
+  //   const keyword = debouncedSearchKeyword;
 
-    if (!isSingerListMode || keyword.length === 0) {
-      return singers;
-    }
+  //   if (!isSingerListMode || keyword.length === 0) {
+  //     return singers;
+  //   }
 
-    return singers.filter((singer) => getSingerName(singer).includes(keyword));
-  }, [isSingerListMode, searchKeyword, singers]);
+  //   return singers.filter((singer) => {
+  //     const singerName = getSingerName(singer);
+  //     return singerName.toLowerCase().includes(keyword.toLowerCase());
+  //   });
+  // }, [debouncedSearchKeyword, isSingerListMode, singers]);
+  const filteredSingers = singers;
 
   /**
    * 第二層搜尋：搜尋該歌手底下歌曲
@@ -225,32 +422,58 @@ export function SingerPanel({ visible, onClose }: Props) {
    * 注意：
    * 這也是前端過濾，只會過濾目前已載入的 songs。
    */
-  const filteredSongs = useMemo(() => {
-    const keyword = searchKeyword.trim();
+  // const filteredSongs = useMemo(() => {
+  //   const keyword = debouncedSearchKeyword;
 
-    if (isSingerListMode || keyword.length === 0) {
-      return songs;
-    }
+  //   if (isSingerListMode || keyword.length === 0) {
+  //     return songs;
+  //   }
 
-    return songs.filter((song) => {
-      const displayTitle = formatDisplaySongTitle(song.title);
-      const artistText = formatArtists(song.artists);
+  //   return songs.filter((song) => {
+  //     const displayTitle = formatDisplaySongTitle(song.title);
+  //     const artistText = formatArtists(song.artists);
+  //     const normalizedKeyword = keyword.toLowerCase();
 
-      return displayTitle.includes(keyword) || artistText.includes(keyword);
-    });
-  }, [isSingerListMode, searchKeyword, songs]);
+  //     return (
+  //       displayTitle.toLowerCase().includes(normalizedKeyword) ||
+  //       artistText.toLowerCase().includes(normalizedKeyword)
+  //     );
+  //   });
+  // }, [debouncedSearchKeyword, isSingerListMode, songs]);
+
+  const filteredSongs = songs;
 
   const errorMessage = useMemo(() => {
     if (singersError instanceof Error) {
       return singersError.message;
     }
 
+    if (searchSingersError instanceof Error) {
+      return searchSingersError.message;
+    }
+
     if (singerSongsError instanceof Error) {
       return singerSongsError.message;
     }
 
+    if (searchSingerSongsError instanceof Error) {
+      return searchSingerSongsError.message;
+    }
+
     return '';
-  }, [singerSongsError, singersError]);
+  }, [searchSingerSongsError, searchSingersError, singerSongsError, singersError]);
+
+  const isCurrentSingerLoading = isSingerListMode
+    ? isSearchMode
+      ? isSearchingSingers
+      : isLoadingSingers
+    : false;
+
+  const isCurrentSongLoading = !isSingerListMode
+    ? isSearchMode
+      ? isSearchingSingerSongs
+      : isLoadingSongs
+    : false;
 
   const singerPageText = useMemo(() => {
     const lastPage = singersData?.pages.at(-1);
@@ -291,6 +514,10 @@ export function SingerPanel({ visible, onClose }: Props) {
   const handlePressSinger = useCallback((singer: SingerDto) => {
     setSelectedSinger(singer);
     setSearchKeyword('');
+
+    setDebouncedSearchKeyword('');
+
+    setKeyboardMode('zhuyin');
 
     requestAnimationFrame(() => {
       songListRef.current?.scrollToOffset({
@@ -395,6 +622,8 @@ export function SingerPanel({ visible, onClose }: Props) {
     if (selectedSinger) {
       setSelectedSinger(null);
       setSearchKeyword('');
+      setDebouncedSearchKeyword('');
+      setKeyboardMode('zhuyin');
       return;
     }
 
@@ -408,6 +637,7 @@ export function SingerPanel({ visible, onClose }: Props) {
 
     setSelectedSinger(null);
     setSearchKeyword('');
+    setDebouncedSearchKeyword('');
   }, [visible]);
 
   if (!visible) {
@@ -428,7 +658,7 @@ export function SingerPanel({ visible, onClose }: Props) {
             <View style={styles.singerView}>
               <Text style={styles.title}>歌手</Text>
 
-              {isLoadingSingers ? (
+              {isCurrentSingerLoading ? (
                 <View style={styles.centerContent}>
                   <ActivityIndicator />
                   <Text style={styles.loadingText}>載入歌手中</Text>
@@ -442,7 +672,8 @@ export function SingerPanel({ visible, onClose }: Props) {
                   numColumns={4}
                   contentContainerStyle={styles.singerGridContent}
                   columnWrapperStyle={styles.singerGridRow}
-                  onEndReached={handleLoadMoreSingers}
+                  // onEndReached={handleLoadMoreSingers}
+                  onEndReached={isSearchMode ? undefined : handleLoadMoreSingers}
                   onEndReachedThreshold={0.35}
                   showsVerticalScrollIndicator={false}
                   renderItem={({ item }) => {
@@ -477,7 +708,7 @@ export function SingerPanel({ visible, onClose }: Props) {
                     </View>
                   }
                   ListFooterComponent={
-                    isLoadingMoreSingers ? (
+                    !isSearchMode && isLoadingMoreSingers ? (
                       <View style={styles.footerLoading}>
                         <ActivityIndicator />
                         <Text style={styles.loadingText}>載入更多歌手</Text>
@@ -499,7 +730,7 @@ export function SingerPanel({ visible, onClose }: Props) {
             <View style={styles.songView}>
               <Text style={styles.title}>{selectedSingerName}</Text>
 
-              {isLoadingSongs ? (
+              {isCurrentSongLoading ? (
                 <View style={styles.centerContent}>
                   <ActivityIndicator />
                   <Text style={styles.loadingText}>載入歌曲中</Text>
@@ -512,7 +743,8 @@ export function SingerPanel({ visible, onClose }: Props) {
                   data={filteredSongs}
                   keyExtractor={(item) => item._id}
                   contentContainerStyle={styles.songListContent}
-                  onEndReached={handleLoadMoreSongs}
+                  // onEndReached={handleLoadMoreSongs}
+                  onEndReached={isSearchMode ? undefined : handleLoadMoreSongs}
                   onEndReachedThreshold={0.35}
                   showsVerticalScrollIndicator={false}
                   renderItem={({ item }) => (
@@ -533,7 +765,8 @@ export function SingerPanel({ visible, onClose }: Props) {
                       </Text>
 
                       <Text style={styles.artistText} numberOfLines={1}>
-                        {truncateText(formatArtists(item.artists), 5)}
+                        {/* {truncateText(formatArtists(item.artists), 5)} */}
+                        {truncateText(formatSongArtistText(item, selectedSingerName), 5)}
                       </Text>
 
                       <Pressable
@@ -571,7 +804,7 @@ export function SingerPanel({ visible, onClose }: Props) {
                     </View>
                   }
                   ListFooterComponent={
-                    isLoadingMoreSongs ? (
+                    !isSearchMode && isLoadingMoreSongs ? (
                       <View style={styles.footerLoading}>
                         <ActivityIndicator />
                         <Text style={styles.loadingText}>載入更多歌曲</Text>
@@ -597,6 +830,8 @@ export function SingerPanel({ visible, onClose }: Props) {
             value={searchKeyword}
             onChangeText={setSearchKeyword}
             onClose={handlePressBack}
+            placeholder={isSingerListMode ? '搜尋歌手' : '搜尋歌曲'}
+            onModeChange={setKeyboardMode}
           />
         </View>
       </View>

@@ -81,6 +81,7 @@ export type SearchSongsParams = {
   page?: number;
   limit?: number;
   mode?: SongSearchMode;
+  artistId?: string;
 };
 
 export type FilterSongsByLanguageParams = {
