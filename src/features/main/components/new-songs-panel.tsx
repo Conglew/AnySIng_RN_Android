@@ -185,6 +185,10 @@ export function NewSongsPanel({ visible, onClose }: Props) {
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageTab>(LANGUAGE_TABS[0]);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState('');
+
+  const isSearchMode = debouncedSearchKeyword.length > 0;
+  const isSearchLanguageFilterMode = isSearchMode && Boolean(selectedLanguage.value);
 
   // const enqueueNextSong = usePlaybackQueueStore((state) => state.enqueueNext);
   // const [songActionStatusMap, setSongActionStatusMap] = useState<SongActionStatusMap>({});
@@ -314,6 +318,30 @@ export function NewSongsPanel({ visible, onClose }: Props) {
   //   }
   // }, [canLoadMore, isInitialLoading, loadSongs, page]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchKeyword(searchKeyword.trim());
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchKeyword]);
+
+  useEffect(() => {
+    if (!debouncedSearchKeyword) {
+      return;
+    }
+
+    setSelectedLanguage((currentTab) => {
+      if (currentTab.label === LANGUAGE_TABS[0].label) {
+        return currentTab;
+      }
+
+      return LANGUAGE_TABS[0];
+    });
+  }, [debouncedSearchKeyword]);
+
   const {
     songs,
     page,
@@ -326,7 +354,8 @@ export function NewSongsPanel({ visible, onClose }: Props) {
     loadFirstPage,
     loadNextPage,
   } = useNewSongsCache({
-    languageValue: selectedLanguage.value,
+    languageValue: isSearchMode ? undefined : selectedLanguage.value,
+    searchKeyword: debouncedSearchKeyword,
   });
 
   const handlePressLanguage = useCallback((tab: LanguageTab) => {
@@ -523,7 +552,7 @@ export function NewSongsPanel({ visible, onClose }: Props) {
       offset: 0,
       animated: false,
     });
-  }, [selectedLanguage.value]);
+  }, [selectedLanguage.value, debouncedSearchKeyword]);
 
   useEffect(() => {
     if (!visible) {
@@ -537,17 +566,24 @@ export function NewSongsPanel({ visible, onClose }: Props) {
     return null;
   }
 
+  const displaySongs =
+    isSearchMode && selectedLanguage.value
+      ? songs.filter((song) => song.language === selectedLanguage.value)
+      : songs;
+
   return (
     <View style={styles.panelLayer}>
       <View style={styles.panel}>
         <View style={styles.leftArea}>
           <View style={styles.leftTopRow}>
-            <View style={styles.titleAnchor}>
-              <Image
-                source={SONG_TITLE_BACKGROUND}
-                style={styles.titleBackgroundImage}
-                resizeMode="contain"
-              />
+            <View style={styles.titleAnchor} pointerEvents="box-none">
+              <View style={styles.titleBackgroundImageWrapper} pointerEvents="none">
+                <Image
+                  source={SONG_TITLE_BACKGROUND}
+                  style={styles.titleBackgroundImage}
+                  resizeMode="contain"
+                />
+              </View>
 
               <Text style={styles.title}>新歌</Text>
             </View>
@@ -588,10 +624,12 @@ export function NewSongsPanel({ visible, onClose }: Props) {
             ) : (
               <FlatList
                 ref={songListRef}
-                data={songs}
+                // data={songs}
+                data={displaySongs}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={styles.listContent}
-                onEndReached={loadNextPage}
+                // onEndReached={loadNextPage}
+                onEndReached={isSearchLanguageFilterMode ? undefined : loadNextPage}
                 onEndReachedThreshold={0.35}
                 renderItem={({ item }) => (
                   <Pressable
@@ -727,6 +765,16 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginRight: 28,
     justifyContent: 'center',
+  },
+
+  titleBackgroundImageWrapper: {
+    position: 'absolute',
+    left: -215,
+    top: -229,
+    width: 500,
+    height: 500,
+    zIndex: -1,
+    elevation: -1,
   },
 
   titleBackgroundImage: {

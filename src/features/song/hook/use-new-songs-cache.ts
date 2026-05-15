@@ -21,12 +21,19 @@ type LoadSongsParams = {
 
 type UseNewSongsCacheParams = {
   languageValue?: string;
+  searchKeyword?: string;
 };
 
 const newSongsCache = new Map<string, NewSongsCacheEntry>();
 
-function getCacheKey(languageValue?: string) {
-  return languageValue ?? 'all';
+function getCacheKey(languageValue?: string, searchKeyword?: string) {
+  const normalizedSearchKeyword = searchKeyword?.trim() ?? '';
+
+  if (normalizedSearchKeyword.length > 0) {
+    return `search:${normalizedSearchKeyword}`;
+  }
+
+  return `new:${languageValue ?? 'all'}`;
 }
 
 function isCacheValid(entry: NewSongsCacheEntry | undefined): entry is NewSongsCacheEntry {
@@ -45,8 +52,14 @@ function getTotalPages(total: number) {
   return Math.max(1, Math.ceil(total / PAGE_SIZE));
 }
 
-export function useNewSongsCache({ languageValue }: UseNewSongsCacheParams) {
-  const cacheKey = useMemo(() => getCacheKey(languageValue), [languageValue]);
+export function useNewSongsCache({ languageValue, searchKeyword = '' }: UseNewSongsCacheParams) {
+  const normalizedSearchKeyword = searchKeyword.trim();
+  const isSearchMode = normalizedSearchKeyword.length > 0;
+
+  const cacheKey = useMemo(
+    () => getCacheKey(languageValue, normalizedSearchKeyword),
+    [languageValue, normalizedSearchKeyword],
+  );
 
   const isLoadingMoreRef = useRef(false);
 
@@ -90,16 +103,25 @@ export function useNewSongsCache({ languageValue }: UseNewSongsCacheParams) {
         throw new Error('Missing access token.');
       }
 
-      const response = await songClient.getSongs({
-        token,
-        params: {
-          page: targetPage,
-          limit: PAGE_SIZE,
-          sortBy: 'createdAt',
-          order: 'desc',
-          lan: languageValue,
-        },
-      });
+      const response = isSearchMode
+        ? await songClient.searchSongs({
+            token,
+            params: {
+              q: normalizedSearchKeyword,
+              page: targetPage,
+              limit: PAGE_SIZE,
+            },
+          })
+        : await songClient.getSongs({
+            token,
+            params: {
+              page: targetPage,
+              limit: PAGE_SIZE,
+              sortBy: 'createdAt',
+              order: 'desc',
+              lan: languageValue,
+            },
+          });
 
       setTotal(response.total);
       setPage(response.page);
@@ -126,7 +148,7 @@ export function useNewSongsCache({ languageValue }: UseNewSongsCacheParams) {
         return nextSongs;
       });
     },
-    [cacheKey, languageValue],
+    [cacheKey, isSearchMode, languageValue, normalizedSearchKeyword],
   );
 
   const loadFirstPage = useCallback(

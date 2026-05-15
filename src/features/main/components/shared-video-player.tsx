@@ -56,7 +56,7 @@ const DEFAULT_ACCOMPANIMENT_TRACK_INDEX = 1;
 export function SharedVideoPlayer() {
   const progress = useRef(new Animated.Value(0)).current;
   const videoRef = useRef<any>(null);
-  const isFinishingPlaybackRef = useRef(false);
+  const isHandlingVideoEndRef = useRef(false);
 
   const [resolvedDefaultVideoUri, setResolvedDefaultVideoUri] = useState<string | null>(null);
 
@@ -74,7 +74,7 @@ export function SharedVideoPlayer() {
   const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
   const finishCurrentPlaybackItem = usePlaybackQueueStore((state) => state.finishCurrent);
 
-  const { skipCurrent } = usePlaybackQueueActions();
+  const { skipCurrent, skipCurrentAfterPlaybackError } = usePlaybackQueueActions();
 
   const isPaused = usePlayerControlStore((state) => state.isPaused);
   const audioTrackMode = usePlayerControlStore((state) => state.audioTrackMode);
@@ -296,7 +296,15 @@ export function SharedVideoPlayer() {
   const handleVideoLoad = (payload: any) => {
     console.log('[SharedVideoPlayer] onLoad:', {
       playbackVideoUri,
-      currentPlaybackItem,
+      currentPlaybackItem: currentPlaybackItem
+        ? {
+            queueId: currentPlaybackItem.queueId,
+            songId: currentPlaybackItem.songId,
+            title: currentPlaybackItem.title,
+            artistText: currentPlaybackItem.artistText,
+            localVideoUri: currentPlaybackItem.localVideoUri,
+          }
+        : null,
       isDefaultVideo,
       isPaused,
       audioTracks: payload?.audioTracks,
@@ -325,11 +333,11 @@ export function SharedVideoPlayer() {
       return;
     }
 
-    if (isFinishingPlaybackRef.current) {
+    if (isHandlingVideoEndRef.current) {
       return;
     }
 
-    isFinishingPlaybackRef.current = true;
+    isHandlingVideoEndRef.current = true;
 
     skipCurrent()
       .catch((error) => {
@@ -337,32 +345,102 @@ export function SharedVideoPlayer() {
         finishCurrentPlaybackItem();
       })
       .finally(() => {
-        isFinishingPlaybackRef.current = false;
+        isHandlingVideoEndRef.current = false;
       });
   };
 
+  const handlingPlaybackErrorKeysRef = useRef<Set<string>>(new Set());
+
   const handleVideoError = (event: unknown) => {
-    console.log('[SharedVideoPlayer] error:', event);
+    const errorKey =
+      currentPlaybackItem?.queueId ??
+      currentPlaybackItem?.songId ??
+      playbackVideoUri ??
+      'unknown-playback-error';
+
+    console.log('[SharedVideoPlayer] onError:', {
+      errorKey,
+      event,
+      isDefaultVideo,
+      playbackVideoUri,
+      currentPlaybackItem: currentPlaybackItem
+        ? {
+            queueId: currentPlaybackItem.queueId,
+            songId: currentPlaybackItem.songId,
+            title: currentPlaybackItem.title,
+            artistText: currentPlaybackItem.artistText,
+            localVideoUri: currentPlaybackItem.localVideoUri,
+          }
+        : null,
+    });
+
+    if (isDefaultVideo) {
+      console.log('[SharedVideoPlayer] onError ignored: default video error');
+      return;
+    }
+
+    if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
+      console.log('[SharedVideoPlayer] onError ignored: same item already handled', {
+        errorKey,
+      });
+      return;
+    }
+
+    handlingPlaybackErrorKeysRef.current.add(errorKey);
+
+    skipCurrentAfterPlaybackError({
+      reason: 'video-error',
+      source: 'SharedVideoPlayer',
+      error: event,
+    }).catch((error) => {
+      console.log('[SharedVideoPlayer] skipCurrentAfterPlaybackError failed:', {
+        errorKey,
+        error,
+      });
+    });
+  };
+
+  useEffect(() => {
+    if (!currentPlaybackItem) {
+      return;
+    }
+
+    if (currentPlaybackItem.localVideoUri) {
+      return;
+    }
 
     if (isDefaultVideo) {
       return;
     }
 
-    if (isFinishingPlaybackRef.current) {
+    const errorKey =
+      currentPlaybackItem.queueId ?? currentPlaybackItem.songId ?? 'missing-uri-playback-error';
+
+    if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
+      console.log('[SharedVideoPlayer] missing-uri ignored: same item already handled', {
+        errorKey,
+      });
       return;
     }
 
-    isFinishingPlaybackRef.current = true;
+    handlingPlaybackErrorKeysRef.current.add(errorKey);
 
-    skipCurrent()
-      .catch((error) => {
-        console.log('[SharedVideoPlayer] sync skipCurrent onError failed:', error);
-        finishCurrentPlaybackItem();
-      })
-      .finally(() => {
-        isFinishingPlaybackRef.current = false;
+    skipCurrentAfterPlaybackError({
+      reason: 'missing-uri',
+      source: 'SharedVideoPlayer',
+      error: {
+        message: 'currentPlaybackItem exists but localVideoUri is missing.',
+        queueId: currentPlaybackItem.queueId,
+        songId: currentPlaybackItem.songId,
+        title: currentPlaybackItem.title,
+      },
+    }).catch((error) => {
+      console.log('[SharedVideoPlayer] skip missing-uri item failed:', {
+        errorKey,
+        error,
       });
-  };
+    });
+  }, [currentPlaybackItem, isDefaultVideo, skipCurrentAfterPlaybackError]);
 
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
   // const isBlockedByPanel = useFullscreenVideoStore((state) => state.isBlockedByPanel);

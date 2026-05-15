@@ -6,8 +6,10 @@ export type SongDownloadTask = {
   taskId: string;
   songId: string;
   song: SongDto;
-  priority: DownloadPriority;
+  mode: 'queue' | 'next';
+  priority: 'normal' | 'high';
   status: 'queued' | 'downloading' | 'completed' | 'failed';
   progress: number;
   createdAt: number;
+  onCompleted?: (result: { song: SongDto; localVideoUri: string }) => Promise<void>;
 };

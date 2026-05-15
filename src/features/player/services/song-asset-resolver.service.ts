@@ -30,17 +30,24 @@ export const songAssetResolverService = {
       throw new Error('Missing signedMvUrl.');
     }
 
-    const vocal = song.signedAudioVariants?.find((item) => item.type === 'withVocal');
+    // const vocal = song.signedAudioVariants?.find((item) => item.type === 'withVocal');
 
-    const instrumental = song.signedAudioVariants?.find((item) => item.type === 'instrumental');
+    // const instrumental = song.signedAudioVariants?.find((item) => item.type === 'instrumental');
+
+    // return {
+    //   song,
+    //   songId,
+    //   title: song.title,
+    //   videoUrl: song.signedMvUrl,
+    //   vocalUrl: vocal?.signedUrl,
+    //   instrumentalUrl: instrumental?.signedUrl,
+    // };
 
     return {
       song,
       songId,
       title: song.title,
       videoUrl: song.signedMvUrl,
-      vocalUrl: vocal?.signedUrl,
-      instrumentalUrl: instrumental?.signedUrl,
     };
   },
 

@@ -19,15 +19,42 @@ type Props = {
 
 const PAGE_SIZE = 500;
 
-function formatArtists(artists: CachedSongAsset['song'] extends infer T ? any : never) {
+// function formatArtists(artists: CachedSongAsset['song'] extends infer T ? any : never) {
+//   if (!Array.isArray(artists) || artists.length === 0) {
+//     return '未知歌手';
+//   }
+
+//   return artists
+//     .map((artist) => String(artist))
+//     .filter(Boolean)
+//     .join('、');
+// }
+
+function formatArtists(artists?: unknown[]) {
   if (!Array.isArray(artists) || artists.length === 0) {
     return '未知歌手';
   }
 
-  return artists
-    .map((artist) => String(artist))
-    .filter(Boolean)
-    .join('、');
+  const names = artists
+    .map((artist) => {
+      if (typeof artist === 'string') {
+        return artist;
+      }
+
+      if (artist && typeof artist === 'object' && 'name' in artist) {
+        return String((artist as { name?: unknown }).name ?? '');
+      }
+
+      return '';
+    })
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  if (names.length === 0) {
+    return '未知歌手';
+  }
+
+  return names.join('、');
 }
 
 function truncateText(value: string, maxLength: number) {
@@ -227,9 +254,12 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
             keyExtractor={(item) => item.songId}
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => {
+              // const song = item.song;
+              // const title = song?.title ?? item.songId;
+              // const artists = song?.artists;
               const song = item.song;
-              const title = song?.title ?? item.songId;
-              const artists = song?.artists;
+              const title = song?.title ? formatDisplaySongTitle(song.title) : item.songId;
+              const artistText = formatArtists(song?.artists);
 
               return (
                 <Swipeable
@@ -273,11 +303,11 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                     </View>
 
                     <Text style={styles.songTitle} numberOfLines={1}>
-                      {truncateText(formatDisplaySongTitle(title), 16)}
+                      {truncateText(title, 18)}
                     </Text>
 
                     <Text style={styles.artistText} numberOfLines={1}>
-                      {truncateText(formatArtists(artists), 10)}
+                      {truncateText(artistText, 16)}
                     </Text>
 
                     <Pressable style={styles.favoriteButton}>
