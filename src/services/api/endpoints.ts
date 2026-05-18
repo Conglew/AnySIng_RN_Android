@@ -12,6 +12,7 @@ export const ENDPOINTS = {
 
   user: {
     me: '/auth/users/me',
+    billing: '/auth/users/me/billing',
   },
 
   playlists: {

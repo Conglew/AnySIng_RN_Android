@@ -16,6 +16,11 @@ import QRCode from 'react-native-qrcode-svg';
 
 import { LanguageSelectModal } from '@/src/features/main/components/language-select-modal';
 
+// import { authClient } from '@/src/services/auth/auth-client';
+// import { getAccessToken } from '@/src/services/auth/auth-token-store';
+
+import { useBillingSummaryStore } from '@/src/features/main/store/billing-summary.store';
+
 import SettingIcon1 from '@/assets/images/setting/setting-1.svg';
 import SettingIcon2 from '@/assets/images/setting/setting-2.svg';
 import SettingIcon3 from '@/assets/images/setting/setting-3.svg';
@@ -232,6 +237,49 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
 
+  const settingsBilling = useBillingSummaryStore((state) => state.settingsBilling);
+  const isBillingLoading = useBillingSummaryStore((state) => state.isLoading);
+  const billingErrorMessage = useBillingSummaryStore((state) => state.errorMessage);
+  const fetchBillingSummaryOnce = useBillingSummaryStore((state) => state.fetchBillingSummaryOnce);
+
+  // useEffect(() => {
+  //   if (!visible) {
+  //     return;
+  //   }
+
+  //   let isMounted = true;
+
+  //   async function fetchSettingsUserData() {
+  //     try {
+  //       const token = await getAccessToken();
+
+  //       if (!token) {
+  //         console.log('[SettingsPanel] missing access token');
+  //         return;
+  //       }
+
+  //       const session = await authClient.me(token);
+
+  //       if (!isMounted) {
+  //         return;
+  //       }
+
+  //       console.log(
+  //         '[SettingsPanel] authClient.me response:',
+  //         JSON.stringify(session, null, 2),
+  //       );
+  //     } catch (error) {
+  //       console.log('[SettingsPanel] failed to fetch user data:', error);
+  //     }
+  //   }
+
+  //   fetchSettingsUserData();
+
+  //   return () => {
+  //     isMounted = false;
+  //   };
+  // }, [visible]);
+
   useEffect(() => {
     if (!visible) {
       return;
@@ -243,9 +291,13 @@ export function SettingsPanel({ visible, onClose }: Props) {
     setQrModalType(null);
   }, [visible]);
 
-  if (!visible) {
-    return null;
-  }
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    fetchBillingSummaryOnce();
+  }, [fetchBillingSummaryOnce, visible]);
 
   const panelHorizontalPadding = 54 * 2;
   const cardGap = 30;
@@ -257,6 +309,78 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
   const qrModalTitle = qrModalType === 'report' ? '掃描回報問題' : '掃描新增歌曲';
   const qrModalUrl = qrModalType === 'report' ? REPORT_PROBLEM_URL : SONG_REQUEST_URL;
+
+  const planContentRows = [
+    {
+      id: 'subscription-code',
+      label: '訂單號碼',
+      value: settingsBilling?.orderNumber ?? '-',
+    },
+    {
+      id: 'subscription-date',
+      label: '訂購日期',
+      value: settingsBilling?.orderDate ?? '-',
+    },
+    {
+      id: 'plan',
+      label: '方案選擇',
+      value: settingsBilling?.planName ?? '-',
+      rightValue: settingsBilling?.planAmount ?? '-',
+    },
+    {
+      id: 'card',
+      label: '扣款帳號',
+      value: settingsBilling?.paymentAccount ?? '-',
+    },
+    {
+      id: 'address',
+      label: '帳單地址',
+      value: settingsBilling?.billingAddress ?? '-',
+    },
+  ];
+
+  const accountItems: AccountItem[] = [
+    {
+      id: 'email',
+      title: '帳號',
+      description: settingsBilling?.userEmail ?? '-',
+      Icon: SettingIcon2,
+    },
+    {
+      id: 'password',
+      title: '密碼',
+      description: '••••••',
+      Icon: SettingAccPassIcon,
+    },
+  ];
+
+  const settingItems = SETTINGS_ITEMS.map((item) => {
+    if (item.id === 'subscription') {
+      return {
+        ...item,
+        description: settingsBilling?.planName ?? placeholderText,
+      };
+    }
+
+    if (item.id === 'account') {
+      return {
+        ...item,
+        description: settingsBilling?.userEmail ?? placeholderText,
+      };
+    }
+
+    return item;
+  });
+
+  const rawBilling = useBillingSummaryStore((state) => state.rawBilling);
+
+  const paymentCardItems =
+    rawBilling?.paymentMethods.map((paymentMethod) => ({
+      id: paymentMethod.id,
+      brand: paymentMethod.brand?.toUpperCase() ?? 'CARD',
+      number: paymentMethod.last4 ? `**** ${paymentMethod.last4}` : '****',
+      isDefault: paymentMethod.isDefault,
+    })) ?? [];
 
   const handlePressBack = () => {
     if (currentPage === 'planContent' || currentPage === 'cardManagement') {
@@ -293,6 +417,23 @@ export function SettingsPanel({ visible, onClose }: Props) {
     });
   };
 
+  const placeholderText = isBillingLoading ? '...' : '-';
+
+  const subscriptionItems = SUBSCRIPTION_ITEMS.map((item) => {
+    if (item.id === 'plan-content') {
+      return {
+        ...item,
+        description: settingsBilling?.subscriptionPeriod ?? placeholderText,
+      };
+    }
+  
+    return item;
+  });
+
+  if (!visible) {
+    return null;
+  }
+
   return (
     <View style={styles.overlay}>
       <View style={styles.panel}>
@@ -310,7 +451,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
         {currentPage === 'subscription' ? (
           <View style={styles.subscriptionGrid}>
-            {SUBSCRIPTION_ITEMS.map((item) => {
+            {subscriptionItems.map((item) => {
               const Icon = item.Icon;
 
               return (
@@ -357,48 +498,30 @@ export function SettingsPanel({ visible, onClose }: Props) {
           </View>
         ) : currentPage === 'planContent' ? (
           <View style={styles.planContentPage}>
-            {/* <Pressable
-              style={({ pressed }) => [
-                styles.cancelSubscriptionButton,
-                pressed && styles.cardPressed,
-              ]}
-              onPress={() => {
-                console.log('[SettingsPanel] press cancel subscription');
-              }}
-            >
-              <Text style={styles.cancelSubscriptionText}>取消訂閱</Text>
-            </Pressable> */}
+            {isBillingLoading ? (
+              <Text style={styles.planStatusText}>載入訂閱資料中...</Text>
+            ) : billingErrorMessage ? (
+              <Text style={styles.planErrorText}>{billingErrorMessage}</Text>
+            ) : (
+              <View style={styles.planRows}>
+                {planContentRows.map((row) => (
+                  <View key={row.id} style={styles.planRow}>
+                    <Text style={styles.planRowLabel}>{row.label}</Text>
 
-            <View style={styles.planRows}>
-              {PLAN_CONTENT_ROWS.map((row) => (
-                <View key={row.id} style={styles.planRow}>
-                  <Text style={styles.planRowLabel}>{row.label}</Text>
-
-                  <View style={styles.planRowValueArea}>
-                    <Text style={styles.planRowValue}>{row.value}</Text>
-
-                    {row.rightMutedValue || row.rightValue ? (
-                      <View style={styles.planRowRightArea}>
-                        {row.rightMutedValue ? (
-                          <Text style={styles.planRowMutedValue}>{row.rightMutedValue}</Text>
-                        ) : null}
-
-                        {row.rightValue ? (
-                          <Text style={styles.planRowRightValue}>{row.rightValue}</Text>
-                        ) : null}
-                      </View>
-                    ) : null}
+                    <View style={styles.planRowValueArea}>
+                      <Text style={styles.planRowValue}>{row.value}</Text>
+                    </View>
                   </View>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            )}
           </View>
         ) : currentPage === 'cardManagement' ? (
           <View style={styles.cardManagementPage}>
             <Text style={styles.cardManagementDescription}>您的卡片資料已驗證並安全儲存。</Text>
 
             <View style={styles.paymentCardGrid}>
-              {PAYMENT_CARD_ITEMS.map((card) => (
+              {paymentCardItems.map((card) => (
                 <ImageBackground
                   key={card.id}
                   source={require('@/assets/images/home-panel-background.png')}
@@ -427,7 +550,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
         ) : currentPage === 'account' ? (
           <View style={styles.accountPage}>
             <View style={styles.accountGrid}>
-              {ACCOUNT_ITEMS.map((item) => {
+              {accountItems.map((item) => {
                 const Icon = item.Icon;
 
                 return (
@@ -489,7 +612,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
           </View>
         ) : (
           <View style={styles.grid}>
-            {SETTINGS_ITEMS.map((item) => {
+            {settingItems.map((item) => {
               const Icon = item.Icon;
 
               if (item.isPlaceholder) {
@@ -1287,5 +1410,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  planStatusText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  planErrorText: {
+    color: '#FF5C7A',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

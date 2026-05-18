@@ -86,3 +86,60 @@ export type AuthSession = {
   paymentMethods: string[];
   defaultPaymentMethodId: string | null;
 };
+
+export type BillingPaymentMethod = {
+  id: string;
+  type: string | null;
+  brand: string | null;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  billingAddress: Record<string, unknown> | null;
+  isDefault?: boolean;
+};
+
+export type BillingDiscount = {
+  couponId: string;
+  name: string | null;
+  percentOff: number | null;
+  amountOff: number | null;
+  currency: string | null;
+};
+
+export type BillingLatestInvoice = {
+  id: string;
+  number: string | null;
+  amountDue: number | null;
+  amountPaid: number | null;
+  amountRemaining: number | null;
+  currency: string | null;
+  hostedInvoiceUrl: string | null;
+};
+
+export type BillingSubscription = {
+  id: string;
+  status: string;
+  orderNumber: string;
+  subscribedAt: string | null;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+
+  planName: string | null;
+  priceId: string | null;
+  productId: string | null;
+  amount: number | null;
+  currency: string | null;
+  interval: string | null;
+
+  discount: BillingDiscount | null;
+  latestInvoice: BillingLatestInvoice | null;
+  defaultPaymentMethod: BillingPaymentMethod | null;
+};
+
+export type BillingSummaryResponse = {
+  userId: string;
+  userEmail: string;
+  stripeCustomerId: string | null;
+  subscription: BillingSubscription | null;
+  paymentMethods: BillingPaymentMethod[];
+};

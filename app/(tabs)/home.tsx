@@ -12,6 +12,9 @@ import {
   ViewStyle,
 } from 'react-native';
 
+import { authClient } from '@/src/services/auth/auth-client';
+import { getAccessToken } from '@/src/services/auth/auth-token-store';
+
 import { CachedSongsPanel } from '@/src/features/main/components/cached-songs-panel';
 import { CategoryPanel } from '@/src/features/main/components/category-panel';
 import { HomeSidePanel } from '@/src/features/main/components/home-side-panel';
@@ -216,9 +219,27 @@ export default function HomeScreen() {
               setMainBackgroundMode('category');
               openPanel('cachedSongs');
             }}
-            onOpenSettingsPanel={() => {
+            onOpenSettingsPanel={async () => {
               setMainBackgroundMode('category');
               openPanel('mySetting');
+
+              // try {
+              //   const token = await getAccessToken();
+
+              //   if (!token) {
+              //     console.log('[Home] missing access token');
+              //     return;
+              //   }
+
+              //   const billing = await authClient.billingSummary(token);
+
+              //   console.log(
+              //     '[Home] billing summary:',
+              //     JSON.stringify(billing, null, 2),
+              //   );
+              // } catch (error) {
+              //   console.log('[Home] failed to fetch billing summary:', error);
+              // }
             }}
           />
         </View>

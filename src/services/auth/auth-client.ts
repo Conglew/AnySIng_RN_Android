@@ -4,6 +4,7 @@ import {
   AuthLoginRequest,
   AuthLoginResponse,
   AuthSession,
+  BillingSummaryResponse,
   DeleteAccountRequest,
   DeleteAccountResponse,
   ResetPasswordRequest,
@@ -57,6 +58,15 @@ export const authClient = {
     });
 
     return toAuthSession(response);
+  },
+
+  billingSummary(token: string) {
+    return apiRequest<BillingSummaryResponse, undefined>({
+      method: 'GET',
+      path: ENDPOINTS.user.billing,
+      token,
+      timeoutMs: 15000,
+    });
   },
 
   signup(body: SignupRequest) {
