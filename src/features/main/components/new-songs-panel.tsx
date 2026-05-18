@@ -122,7 +122,6 @@ function formatArtists(artists: SongDto['artists']) {
   return artistNames.join('、');
 }
 
-
 function truncateText(value: string, maxLength: number) {
   const chars = Array.from(value);
 
@@ -747,7 +746,12 @@ export function NewSongsPanel({ visible, onClose }: Props) {
         </View>
 
         <View style={styles.rightArea}>
-          <CustomKeyboard value={searchKeyword} onChangeText={setSearchKeyword} onClose={onClose} placeholder='搜尋歌曲'/>
+          <CustomKeyboard
+            value={searchKeyword}
+            onChangeText={setSearchKeyword}
+            onClose={onClose}
+            placeholder="搜尋歌曲"
+          />
         </View>
       </View>
     </View>

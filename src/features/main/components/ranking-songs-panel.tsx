@@ -705,7 +705,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
             onChangeText={setSearchKeyword}
             onClose={onClose}
             onModeChange={setKeyboardMode}
-            placeholder='搜尋歌曲'
+            placeholder="搜尋歌曲"
           />
         </View>
       </View>

@@ -158,12 +158,12 @@ export function useRankingSongsCache({
             },
           });
 
-          if (isSearchMode) {
-            console.log(
-              '[useRankingSongsCache] searchSongs response:',
-              JSON.stringify(response, null, 2),
-            );
-          }
+      if (isSearchMode) {
+        console.log(
+          '[useRankingSongsCache] searchSongs response:',
+          JSON.stringify(response, null, 2),
+        );
+      }
 
       setTotal(response.total);
       setPage(response.page);

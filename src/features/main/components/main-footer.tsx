@@ -21,8 +21,10 @@ import FooterIcon1 from '@/assets/images/footer-icons-1.svg';
 import FooterIcon2 from '@/assets/images/footer-icons-2.svg';
 import FooterIcon3 from '@/assets/images/footer-icons-3.svg';
 import FooterIcon4 from '@/assets/images/footer-icons-4.svg';
-import FooterIcon5 from '@/assets/images/footer-icons-5.svg';
-import FooterIcon6 from '@/assets/images/footer-icons-6.svg';
+import FooterIcon5_1 from '@/assets/images/footer-icons-5-1.svg';
+import FooterIcon5_2 from '@/assets/images/footer-icons-5-2.svg';
+import FooterIcon6_1 from '@/assets/images/footer-icons-6-1.svg';
+import FooterIcon6_2 from '@/assets/images/footer-icons-6-2.svg';
 import FooterIcon7 from '@/assets/images/footer-icons-7.svg';
 import FooterIcon8 from '@/assets/images/footer-icons-8.svg';
 import FooterIcon9 from '@/assets/images/footer-icons-9.svg';
@@ -64,13 +66,13 @@ const FOOTER_ITEMS: FooterItem[] = [
   {
     label: '暫停',
     route: '/(tabs)/pause' as Href,
-    Icon: FooterIcon5,
+    Icon: FooterIcon5_1,
     action: 'togglePause',
   },
   {
     label: '原唱',
     route: '/(tabs)/original' as Href,
-    Icon: FooterIcon6,
+    Icon: FooterIcon6_2,
     action: 'toggleAudioTrack',
   },
   {
@@ -159,7 +161,37 @@ export function MainFooter() {
     <View style={styles.footer}>
       {FOOTER_ITEMS.map((item) => {
         const isActive = pathname === item.route;
-        const Icon = item.Icon;
+
+        // const isPauseItem = item.action === 'togglePause';
+        // const displayLabel = isPauseItem && isPaused ? '播放' : item.label;
+        // const DisplayIcon = isPauseItem && isPaused ? FooterIcon5_2 : item.Icon;
+
+        const isPauseItem = item.action === 'togglePause';
+        const isAudioTrackItem = item.action === 'toggleAudioTrack';
+
+        const displayLabel = (() => {
+          if (isPauseItem) {
+            return isPaused ? '播放' : '暫停';
+          }
+
+          if (isAudioTrackItem) {
+            return audioTrackMode === 'vocal' ? '伴唱' : '原唱';
+          }
+
+          return item.label;
+        })();
+
+        const DisplayIcon = (() => {
+          if (isPauseItem) {
+            return isPaused ? FooterIcon5_2 : FooterIcon5_1;
+          }
+
+          if (isAudioTrackItem) {
+            return audioTrackMode === 'vocal' ? FooterIcon6_2 : FooterIcon6_1;
+          }
+
+          return item.Icon;
+        })();
 
         const isRecordItem = item.label === '錄製';
         const shouldHideRecordItem = isRecordItem && videoMode === 'footerMini';
@@ -269,7 +301,7 @@ export function MainFooter() {
 
             {!shouldHideRecordItem ? (
               <>
-                <Icon
+                <DisplayIcon
                   width={28}
                   height={28}
                   color={isActive ? '#A78BFA' : '#FFFFFF'}
@@ -277,7 +309,7 @@ export function MainFooter() {
                 />
 
                 <Text style={[styles.footerLabel, isActive && styles.footerLabelActive]}>
-                  {item.label}
+                  {displayLabel}
                 </Text>
               </>
             ) : null}
