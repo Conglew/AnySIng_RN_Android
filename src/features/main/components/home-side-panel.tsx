@@ -14,9 +14,14 @@ import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-vi
 type Props = {
   onOpenMySongsPanel?: () => void;
   onOpenCachedSongsPanel?: () => void;
+  onOpenSettingsPanel?: () => void;
 };
 
-export function HomeSidePanel({ onOpenMySongsPanel, onOpenCachedSongsPanel }: Props) {
+export function HomeSidePanel({
+  onOpenMySongsPanel,
+  onOpenCachedSongsPanel,
+  onOpenSettingsPanel,
+}: Props) {
   const playerFrameRef = useRef<View>(null);
 
   const mode = useFullscreenVideoStore((state) => state.mode);
@@ -111,6 +116,7 @@ export function HomeSidePanel({ onOpenMySongsPanel, onOpenCachedSongsPanel }: Pr
       >
         <Pressable
           style={({ pressed }) => [styles.sideButton, pressed && styles.sideButtonPressed]}
+          onPress={onOpenSettingsPanel}
         >
           <ImageBackground
             source={require('@/assets/images/home-setting-btn.png')}

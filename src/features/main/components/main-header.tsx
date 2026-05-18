@@ -1,12 +1,17 @@
+import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { NowPlayingMarquee } from '@/src/features/main/components/now-playing-marquee';
+
+import { LanguageSelectModal } from '@/src/features/main/components/language-select-modal';
 
 type Props = {
   showNowPlayingMarquee?: boolean;
 };
 
 export function MainHeader({ showNowPlayingMarquee = true }: Props) {
+  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
+
   return (
     <View style={styles.header}>
       <View pointerEvents="none">
@@ -19,13 +24,34 @@ export function MainHeader({ showNowPlayingMarquee = true }: Props) {
 
       {showNowPlayingMarquee ? <NowPlayingMarquee /> : <View style={styles.marqueePlaceholder} />}
 
-      <Pressable style={styles.languageButton}>
+      <Pressable
+        style={styles.languageButton}
+        onPress={() => {
+          setIsLanguageModalVisible(true);
+        }}
+      >
         <Image
           source={require('@/assets/images/home-language-btn.png')}
           style={styles.languageIcon}
           resizeMode="contain"
         />
       </Pressable>
+
+      <LanguageSelectModal
+        visible={isLanguageModalVisible}
+        selectedLanguageId="zh-TW"
+        onClose={() => {
+          setIsLanguageModalVisible(false);
+        }}
+        onPressLanguage={(option) => {
+          console.log('[MainHeader] press language:', option);
+
+          /**
+           * 功能先不做：
+           * 之後可以在這裡接語系 store / i18n 切換。
+           */
+        }}
+      />
     </View>
   );
 }

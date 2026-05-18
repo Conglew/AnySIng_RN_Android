@@ -19,6 +19,7 @@ import { MySongsPanel } from '@/src/features/main/components/my-songs-panel';
 import { NewSongsPanel } from '@/src/features/main/components/new-songs-panel';
 import { RankingSongsPanel } from '@/src/features/main/components/ranking-songs-panel';
 import { SingerPanel } from '@/src/features/main/components/singer-panel';
+import { SettingsPanel } from '@/src/features/main/components/settings-panel';
 
 import { useHomePanelStore } from '@/src/features/main/store/home-panel.store';
 
@@ -215,6 +216,10 @@ export default function HomeScreen() {
               setMainBackgroundMode('category');
               openPanel('cachedSongs');
             }}
+            onOpenSettingsPanel={() => {
+              setMainBackgroundMode('category');
+              openPanel('mySetting');
+            }}
           />
         </View>
       </View>
@@ -296,6 +301,14 @@ export default function HomeScreen() {
           resetMainBackgroundMode();
         }}
       />
+
+      <SettingsPanel
+        visible={activePanel === 'mySetting'}
+        onClose={() => {
+          closePanel();
+          resetMainBackgroundMode();
+        }}
+      ></SettingsPanel>
     </View>
   );
 }

@@ -6,7 +6,8 @@ export type HomePanelType =
   | 'newsongs'
   | 'ranking'
   | 'cachedSongs'
-  | 'mySongs';
+  | 'mySongs'
+  | 'mySetting';
 
 type HomePanelStore = {
   activePanel: HomePanelType | null;
