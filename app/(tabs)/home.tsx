@@ -148,6 +148,8 @@ export default function HomeScreen() {
   const language = useAppLanguageStore((state) => state.language);
   const copy = HOME_COPY[language];
 
+  const isCjkLanguage = language === 'zh-TW' || language === 'zh-CN';
+
   // const [isCategoryPanelVisible, setIsCategoryPanelVisible] = useState(false);
   // const [isNewSongsPanelVisible, setIsNewSongsPanelVisible] = useState(false);
   // const [isRankingSongsPanelVisible, setIsRankingSongsPanelVisible] = useState(false);
@@ -252,47 +254,59 @@ export default function HomeScreen() {
           style={[styles.cardSection, isFullscreenVideoVisible && styles.cardSectionHidden]}
         >
           {HOME_CARDS.map((item) => {
-            const title = copy[item.titleKey];
+  const title = copy[item.titleKey];
+  const titleParts = isCjkLanguage ? title.split('') : [title];
 
-            return (
-              <View key={item.id} style={styles.cardWrapper}>
-                <Pressable
-                  style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
-                  onPress={() => handlePressHomeCard(item.id)}
+  return (
+    <View key={item.id} style={styles.cardWrapper}>
+      <Pressable
+        style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
+        onPress={() => handlePressHomeCard(item.id)}
+      >
+        <ImageBackground
+          source={item.image}
+          style={styles.menuCardBackground}
+          imageStyle={styles.menuCardBackgroundImage}
+          resizeMode="cover"
+        >
+          <View style={styles.menuCardOverlay}>
+            <View
+              style={[
+                styles.verticalTitleGroup,
+                !isCjkLanguage && styles.verticalTitleGroupCompact,
+              ]}
+            >
+              {titleParts.map((text, index) => (
+                <Text
+                  key={`${item.id}-${index}`}
+                  style={[
+                    styles.menuCardTitle,
+                    !isCjkLanguage && styles.menuCardTitleCompact,
+                  ]}
                 >
-                  <ImageBackground
-                    source={item.image}
-                    style={styles.menuCardBackground}
-                    imageStyle={styles.menuCardBackgroundImage}
-                    resizeMode="cover"
-                  >
-                    <View style={styles.menuCardOverlay}>
-                      <View style={styles.verticalTitleGroup}>
-                        {title.split('').map((char, index) => (
-                          <Text key={`${item.id}-${index}`} style={styles.menuCardTitle}>
-                            {char}
-                          </Text>
-                        ))}
-                      </View>
-                    </View>
-                  </ImageBackground>
-                </Pressable>
+                  {text}
+                </Text>
+              ))}
+            </View>
+          </View>
+        </ImageBackground>
+      </Pressable>
 
-                {item.foregroundImage ? (
-                  <View
-                    pointerEvents="none"
-                    style={[styles.cardForegroundLayer, item.foregroundStyle]}
-                  >
-                    <Image
-                      source={item.foregroundImage}
-                      style={styles.cardForegroundImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                ) : null}
-              </View>
-            );
-          })}
+      {item.foregroundImage ? (
+        <View
+          pointerEvents="none"
+          style={[styles.cardForegroundLayer, item.foregroundStyle]}
+        >
+          <Image
+            source={item.foregroundImage}
+            style={styles.cardForegroundImage}
+            resizeMode="contain"
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+})}
         </View>
 
         <View style={styles.sidePanel}>
@@ -497,6 +511,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     gap: 6,
+  },
+
+  verticalTitleGroupCompact: {
+    rowGap: 0,
+    maxWidth: 130,
+  },
+
+  menuCardTitleCompact: {
+    paddingTop: 20,
+    fontSize: 22,
+    lineHeight: 28,
+    textAlign: 'center',
   },
 
   menuCardTitle: {
