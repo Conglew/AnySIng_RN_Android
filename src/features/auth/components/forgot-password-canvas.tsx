@@ -9,10 +9,8 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import {
-  FORGOT_PASSWORD_FLOW_COPY,
-  LanguageValue,
-} from '@/src/features/auth/i18n/forgot-password-copy';
+import { FORGOT_PASSWORD_FLOW_COPY } from '@/src/features/auth/i18n/forgot-password-copy';
+import type { LanguageValue } from '@/src/shared/i18n/language.store';
 import { useForgotPasswordFlow } from '@/src/features/auth/hooks/use-forgot-password-flow';
 import { LeaveConfirmModal } from './leave-confirm-modal';
 

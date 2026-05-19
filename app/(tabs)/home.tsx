@@ -15,6 +15,9 @@ import {
 import { authClient } from '@/src/services/auth/auth-client';
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 
+import { HOME_COPY } from '@/src/features/main/i18n/home-copy';
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+
 import { CachedSongsPanel } from '@/src/features/main/components/cached-songs-panel';
 import { CategoryPanel } from '@/src/features/main/components/category-panel';
 import { HomeSidePanel } from '@/src/features/main/components/home-side-panel';
@@ -26,16 +29,74 @@ import { SettingsPanel } from '@/src/features/main/components/settings-panel';
 
 import { useHomePanelStore } from '@/src/features/main/store/home-panel.store';
 
+// type HomeCard = {
+//   title: string;
+//   image: ImageSourcePropType;
+//   foregroundImage?: ImageSourcePropType;
+//   foregroundStyle?: ViewStyle;
+// };
+
+type HomeCardId = 'singer' | 'category' | 'newsongs' | 'ranking';
+
 type HomeCard = {
-  title: string;
+  id: HomeCardId;
+  titleKey: keyof (typeof HOME_COPY)['zh-TW'];
   image: ImageSourcePropType;
   foregroundImage?: ImageSourcePropType;
   foregroundStyle?: ViewStyle;
 };
 
+// const HOME_CARDS: HomeCard[] = [
+//   {
+//     title: '歌手',
+//     image: require('@/assets/images/home-singer-bg.png'),
+//     foregroundImage: require('@/assets/images/payment-singer-front.png'),
+//     foregroundStyle: {
+//       left: -120,
+//       bottom: -5,
+//       width: 244,
+//       height: 232,
+//     },
+//   },
+//   {
+//     title: '分類',
+//     image: require('@/assets/images/home-categ-bg.png'),
+//     foregroundImage: require('@/assets/images/home-categories-bg-front.png'),
+//     foregroundStyle: {
+//       left: -50,
+//       bottom: -35,
+//       width: 212,
+//       height: 195,
+//     },
+//   },
+//   {
+//     title: '新歌',
+//     image: require('@/assets/images/home-new-bg.png'),
+//     foregroundImage: require('@/assets/images/home-new-bg-front.png'),
+//     foregroundStyle: {
+//       left: -29,
+//       bottom: -15,
+//       width: 179,
+//       height: 269,
+//     },
+//   },
+//   {
+//     title: '排行榜',
+//     image: require('@/assets/images/home-ranger-bg.png'),
+//     foregroundImage: require('@/assets/images/home-ranger-bg-front.png'),
+//     foregroundStyle: {
+//       left: -40,
+//       bottom: 0,
+//       width: 264,
+//       height: 264,
+//     },
+//   },
+// ];
+
 const HOME_CARDS: HomeCard[] = [
   {
-    title: '歌手',
+    id: 'singer',
+    titleKey: 'singer',
     image: require('@/assets/images/home-singer-bg.png'),
     foregroundImage: require('@/assets/images/payment-singer-front.png'),
     foregroundStyle: {
@@ -46,7 +107,8 @@ const HOME_CARDS: HomeCard[] = [
     },
   },
   {
-    title: '分類',
+    id: 'category',
+    titleKey: 'category',
     image: require('@/assets/images/home-categ-bg.png'),
     foregroundImage: require('@/assets/images/home-categories-bg-front.png'),
     foregroundStyle: {
@@ -57,7 +119,8 @@ const HOME_CARDS: HomeCard[] = [
     },
   },
   {
-    title: '新歌',
+    id: 'newsongs',
+    titleKey: 'newSongs',
     image: require('@/assets/images/home-new-bg.png'),
     foregroundImage: require('@/assets/images/home-new-bg-front.png'),
     foregroundStyle: {
@@ -68,7 +131,8 @@ const HOME_CARDS: HomeCard[] = [
     },
   },
   {
-    title: '排行榜',
+    id: 'ranking',
+    titleKey: 'ranking',
     image: require('@/assets/images/home-ranger-bg.png'),
     foregroundImage: require('@/assets/images/home-ranger-bg-front.png'),
     foregroundStyle: {
@@ -81,6 +145,9 @@ const HOME_CARDS: HomeCard[] = [
 ];
 
 export default function HomeScreen() {
+  const language = useAppLanguageStore((state) => state.language);
+  const copy = HOME_COPY[language];
+
   // const [isCategoryPanelVisible, setIsCategoryPanelVisible] = useState(false);
   // const [isNewSongsPanelVisible, setIsNewSongsPanelVisible] = useState(false);
   // const [isRankingSongsPanelVisible, setIsRankingSongsPanelVisible] = useState(false);
@@ -118,31 +185,57 @@ export default function HomeScreen() {
     };
   }, [setVideoBlockedByPanel, shouldHideHomeContent]);
 
-  function handlePressHomeCard(title: string) {
-    if (title === '歌手') {
+  // function handlePressHomeCard(title: string) {
+  //   if (title === '歌手') {
+  //     setMainBackgroundMode('singer');
+  //     // setIsSingerPanelVisible(true);
+  //     openPanel('singer');
+  //     return;
+  //   }
+
+  //   if (title === '分類') {
+  //     setMainBackgroundMode('category');
+  //     // setIsCategoryPanelVisible(true);
+  //     openPanel('category');
+  //     return;
+  //   }
+
+  //   if (title === '新歌') {
+  //     setMainBackgroundMode('newsongs');
+  //     // setIsNewSongsPanelVisible(true);
+  //     openPanel('newsongs');
+  //     return;
+  //   }
+
+  //   if (title === '排行榜') {
+  //     setMainBackgroundMode('ranking');
+  //     // setIsRankingSongsPanelVisible(true);
+  //     openPanel('ranking');
+  //     return;
+  //   }
+  // }
+
+  function handlePressHomeCard(cardId: HomeCardId) {
+    if (cardId === 'singer') {
       setMainBackgroundMode('singer');
-      // setIsSingerPanelVisible(true);
       openPanel('singer');
       return;
     }
 
-    if (title === '分類') {
+    if (cardId === 'category') {
       setMainBackgroundMode('category');
-      // setIsCategoryPanelVisible(true);
       openPanel('category');
       return;
     }
 
-    if (title === '新歌') {
+    if (cardId === 'newsongs') {
       setMainBackgroundMode('newsongs');
-      // setIsNewSongsPanelVisible(true);
       openPanel('newsongs');
       return;
     }
 
-    if (title === '排行榜') {
+    if (cardId === 'ranking') {
       setMainBackgroundMode('ranking');
-      // setIsRankingSongsPanelVisible(true);
       openPanel('ranking');
       return;
     }
@@ -158,44 +251,48 @@ export default function HomeScreen() {
           pointerEvents={isFullscreenVideoVisible ? 'none' : 'auto'}
           style={[styles.cardSection, isFullscreenVideoVisible && styles.cardSectionHidden]}
         >
-          {HOME_CARDS.map((item) => (
-            <View key={item.title} style={styles.cardWrapper}>
-              <Pressable
-                style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
-                onPress={() => handlePressHomeCard(item.title)}
-              >
-                <ImageBackground
-                  source={item.image}
-                  style={styles.menuCardBackground}
-                  imageStyle={styles.menuCardBackgroundImage}
-                  resizeMode="cover"
-                >
-                  <View style={styles.menuCardOverlay}>
-                    <View style={styles.verticalTitleGroup}>
-                      {item.title.split('').map((char, index) => (
-                        <Text key={`${item.title}-${index}`} style={styles.menuCardTitle}>
-                          {char}
-                        </Text>
-                      ))}
-                    </View>
-                  </View>
-                </ImageBackground>
-              </Pressable>
+          {HOME_CARDS.map((item) => {
+            const title = copy[item.titleKey];
 
-              {item.foregroundImage ? (
-                <View
-                  pointerEvents="none"
-                  style={[styles.cardForegroundLayer, item.foregroundStyle]}
+            return (
+              <View key={item.id} style={styles.cardWrapper}>
+                <Pressable
+                  style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
+                  onPress={() => handlePressHomeCard(item.id)}
                 >
-                  <Image
-                    source={item.foregroundImage}
-                    style={styles.cardForegroundImage}
-                    resizeMode="contain"
-                  />
-                </View>
-              ) : null}
-            </View>
-          ))}
+                  <ImageBackground
+                    source={item.image}
+                    style={styles.menuCardBackground}
+                    imageStyle={styles.menuCardBackgroundImage}
+                    resizeMode="cover"
+                  >
+                    <View style={styles.menuCardOverlay}>
+                      <View style={styles.verticalTitleGroup}>
+                        {title.split('').map((char, index) => (
+                          <Text key={`${item.id}-${index}`} style={styles.menuCardTitle}>
+                            {char}
+                          </Text>
+                        ))}
+                      </View>
+                    </View>
+                  </ImageBackground>
+                </Pressable>
+
+                {item.foregroundImage ? (
+                  <View
+                    pointerEvents="none"
+                    style={[styles.cardForegroundLayer, item.foregroundStyle]}
+                  >
+                    <Image
+                      source={item.foregroundImage}
+                      style={styles.cardForegroundImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.sidePanel}>

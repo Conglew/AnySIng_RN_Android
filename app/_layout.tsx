@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -56,6 +57,13 @@ export default function RootLayout() {
     SpaceMono: require('@/assets/fonts/SpaceMono-Regular.ttf'),
     ...FontAwesome.font,
   });
+
+  const hydrateLanguage = useAppLanguageStore((state) => state.hydrateLanguage);
+  const isLanguageHydrated = useAppLanguageStore((state) => state.isHydrated);
+
+  useEffect(() => {
+    hydrateLanguage();
+  }, [hydrateLanguage]);
 
   useEffect(() => {
     if (error) {

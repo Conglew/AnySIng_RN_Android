@@ -17,6 +17,9 @@ import { useQueuedSongsPanelStore } from '@/src/features/main/store/queued-songs
 
 import { useSongRequestQrPanelStore } from '@/src/features/main/store/song-request-qr-panel.store';
 
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+import { MAIN_FOOTER_COPY } from '@/src/features/main/i18n/main-footer-copy';
+
 import FooterIcon1 from '@/assets/images/footer-icons-1.svg';
 import FooterIcon2 from '@/assets/images/footer-icons-2.svg';
 import FooterIcon3 from '@/assets/images/footer-icons-3.svg';
@@ -31,64 +34,132 @@ import FooterIcon9 from '@/assets/images/footer-icons-9.svg';
 
 type FooterAction = 'navigate' | 'togglePause' | 'toggleAudioTrack' | 'skipSong' | 'restartSong';
 
+// type FooterItem = {
+//   label: string;
+//   route: Href;
+//   Icon: ComponentType<SvgProps>;
+//   action: FooterAction;
+// };
+
+type FooterLabelKey =
+  | 'home'
+  | 'songRequest'
+  | 'skipSong'
+  | 'pause'
+  | 'vocal'
+  | 'restart'
+  | 'queued'
+  | 'record';
+
 type FooterItem = {
-  label: string;
+  labelKey: FooterLabelKey;
   route: Href;
   Icon: ComponentType<SvgProps>;
   action: FooterAction;
 };
 
+// const FOOTER_ITEMS: FooterItem[] = [
+//   {
+//     label: '主頁',
+//     route: '/(tabs)/home',
+//     Icon: FooterIcon1,
+//     action: 'navigate',
+//   },
+//   {
+//     label: '點歌',
+//     route: '/(tabs)/two',
+//     Icon: FooterIcon2,
+//     action: 'navigate',
+//   },
+//   // {
+//   //   label: '調音',
+//   //   route: '/(tabs)/tuning' as Href,
+//   //   Icon: FooterIcon3,
+//   //   action: 'navigate',
+//   // },
+//   {
+//     label: '切歌',
+//     route: '/(tabs)/switch-song' as Href,
+//     Icon: FooterIcon4,
+//     action: 'skipSong',
+//   },
+//   {
+//     label: '暫停',
+//     route: '/(tabs)/pause' as Href,
+//     Icon: FooterIcon5_1,
+//     action: 'togglePause',
+//   },
+//   {
+//     label: '原唱',
+//     route: '/(tabs)/original' as Href,
+//     Icon: FooterIcon6_2,
+//     action: 'toggleAudioTrack',
+//   },
+//   {
+//     label: '重唱',
+//     route: '/(tabs)/restart' as Href,
+//     Icon: FooterIcon7,
+//     action: 'restartSong',
+//   },
+//   {
+//     label: '已點',
+//     route: '/(tabs)/queue' as Href,
+//     Icon: FooterIcon8,
+//     action: 'navigate',
+//   },
+//   {
+//     label: '錄製',
+//     route: '/(tabs)/record' as Href,
+//     Icon: FooterIcon9,
+//     action: 'navigate',
+//   },
+// ];
+
 const FOOTER_ITEMS: FooterItem[] = [
   {
-    label: '主頁',
+    labelKey: 'home',
     route: '/(tabs)/home',
     Icon: FooterIcon1,
     action: 'navigate',
   },
   {
-    label: '點歌',
+    labelKey: 'songRequest',
     route: '/(tabs)/two',
     Icon: FooterIcon2,
     action: 'navigate',
   },
-  // {
-  //   label: '調音',
-  //   route: '/(tabs)/tuning' as Href,
-  //   Icon: FooterIcon3,
-  //   action: 'navigate',
-  // },
   {
-    label: '切歌',
+    labelKey: 'skipSong',
     route: '/(tabs)/switch-song' as Href,
     Icon: FooterIcon4,
     action: 'skipSong',
   },
   {
-    label: '暫停',
+    labelKey: 'pause',
     route: '/(tabs)/pause' as Href,
     Icon: FooterIcon5_1,
     action: 'togglePause',
   },
   {
-    label: '原唱',
+    labelKey: 'vocal',
     route: '/(tabs)/original' as Href,
     Icon: FooterIcon6_2,
     action: 'toggleAudioTrack',
   },
   {
-    label: '重唱',
+    labelKey: 'restart',
     route: '/(tabs)/restart' as Href,
     Icon: FooterIcon7,
     action: 'restartSong',
   },
   {
-    label: '已點',
+    labelKey: 'queued',
     route: '/(tabs)/queue' as Href,
     Icon: FooterIcon8,
     action: 'navigate',
   },
   {
-    label: '錄製',
+    labelKey: 'record',
     route: '/(tabs)/record' as Href,
     Icon: FooterIcon9,
     action: 'navigate',
@@ -157,6 +228,9 @@ export function MainFooter() {
 
   const openSongRequestQrPanel = useSongRequestQrPanelStore((state) => state.openPanel);
 
+  const language = useAppLanguageStore((state) => state.language);
+  const copy = MAIN_FOOTER_COPY[language];
+
   return (
     <View style={styles.footer}>
       {FOOTER_ITEMS.map((item) => {
@@ -171,14 +245,14 @@ export function MainFooter() {
 
         const displayLabel = (() => {
           if (isPauseItem) {
-            return isPaused ? '播放' : '暫停';
+            return isPaused ? copy.resume : copy.pause;
           }
 
           if (isAudioTrackItem) {
-            return audioTrackMode === 'vocal' ? '伴唱' : '原唱';
+            return audioTrackMode === 'vocal' ? copy.accompaniment : copy.vocal;
           }
 
-          return item.label;
+          return copy[item.labelKey];
         })();
 
         const DisplayIcon = (() => {
@@ -193,7 +267,7 @@ export function MainFooter() {
           return item.Icon;
         })();
 
-        const isRecordItem = item.label === '錄製';
+        const isRecordItem = item.labelKey === 'record';
         const shouldHideRecordItem = isRecordItem && videoMode === 'footerMini';
 
         return (
@@ -207,10 +281,10 @@ export function MainFooter() {
               }
             }}
             onPress={async () => {
-              console.log('[MainFooter] pressed item:', item.label);
+              console.log('[MainFooter] pressed item:', item.labelKey);
               console.log('[MainFooter] action:', item.action);
 
-              if (item.label === '主頁') {
+              if (item.labelKey === 'home') {
                 closeHomePanel();
                 resetMainBackgroundMode();
                 closeFullscreen();
@@ -219,12 +293,12 @@ export function MainFooter() {
                 return;
               }
 
-              if (item.label === '點歌') {
+              if (item.labelKey === 'songRequest') {
                 openSongRequestQrPanel();
                 return;
               }
 
-              if (item.label === '已點') {
+              if (item.labelKey === 'queued') {
                 openQueuedSongsPanel();
                 return;
               }

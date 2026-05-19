@@ -11,6 +11,9 @@ import {
 
 import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
 
+import { HOME_SIDE_PANEL_COPY } from '@/src/features/main/i18n/home-side-panel-copy';
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+
 type Props = {
   onOpenMySongsPanel?: () => void;
   onOpenCachedSongsPanel?: () => void;
@@ -23,6 +26,9 @@ export function HomeSidePanel({
   onOpenSettingsPanel,
 }: Props) {
   const playerFrameRef = useRef<View>(null);
+
+  const language = useAppLanguageStore((state) => state.language);
+  const copy = HOME_SIDE_PANEL_COPY[language];
 
   const mode = useFullscreenVideoStore((state) => state.mode);
   const openFullscreen = useFullscreenVideoStore((state) => state.openFullscreen);
@@ -124,7 +130,7 @@ export function HomeSidePanel({
             imageStyle={styles.sideButtonBackgroundImage}
             resizeMode="cover"
           >
-            <Text style={styles.sideButtonText}>設定</Text>
+            <Text style={styles.sideButtonText}>{copy.settings}</Text>
           </ImageBackground>
         </Pressable>
 
@@ -138,7 +144,7 @@ export function HomeSidePanel({
             imageStyle={styles.sideButtonBackgroundImage}
             resizeMode="cover"
           >
-            <Text style={styles.sideButtonText}>我的歌單</Text>
+            <Text style={styles.sideButtonText}>{copy.mySongs}</Text>
           </ImageBackground>
         </Pressable>
 
@@ -156,7 +162,7 @@ export function HomeSidePanel({
             imageStyle={styles.sideButtonBackgroundImage}
             resizeMode="cover"
           >
-            <Text style={styles.sideButtonText}>緩存下載</Text>
+            <Text style={styles.sideButtonText}>{copy.cachedDownloads}</Text>
           </ImageBackground>
         </Pressable>
       </View>

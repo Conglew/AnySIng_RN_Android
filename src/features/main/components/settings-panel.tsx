@@ -17,6 +17,8 @@ import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import QRCode from 'react-native-qrcode-svg';
 
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+
 import { Ionicons } from '@expo/vector-icons';
 
 import { LanguageSelectModal } from '@/src/features/main/components/language-select-modal';
@@ -58,7 +60,8 @@ type SettingsPage =
   | 'planContent'
   | 'cardManagement'
   | 'passwordChange'
-  | 'deleteAccount';
+  | 'deleteAccount'
+  | 'emailChange';
 
 type SubscriptionItem = {
   id: string;
@@ -137,6 +140,9 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
+  const language = useAppLanguageStore((state) => state.language);
+  const setLanguage = useAppLanguageStore((state) => state.setLanguage);
+
   const [currentPage, setCurrentPage] = useState<SettingsPage>('menu');
   const [isLogoutConfirmVisible, setIsLogoutConfirmVisible] = useState(false);
 
@@ -167,7 +173,13 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
   const [activeCustomKeyboardInput, setActiveCustomKeyboardInput] = useState<
-    'currentPassword' | 'newPassword' | 'confirmPassword' | 'deleteAccount' | null
+    | 'currentPassword'
+    | 'newPassword'
+    | 'confirmPassword'
+    | 'deleteAccount'
+    | 'emailChange'
+    | `emailCode-${number}`
+    | null
   >(null);
 
   const isValidPassword = (value: string) => {
@@ -185,12 +197,19 @@ export function SettingsPanel({ visible, onClose }: Props) {
     return passwordPattern.test(value);
   };
 
+  const isValidEmail = (value: string) => {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailPattern.test(value.trim());
+  };
+
   const [isCurrentPasswordChecking, setIsCurrentPasswordChecking] = useState(false);
 
   const currentPasswordInputRef = useRef<TextInput>(null);
   const newPasswordInputRef = useRef<TextInput>(null);
   const confirmPasswordInputRef = useRef<TextInput>(null);
   const deleteAccountInputRef = useRef<TextInput>(null);
+  const emailChangeInputRef = useRef<TextInput>(null);
+  const emailCodeInputRefs = useRef<Array<TextInput | null>>([]);
 
   const hasPasswordDraft =
     currentPassword.trim().length > 0 ||
@@ -200,6 +219,13 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const [deleteAccountText, setDeleteAccountText] = useState('');
   const [deleteAccountErrorMessage, setDeleteAccountErrorMessage] = useState('');
   const [isDeleteAccountSubmitting, setIsDeleteAccountSubmitting] = useState(false);
+
+  const [emailChangeText, setEmailChangeText] = useState('');
+  const [emailChangeErrorMessage, setEmailChangeErrorMessage] = useState('');
+  const [emailVerificationCode, setEmailVerificationCode] = useState(['', '', '', '', '']);
+  const [isEmailVerificationSent, setIsEmailVerificationSent] = useState(false);
+  const [isEmailSubmitting, setIsEmailSubmitting] = useState(false);
+  const [emailResendSeconds, setEmailResendSeconds] = useState(0);
 
   useEffect(() => {
     if (!visible) {
@@ -232,6 +258,27 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
     fetchBillingSummaryOnce();
   }, [fetchBillingSummaryOnce, visible]);
+
+  useEffect(() => {
+    if (!isEmailVerificationSent || emailResendSeconds <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setEmailResendSeconds((current) => {
+        if (current <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [emailResendSeconds, isEmailVerificationSent]);
 
   const panelHorizontalPadding = 54 * 2;
   const cardGap = 30;
@@ -346,6 +393,16 @@ export function SettingsPanel({ visible, onClose }: Props) {
     setActiveCustomKeyboardInput(null);
   };
 
+  const resetEmailChangeState = () => {
+    setEmailChangeText('');
+    setEmailChangeErrorMessage('');
+    setEmailVerificationCode(['', '', '', '', '']);
+    setIsEmailVerificationSent(false);
+    setIsEmailSubmitting(false);
+    setEmailResendSeconds(0);
+    setActiveCustomKeyboardInput(null);
+  };
+
   const handlePressBack = () => {
     if (currentPage === 'passwordChange') {
       if (isCurrentPasswordChecking || isPasswordSubmitting) {
@@ -368,6 +425,16 @@ export function SettingsPanel({ visible, onClose }: Props) {
       }
 
       resetDeleteAccountState();
+      setCurrentPage('account');
+      return;
+    }
+
+    if (currentPage === 'emailChange') {
+      if (isEmailSubmitting) {
+        return;
+      }
+
+      resetEmailChangeState();
       setCurrentPage('account');
       return;
     }
@@ -453,6 +520,61 @@ export function SettingsPanel({ visible, onClose }: Props) {
       setDeleteAccountText((current) => `${current}${value}`);
       setDeleteAccountErrorMessage('');
     }
+
+    if (activeCustomKeyboardInput === 'emailChange') {
+      setEmailChangeText((current) => `${current}${value}`);
+      setEmailChangeErrorMessage('');
+      return;
+    }
+
+    if (activeCustomKeyboardInput.startsWith('emailCode-')) {
+      const index = Number(activeCustomKeyboardInput.replace('emailCode-', ''));
+
+      if (!Number.isInteger(index) || index < 0 || index > 4) {
+        return;
+      }
+
+      const nextDigit = value.slice(-1);
+
+      /**
+       * 驗證碼只允許單一字元。
+       * 如果你的驗證碼只允許數字，可以打開下面這段。
+       */
+      if (!/^\d$/.test(nextDigit)) {
+        return;
+      }
+
+      setEmailVerificationCode((current) => {
+        const next = [...current];
+        next[index] = nextDigit;
+
+        /**
+         * 第 1～4 碼：輸入後自動跳下一格。
+         */
+        if (index < 4) {
+          requestAnimationFrame(() => {
+            emailCodeInputRefs.current[index + 1]?.focus();
+            setActiveCustomKeyboardInput(`emailCode-${index + 1}`);
+          });
+        }
+
+        /**
+         * 第 5 碼：輸入完成後自動送出。
+         */
+        if (index === 4) {
+          const code = next.join('');
+
+          requestAnimationFrame(() => {
+            submitEmailVerificationCode(code);
+          });
+        }
+
+        return next;
+      });
+
+      setEmailChangeErrorMessage('');
+      return;
+    }
   };
 
   const handlePasswordKeyboardBackspace = () => {
@@ -488,6 +610,96 @@ export function SettingsPanel({ visible, onClose }: Props) {
       setDeleteAccountText((current) => current.slice(0, -1));
       setDeleteAccountErrorMessage('');
     }
+
+    if (activeCustomKeyboardInput === 'emailChange') {
+      setEmailChangeText((current) => current.slice(0, -1));
+      setEmailChangeErrorMessage('');
+      return;
+    }
+
+    if (activeCustomKeyboardInput.startsWith('emailCode-')) {
+      const index = Number(activeCustomKeyboardInput.replace('emailCode-', ''));
+
+      if (!Number.isInteger(index) || index < 0 || index > 4) {
+        return;
+      }
+
+      setEmailVerificationCode((current) => {
+        const next = [...current];
+
+        if (next[index]) {
+          next[index] = '';
+          return next;
+        }
+
+        if (index > 0) {
+          next[index - 1] = '';
+
+          requestAnimationFrame(() => {
+            emailCodeInputRefs.current[index - 1]?.focus();
+            setActiveCustomKeyboardInput(`emailCode-${index - 1}`);
+          });
+        }
+
+        return next;
+      });
+
+      setEmailChangeErrorMessage('');
+      return;
+    }
+  };
+
+  const submitEmailVerificationCode = async (code: string) => {
+    /**
+     * 避免短時間內重複觸發。
+     * 例如：使用者快速點擊、鍵盤連續輸入、state rerender。
+     */
+    if (isEmailSubmitting) {
+      return;
+    }
+
+    if (code.length < 5) {
+      setEmailChangeErrorMessage('驗證碼錯誤');
+      return;
+    }
+
+    setIsEmailSubmitting(true);
+    setEmailChangeErrorMessage('');
+    setActiveCustomKeyboardInput(null);
+
+    emailCodeInputRefs.current.forEach((inputRef) => {
+      inputRef?.blur();
+    });
+
+    try {
+      /**
+       * 這裡之後替換成正式驗證 Email 修改 API。
+       * 例如：
+       * await authClient.verifyChangeEmailCode({
+       *   email: emailChangeText.trim(),
+       *   code,
+       * });
+       */
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      resetEmailChangeState();
+      setCurrentPage('account');
+    } catch (error) {
+      console.log('[SettingsPanel] verify email code failed:', error);
+      setEmailChangeErrorMessage('驗證碼錯誤');
+
+      /**
+       * 驗證失敗後建議清空驗證碼，避免使用者還以為目前 code 會再次自動送出。
+       */
+      setEmailVerificationCode(['', '', '', '', '']);
+
+      requestAnimationFrame(() => {
+        emailCodeInputRefs.current[0]?.focus();
+        setActiveCustomKeyboardInput('emailCode-0');
+      });
+    } finally {
+      setIsEmailSubmitting(false);
+    }
   };
 
   const handlePasswordKeyboardDone = () => {
@@ -495,6 +707,11 @@ export function SettingsPanel({ visible, onClose }: Props) {
     newPasswordInputRef.current?.blur();
     confirmPasswordInputRef.current?.blur();
     deleteAccountInputRef.current?.blur();
+    emailChangeInputRef.current?.blur();
+
+    emailCodeInputRefs.current.forEach((inputRef) => {
+      inputRef?.blur();
+    });
 
     setActiveCustomKeyboardInput(null);
   };
@@ -516,10 +733,12 @@ export function SettingsPanel({ visible, onClose }: Props) {
                 : currentPage === 'cardManagement'
                   ? '卡片管理'
                   : currentPage === 'passwordChange'
-                    ? '密碼修改'
+                    ? ''
                     : currentPage === 'deleteAccount'
-                      ? '永久刪除帳號'
-                      : '設定'}
+                      ? ''
+                      : currentPage === 'emailChange'
+                        ? ''
+                        : '設定'}
         </Text>
 
         {currentPage === 'subscription' ? (
@@ -1104,6 +1323,232 @@ export function SettingsPanel({ visible, onClose }: Props) {
               <Text style={styles.deleteAccountErrorText}>{deleteAccountErrorMessage}</Text>
             ) : null}
           </View>
+        ) : currentPage === 'emailChange' ? (
+          <View style={styles.emailChangePage}>
+            <Text style={styles.emailChangeTitle}>帳號修改</Text>
+
+            {!isEmailVerificationSent ? (
+              <Text style={styles.emailChangeDescription}>
+                修改帳號(電子郵件)後先前
+                <Text style={styles.emailChangeHighlight}>訂閱項目</Text>
+                將會移到新帳號中
+              </Text>
+            ) : (
+              <Text style={styles.emailChangeSentText}>已發送電子郵件，請前往信箱查看。</Text>
+            )}
+
+            <View style={styles.emailChangeContent}>
+              <Text style={styles.emailChangeLabel}>電子郵件</Text>
+
+              <View style={styles.emailChangeRow}>
+                <View
+                  style={[
+                    styles.emailChangeInputWrapper,
+                    emailChangeErrorMessage &&
+                      !isEmailVerificationSent &&
+                      styles.emailChangeInputWrapperError,
+                    isValidEmail(emailChangeText) && styles.emailChangeInputWrapperValid,
+                  ]}
+                >
+                  <TextInput
+                    ref={emailChangeInputRef}
+                    value={emailChangeText}
+                    onChangeText={(value) => {
+                      setEmailChangeText(value);
+                      setEmailChangeErrorMessage('');
+                    }}
+                    placeholder="請輸入您的新電子郵件"
+                    placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    showSoftInputOnFocus={false}
+                    caretHidden={false}
+                    editable={!isEmailSubmitting && !isEmailVerificationSent}
+                    onFocus={() => {
+                      if (!isEmailVerificationSent) {
+                        setActiveCustomKeyboardInput('emailChange');
+                      }
+                    }}
+                    onPressIn={() => {
+                      if (!isEmailVerificationSent) {
+                        setActiveCustomKeyboardInput('emailChange');
+                      }
+                    }}
+                    style={styles.emailChangeInput}
+                  />
+
+                  {isValidEmail(emailChangeText) ? (
+                    <Ionicons name="checkmark-circle-outline" size={22} color="#00C853" />
+                  ) : emailChangeText.length > 0 ? (
+                    <Ionicons name="alert-circle-outline" size={22} color="#FF3B5C" />
+                  ) : null}
+                </View>
+
+                {!isEmailVerificationSent ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.emailChangeButton,
+                      pressed && !isEmailSubmitting && styles.passwordConfirmButtonPressed,
+                      isEmailSubmitting && styles.passwordConfirmButtonDisabled,
+                    ]}
+                    disabled={isEmailSubmitting}
+                    onPress={async () => {
+                      if (emailChangeText.trim().length === 0) {
+                        setEmailChangeErrorMessage('必填');
+                        return;
+                      }
+
+                      if (!isValidEmail(emailChangeText)) {
+                        setEmailChangeErrorMessage('電子郵件格式錯誤');
+                        return;
+                      }
+
+                      setIsEmailSubmitting(true);
+                      setEmailChangeErrorMessage('');
+                      setActiveCustomKeyboardInput(null);
+                      emailChangeInputRef.current?.blur();
+
+                      try {
+                        await new Promise((resolve) => setTimeout(resolve, 800));
+
+                        setIsEmailVerificationSent(true);
+                        setEmailResendSeconds(90);
+
+                        requestAnimationFrame(() => {
+                          emailCodeInputRefs.current[0]?.focus();
+                          setActiveCustomKeyboardInput('emailCode-0');
+                        });
+                      } catch (error) {
+                        console.log('[SettingsPanel] send email verification failed:', error);
+                        setEmailChangeErrorMessage('發送失敗，請稍後再試');
+                      } finally {
+                        setIsEmailSubmitting(false);
+                      }
+                    }}
+                  >
+                    {isEmailSubmitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.emailChangeButtonText}>完成</Text>
+                    )}
+                  </Pressable>
+                ) : emailResendSeconds > 0 ? (
+                  <Text style={styles.emailResendText}>{emailResendSeconds}S 後可重發驗證碼</Text>
+                ) : (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.emailResendButton,
+                      pressed && !isEmailSubmitting && styles.passwordConfirmButtonPressed,
+                      isEmailSubmitting && styles.passwordConfirmButtonDisabled,
+                    ]}
+                    disabled={isEmailSubmitting}
+                    onPress={async () => {
+                      setIsEmailSubmitting(true);
+                      setEmailChangeErrorMessage('');
+                      setEmailVerificationCode(['', '', '', '', '']);
+                      setActiveCustomKeyboardInput(null);
+
+                      try {
+                        await new Promise((resolve) => setTimeout(resolve, 800));
+
+                        setEmailResendSeconds(90);
+
+                        requestAnimationFrame(() => {
+                          emailCodeInputRefs.current[0]?.focus();
+                          setActiveCustomKeyboardInput('emailCode-0');
+                        });
+                      } catch (error) {
+                        console.log('[SettingsPanel] resend email verification failed:', error);
+                        setEmailChangeErrorMessage('重發失敗，請稍後再試');
+                      } finally {
+                        setIsEmailSubmitting(false);
+                      }
+                    }}
+                  >
+                    {isEmailSubmitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.emailResendButtonText}>重發驗證碼</Text>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+
+              {emailChangeErrorMessage && !isEmailVerificationSent ? (
+                <Text style={styles.emailChangeErrorText}>{emailChangeErrorMessage}</Text>
+              ) : null}
+
+              {isEmailVerificationSent ? (
+                <View style={styles.emailCodeBlock}>
+                  <View style={styles.emailCodeLabelRow}>
+                    <Text style={styles.emailCodeLabel}>驗證碼</Text>
+
+                    {emailChangeErrorMessage ? (
+                      <Text style={styles.emailCodeErrorText}>{emailChangeErrorMessage}</Text>
+                    ) : (
+                      <Text style={styles.emailCodeHintText}>請輸入驗證碼</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.emailCodeRow}>
+                    {emailVerificationCode.map((digit, index) => (
+                      <TextInput
+                        key={index}
+                        ref={(ref) => {
+                          emailCodeInputRefs.current[index] = ref;
+                        }}
+                        value={digit}
+                        onChangeText={(value) => {
+                          const nextDigit = value.slice(-1);
+
+                          if (nextDigit && !/^\d$/.test(nextDigit)) {
+                            return;
+                          }
+
+                          setEmailVerificationCode((current) => {
+                            const next = [...current];
+                            next[index] = nextDigit;
+
+                            if (nextDigit && index < 4) {
+                              requestAnimationFrame(() => {
+                                emailCodeInputRefs.current[index + 1]?.focus();
+                                setActiveCustomKeyboardInput(`emailCode-${index + 1}`);
+                              });
+                            }
+
+                            if (nextDigit && index === 4) {
+                              const code = next.join('');
+
+                              requestAnimationFrame(() => {
+                                submitEmailVerificationCode(code);
+                              });
+                            }
+
+                            return next;
+                          });
+
+                          setEmailChangeErrorMessage('');
+                        }}
+                        showSoftInputOnFocus={false}
+                        caretHidden={false}
+                        editable={!isEmailSubmitting}
+                        onFocus={() => {
+                          setActiveCustomKeyboardInput(`emailCode-${index}`);
+                        }}
+                        onPressIn={() => {
+                          setActiveCustomKeyboardInput(`emailCode-${index}`);
+                        }}
+                        style={[
+                          styles.emailCodeInput,
+                          emailChangeErrorMessage && styles.emailCodeInputError,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          </View>
         ) : currentPage === 'account' ? (
           <View style={styles.accountPage}>
             <View style={styles.accountGrid}>
@@ -1120,6 +1565,12 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     ]}
                     onPress={() => {
                       console.log('[SettingsPanel] press account item:', item.title);
+
+                      if (item.id === 'email') {
+                        resetEmailChangeState();
+                        setCurrentPage('emailChange');
+                        return;
+                      }
 
                       if (item.id === 'password') {
                         setCurrentPage('passwordChange');
@@ -1340,17 +1791,13 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
       <LanguageSelectModal
         visible={isLanguageModalVisible}
-        selectedLanguageId="zh-TW"
+        selectedLanguageId={language}
         onClose={() => {
           setIsLanguageModalVisible(false);
         }}
-        onPressLanguage={(option) => {
-          console.log('[MainHeader] press language:', option);
-
-          /**
-           * 功能先不做：
-           * 之後可以在這裡接語系 store / i18n 切換。
-           */
+        onPressLanguage={async (option) => {
+          await setLanguage(option.id);
+          setIsLanguageModalVisible(false);
         }}
       />
 
@@ -1396,7 +1843,9 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
       <CustomEmailKeyboard
         visible={
-          (currentPage === 'passwordChange' || currentPage === 'deleteAccount') &&
+          (currentPage === 'passwordChange' ||
+            currentPage === 'deleteAccount' ||
+            currentPage === 'emailChange') &&
           activeCustomKeyboardInput !== null
         }
         onInput={handlePasswordKeyboardInput}
@@ -2380,6 +2829,210 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
     color: '#FF3B5C',
     fontSize: 18,
+    fontWeight: '800',
+  },
+
+  emailChangePage: {
+    flex: 1,
+    // paddingTop: 30,
+    alignItems: 'center',
+  },
+
+  emailChangeTitle: {
+    color: '#B2B6BA',
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 46,
+  },
+
+  emailChangeDescription: {
+    color: '#7C8287',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 52,
+  },
+
+  emailChangeHighlight: {
+    color: '#FF7802',
+    fontWeight: '900',
+  },
+
+  emailChangeSentText: {
+    color: '#FF7802',
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 62,
+  },
+
+  emailChangeContent: {
+    width: 685,
+    alignItems: 'center',
+  },
+
+  emailChangeLabel: {
+    width: 475,
+    color: '#B2B6BA',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 18,
+  },
+
+  emailChangeRow: {
+    position: 'relative',
+    width: 475,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  emailChangeInputWrapper: {
+    width: 475,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1,
+    borderColor: '#7C8287',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 26,
+    paddingRight: 18,
+  },
+
+  emailChangeInputWrapperError: {
+    borderColor: '#FF3B5C',
+  },
+
+  emailChangeInputWrapperValid: {
+    borderColor: '#393E43',
+  },
+
+  emailChangeInput: {
+    flex: 1,
+    height: '100%',
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    padding: 0,
+  },
+
+  emailChangeButton: {
+    position: 'absolute',
+    left: 493,
+    width: 200,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF7A00',
+  },
+
+  emailChangeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+
+  emailChangeErrorText: {
+    width: 685,
+    marginTop: 14,
+    paddingLeft: 26,
+    color: '#FF3B5C',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+
+  emailResendText: {
+    position: 'absolute',
+    left: 500,
+    top: 24,
+    color: '#3DA8FF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  emailCodeBlock: {
+    width: 475,
+    marginTop: 34,
+  },
+
+  emailCodeLabelRow: {
+    width: 475,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  emailCodeLabel: {
+    color: '#B2B6BA',
+    fontSize: 24,
+    fontWeight: '900',
+    marginRight: 8,
+  },
+
+  emailCodeHintText: {
+    color: '#7C8287',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+
+  emailCodeErrorText: {
+    color: '#FF3B5C',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  emailCodeRow: {
+    width: 475,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+
+  emailCodeInput: {
+    width: 68,
+    height: 68,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#7C8287',
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    padding: 0,
+  },
+
+  emailCodeInputError: {
+    borderColor: '#FF3B5C',
+  },
+
+  emailVerifyButton: {
+    marginTop: 28,
+    width: 200,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF7A00',
+  },
+
+  emailVerifyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+
+  emailResendButton: {
+    position: 'absolute',
+    left: 500,
+    top: 0,
+    height: 68,
+    justifyContent: 'center',
+  },
+
+  emailResendButtonText: {
+    color: '#3DA8FF',
+    fontSize: 16,
     fontWeight: '800',
   },
 });

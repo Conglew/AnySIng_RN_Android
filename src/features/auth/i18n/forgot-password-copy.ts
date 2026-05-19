@@ -1,6 +1,7 @@
 // src/features/auth/i18n/forgot-password-copy.ts
+import type { LanguageValue } from '@/src/shared/i18n/language.store';
 
-export type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
+// export type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
 
 export type ForgotPasswordStep = 'email' | 'code' | 'resetPassword' | 'success';
 

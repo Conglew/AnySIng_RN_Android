@@ -12,6 +12,13 @@ import { useCollectedSongsQuery } from '@/src/features/playlist/hook/use-collect
 import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
 import { SongDto } from '@/src/services/song/song.types';
 
+import {
+  MY_SONGS_PANEL_COPY,
+  type MySongsPanelCopy,
+} from '@/src/features/main/i18n/my-songs-panel-copy';
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+
+
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -23,15 +30,21 @@ type Props = {
 
 const PAGE_SIZE = 50;
 
-function formatArtists(artists: SongDto['artists']) {
+function formatArtists(artists: SongDto['artists'], unknownArtistText: string) {
   if (!Array.isArray(artists) || artists.length === 0) {
-    return '未知歌手';
+    return unknownArtistText;
   }
 
-  return artists
+  const names = artists
     .map((artist) => String(artist))
-    .filter(Boolean)
-    .join('、');
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  if (names.length === 0) {
+    return unknownArtistText;
+  }
+
+  return names.join('、');
 }
 
 function truncateText(value: string, maxLength: number) {
@@ -44,23 +57,27 @@ function truncateText(value: string, maxLength: number) {
   return `${chars.slice(0, maxLength).join('')}...`;
 }
 
-function getInsertButtonText(status?: SongDownloadStatus) {
+function getInsertButtonText(status: SongDownloadStatus | undefined, copy: MySongsPanelCopy) {
   if (!status) {
-    return '插播';
+    return copy.insert;
   }
 
   if (status.phase === 'preparing') {
-    return '準備中';
+    return copy.preparing;
   }
 
   if (status.phase === 'downloading') {
-    return `下載中 ${status.progress ?? 0}%`;
+    return copy.downloading(status.progress ?? 0);
   }
 
-  return '插播';
+  return copy.insert;
 }
 
+
 export function MySongsPanel({ visible, onClose }: Props) {
+  const language = useAppLanguageStore((state) => state.language);
+  const copy = MY_SONGS_PANEL_COPY[language];
+
   const {
     data: songs = [],
     isLoading,
@@ -94,7 +111,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
       const songId = song._id;
 
       if (!songId) {
-        console.log('[NewSongsPanel] favorite ignored: missing songId', song);
+        console.log('[MySongsPanel] favorite ignored: missing songId', song);
         return;
       }
 
@@ -126,7 +143,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
             songId,
           });
 
-          console.log('[NewSongsPanel] removed favorite:', {
+          console.log('[MySongsPanel] removed favorite:', {
             songId,
             title: song.title,
           });
@@ -137,7 +154,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
             songId,
           });
 
-          console.log('[NewSongsPanel] added favorite:', {
+          console.log('[MySongsPanel] added favorite:', {
             songId,
             title: song.title,
           });
@@ -162,7 +179,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
 
-        console.log('[NewSongsPanel] toggle favorite failed:', {
+        console.log('[MySongsPanel] toggle favorite failed:', {
           songId,
           title: song.title,
           error: message,
@@ -187,7 +204,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
   return (
     <View style={styles.panelLayer}>
       <View style={styles.panel}>
-        <Text style={styles.title}>我的歌單</Text>
+        <Text style={styles.title}>{copy.title}</Text>
 
         {error ? <Text style={styles.errorText}>{error.message}</Text> : null}
 
@@ -196,7 +213,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
         {isLoading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator />
-            <Text style={styles.loadingText}>載入我的歌單中</Text>
+            <Text style={styles.loadingText}>{copy.loadingMySongs}</Text>
           </View>
         ) : (
           <FlatList
@@ -222,7 +239,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
                 </Text>
 
                 <Text style={styles.artistText} numberOfLines={1}>
-                  {truncateText(formatArtists(item.artists), 10)}
+                {truncateText(formatArtists(item.artists, copy.unknownArtist), 10)}
                 </Text>
 
                 <Pressable
@@ -249,14 +266,14 @@ export function MySongsPanel({ visible, onClose }: Props) {
                   }}
                 >
                   <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                    {getInsertButtonText(songActionStatusMap[item._id])}
+                  {getInsertButtonText(songActionStatusMap[item._id], copy)}
                   </Text>
                 </Pressable>
               </Pressable>
             )}
             ListEmptyComponent={
               <View style={styles.centerContent}>
-                <Text style={styles.emptyText}>目前沒有收藏歌曲</Text>
+                <Text style={styles.emptyText}>{copy.emptyMySongs}</Text>
               </View>
             }
           />
@@ -266,7 +283,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
           <Text style={styles.pageText}>1/{totalPages}</Text>
 
           <Pressable style={styles.backButton} onPress={onClose}>
-            <Text style={styles.backButtonText}>返回</Text>
+          <Text style={styles.backButtonText}>{copy.back}</Text>
           </Pressable>
         </View>
       </View>

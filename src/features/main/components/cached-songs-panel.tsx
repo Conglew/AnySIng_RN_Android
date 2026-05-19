@@ -8,6 +8,12 @@ import { SongDownloadStatus } from '@/src/features/player/stores/song-download-s
 import { CachedSongAsset } from '@/src/features/player/types/cached-song.types';
 import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
 
+import {
+  CACHED_SONGS_PANEL_COPY,
+  CachedSongsPanelCopy,
+} from '@/src/features/main/i18n/cached-songs-panel-copy';
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -30,9 +36,9 @@ const PAGE_SIZE = 500;
 //     .join('、');
 // }
 
-function formatArtists(artists?: unknown[]) {
+function formatArtists(artists: unknown[] | undefined, unknownArtistText: string) {
   if (!Array.isArray(artists) || artists.length === 0) {
-    return '未知歌手';
+    return unknownArtistText;
   }
 
   const names = artists
@@ -51,7 +57,7 @@ function formatArtists(artists?: unknown[]) {
     .filter(Boolean);
 
   if (names.length === 0) {
-    return '未知歌手';
+    return unknownArtistText;
   }
 
   return names.join('、');
@@ -67,23 +73,26 @@ function truncateText(value: string, maxLength: number) {
   return `${chars.slice(0, maxLength).join('')}...`;
 }
 
-function getInsertButtonText(status?: SongDownloadStatus) {
+function getInsertButtonText(status: SongDownloadStatus | undefined, copy: CachedSongsPanelCopy) {
   if (!status) {
-    return '插播';
+    return copy.insert;
   }
 
   if (status.phase === 'preparing') {
-    return '準備中';
+    return copy.preparing;
   }
 
   if (status.phase === 'downloading') {
-    return `下載中 ${status.progress ?? 0}%`;
+    return copy.downloading(status.progress ?? 0);
   }
 
-  return '插播';
+  return copy.insert;
 }
 
 export function CachedSongsPanel({ visible, onClose }: Props) {
+  const language = useAppLanguageStore((state) => state.language);
+  const copy = CACHED_SONGS_PANEL_COPY[language];
+
   const [cachedSongs, setCachedSongs] = useState<CachedSongAsset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -196,7 +205,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
         </View> */}
 
         <View style={styles.headerRow}>
-          <Text style={styles.title}>緩存下載</Text>
+          <Text style={styles.title}>{copy.title}</Text>
 
           {isEditing ? (
             <View style={styles.editActionGroup}>
@@ -206,7 +215,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                   setIsClearConfirmVisible(true);
                 }}
               >
-                <Text style={[styles.editButtonText, styles.removeAllText]}>全部移除</Text>
+                <Text style={[styles.editButtonText, styles.removeAllText]}>{copy.removeAll}</Text>
               </Pressable>
 
               <Pressable
@@ -216,7 +225,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                   setIsClearConfirmVisible(false);
                 }}
               >
-                <Text style={styles.editButtonText}>完成</Text>
+                <Text style={styles.editButtonText}>{copy.done}</Text>
               </Pressable>
 
               <Pressable
@@ -226,7 +235,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                   setIsClearConfirmVisible(false);
                 }}
               >
-                <Text style={styles.editButtonText}>取消</Text>
+                <Text style={styles.editButtonText}>{copy.cancel}</Text>
               </Pressable>
             </View>
           ) : (
@@ -236,7 +245,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                 setIsEditing(true);
               }}
             >
-              <Text style={styles.editButtonText}>編輯</Text>
+              <Text style={styles.editButtonText}>{copy.edit}</Text>
             </Pressable>
           )}
         </View>
@@ -246,7 +255,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
         {isLoading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator />
-            <Text style={styles.loadingText}>讀取緩存歌曲中</Text>
+            <Text style={styles.loadingText}>{copy.loadingCachedSongs}</Text>
           </View>
         ) : (
           <FlatList
@@ -259,7 +268,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
               // const artists = song?.artists;
               const song = item.song;
               const title = song?.title ? formatDisplaySongTitle(song.title) : item.songId;
-              const artistText = formatArtists(song?.artists);
+              const artistText = formatArtists(song?.artists, copy.unknownArtist);
 
               return (
                 <Swipeable
@@ -273,7 +282,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                       }}
                     >
                       <Text style={styles.swipeRemoveText}>
-                        {removingSongIdMap[item.songId] ? '移除中' : '移除'}
+                        {removingSongIdMap[item.songId] ? copy.removing : copy.remove}
                       </Text>
                     </Pressable>
                   )}
@@ -334,7 +343,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                       }}
                     >
                       <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                        {getInsertButtonText(songActionStatusMap[item.songId])}
+                        {getInsertButtonText(songActionStatusMap[item.songId], copy)}
                       </Text>
                     </Pressable>
                   </Pressable>
@@ -343,7 +352,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
             }}
             ListEmptyComponent={
               <View style={styles.centerContent}>
-                <Text style={styles.emptyText}>目前沒有已緩存歌曲</Text>
+                <Text style={styles.emptyText}>{copy.emptyCachedSongs}</Text>
               </View>
             }
           />
@@ -353,7 +362,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
           {/* <Text style={styles.pageText}>1/{totalPages}</Text> */}
 
           <Pressable style={styles.backButton} onPress={onClose}>
-            <Text style={styles.backButtonText}>返回</Text>
+            <Text style={styles.backButtonText}>{copy.back}</Text>
           </Pressable>
         </View>
       </View>
@@ -372,7 +381,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
               event.stopPropagation();
             }}
           >
-            <Text style={styles.confirmText}>是否清除所有歌曲？</Text>
+            <Text style={styles.confirmText}>{copy.clearAllConfirm}</Text>
 
             <View style={styles.confirmButtonRow}>
               <Pressable
@@ -381,7 +390,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                   setIsClearConfirmVisible(false);
                 }}
               >
-                <Text style={styles.confirmCancelText}>取消</Text>
+                <Text style={styles.confirmCancelText}>{copy.cancel}</Text>
               </Pressable>
 
               <Pressable
@@ -392,7 +401,7 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
                   setIsClearConfirmVisible(false);
                 }}
               >
-                <Text style={styles.confirmClearText}>清除</Text>
+                <Text style={styles.confirmClearText}>{copy.clear}</Text>
               </Pressable>
             </View>
           </Pressable>

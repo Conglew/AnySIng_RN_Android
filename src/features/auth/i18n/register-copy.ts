@@ -1,4 +1,5 @@
-export type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
+import type { LanguageValue } from '@/src/shared/i18n/language.store';
+// export type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
 
 export type RegisterStep = 'email' | 'code' | 'resetPassword' | 'success';
 

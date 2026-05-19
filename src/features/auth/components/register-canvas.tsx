@@ -9,7 +9,8 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { LanguageValue, REGISTER_FLOW_COPY } from '@/src/features/auth/i18n/register-copy';
+import { REGISTER_FLOW_COPY } from '@/src/features/auth/i18n/register-copy';
+import type { LanguageValue } from '@/src/shared/i18n/language.store';
 import { useRegisterFlow } from '@/src/features/auth/hooks/use-register-flow';
 import { LeaveConfirmModal } from '@/src/features/auth/components/leave-confirm-modal';
 import { CustomEmailKeyboard } from '@/src/shared/components/custom-email-keyboard';

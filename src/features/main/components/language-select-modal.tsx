@@ -1,8 +1,10 @@
 import { BlurView } from 'expo-blur';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { LanguageValue } from '@/src/shared/i18n/language.store';
+
 type LanguageOption = {
-  id: string;
+  id: LanguageValue;
   label: string;
 };
 
@@ -27,9 +29,9 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
 
 type Props = {
   visible: boolean;
-  selectedLanguageId?: string;
+  selectedLanguageId?: LanguageValue;
   onClose: () => void;
-  onPressLanguage?: (option: LanguageOption) => void;
+  onPressLanguage?: (option: LanguageOption) => void | Promise<void>;
 };
 
 export function LanguageSelectModal({
@@ -70,9 +72,8 @@ export function LanguageSelectModal({
               <Pressable
                 key={option.id}
                 style={[styles.languageOptionRow, isActive && styles.languageOptionRowActive]}
-                onPress={() => {
-                  console.log('[LanguageSelectModal] press language option:', option);
-                  onPressLanguage?.(option);
+                onPress={async () => {
+                  await onPressLanguage?.(option);
                 }}
               >
                 <Text

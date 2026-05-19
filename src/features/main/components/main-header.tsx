@@ -5,12 +5,17 @@ import { NowPlayingMarquee } from '@/src/features/main/components/now-playing-ma
 
 import { LanguageSelectModal } from '@/src/features/main/components/language-select-modal';
 
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+
 type Props = {
   showNowPlayingMarquee?: boolean;
 };
 
 export function MainHeader({ showNowPlayingMarquee = true }: Props) {
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
+
+  const language = useAppLanguageStore((state) => state.language);
+  const setLanguage = useAppLanguageStore((state) => state.setLanguage);
 
   return (
     <View style={styles.header}>
@@ -39,17 +44,13 @@ export function MainHeader({ showNowPlayingMarquee = true }: Props) {
 
       <LanguageSelectModal
         visible={isLanguageModalVisible}
-        selectedLanguageId="zh-TW"
+        selectedLanguageId={language}
         onClose={() => {
           setIsLanguageModalVisible(false);
         }}
-        onPressLanguage={(option) => {
-          console.log('[MainHeader] press language:', option);
-
-          /**
-           * 功能先不做：
-           * 之後可以在這裡接語系 store / i18n 切換。
-           */
+        onPressLanguage={async (option) => {
+          await setLanguage(option.id);
+          setIsLanguageModalVisible(false);
         }}
       />
     </View>

@@ -22,6 +22,9 @@ import {
   saveRememberedLogin,
 } from '@/src/services/auth/remembered-login-store';
 
+import { useAppLanguageStore, normalizeLanguage } from '@/src/shared/i18n/language.store';
+import { LOGIN_COPY } from '@/src/features/auth/i18n/login-copy';
+
 import { Ionicons } from '@expo/vector-icons';
 
 import { ForgotPasswordCanvas } from '@/src/features/auth/components/forgot-password-canvas';
@@ -83,56 +86,56 @@ const LOGIN_LANGUAGE_OPTIONS: LoginLanguageOption[] = [
   },
 ];
 
-const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
-  'zh-CN': {
-    register: '前往注册',
-    emailLabel: '账号',
-    emailPlaceholder: '请输入电子邮件',
-    passwordLabel: '密码',
-    passwordPlaceholder: '请输入密码',
-    rememberMe: '记住账号密码',
-    loginButton: '登录',
-    forgotPassword: '忘记密码',
-    welcomeTitle: '欢迎回来',
-    welcomeSubtitle: '登录立即开唱',
-  },
-  'zh-TW': {
-    register: '前往註冊',
-    emailLabel: '帳號',
-    emailPlaceholder: '請輸入電子郵件',
-    passwordLabel: '密碼',
-    passwordPlaceholder: '請輸入密碼',
-    rememberMe: '記住帳號密碼',
-    loginButton: '登入',
-    forgotPassword: '忘記密碼',
-    welcomeTitle: '歡迎回來',
-    welcomeSubtitle: '登入立即開唱',
-  },
-  en: {
-    register: 'Register',
-    emailLabel: 'Email',
-    emailPlaceholder: 'Please enter your email',
-    passwordLabel: 'Password',
-    passwordPlaceholder: 'Please enter your password',
-    rememberMe: 'Remember me',
-    loginButton: 'Login',
-    forgotPassword: 'Forgot password',
-    welcomeTitle: 'Welcome Back!',
-    welcomeSubtitle: 'Log in && Singing.',
-  },
-  ms: {
-    register: 'Daftar',
-    emailLabel: 'E-mel',
-    emailPlaceholder: 'Sila masukkan e-mel anda',
-    passwordLabel: 'Kata laluan',
-    passwordPlaceholder: 'Sila masukkan kata laluan',
-    rememberMe: 'Ingat saya',
-    loginButton: 'Log Masuk',
-    forgotPassword: 'Terlupa kata laluan',
-    welcomeTitle: 'Selamat kembali!',
-    welcomeSubtitle: 'Log Masuk Mula Menyanyi.',
-  },
-};
+// const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
+//   'zh-CN': {
+//     register: '前往注册',
+//     emailLabel: '账号',
+//     emailPlaceholder: '请输入电子邮件',
+//     passwordLabel: '密码',
+//     passwordPlaceholder: '请输入密码',
+//     rememberMe: '记住账号密码',
+//     loginButton: '登录',
+//     forgotPassword: '忘记密码',
+//     welcomeTitle: '欢迎回来',
+//     welcomeSubtitle: '登录立即开唱',
+//   },
+//   'zh-TW': {
+//     register: '前往註冊',
+//     emailLabel: '帳號',
+//     emailPlaceholder: '請輸入電子郵件',
+//     passwordLabel: '密碼',
+//     passwordPlaceholder: '請輸入密碼',
+//     rememberMe: '記住帳號密碼',
+//     loginButton: '登入',
+//     forgotPassword: '忘記密碼',
+//     welcomeTitle: '歡迎回來',
+//     welcomeSubtitle: '登入立即開唱',
+//   },
+//   en: {
+//     register: 'Register',
+//     emailLabel: 'Email',
+//     emailPlaceholder: 'Please enter your email',
+//     passwordLabel: 'Password',
+//     passwordPlaceholder: 'Please enter your password',
+//     rememberMe: 'Remember me',
+//     loginButton: 'Login',
+//     forgotPassword: 'Forgot password',
+//     welcomeTitle: 'Welcome Back!',
+//     welcomeSubtitle: 'Log in && Singing.',
+//   },
+//   ms: {
+//     register: 'Daftar',
+//     emailLabel: 'E-mel',
+//     emailPlaceholder: 'Sila masukkan e-mel anda',
+//     passwordLabel: 'Kata laluan',
+//     passwordPlaceholder: 'Sila masukkan kata laluan',
+//     rememberMe: 'Ingat saya',
+//     loginButton: 'Log Masuk',
+//     forgotPassword: 'Terlupa kata laluan',
+//     welcomeTitle: 'Selamat kembali!',
+//     welcomeSubtitle: 'Log Masuk Mula Menyanyi.',
+//   },
+// };
 
 // const REGISTER_COPY: Record<LanguageValue, SecondaryCanvasCopy> = {
 //   'zh-CN': {
@@ -173,13 +176,13 @@ const LOGIN_COPY: Record<LanguageValue, LoginCopy> = {
 //   },
 // };
 
-function normalizeLanguage(value: unknown): LanguageValue {
-  if (value === 'zh-CN' || value === 'zh-TW' || value === 'en' || value === 'ms') {
-    return value;
-  }
+// function normalizeLanguage(value: unknown): LanguageValue {
+//   if (value === 'zh-CN' || value === 'zh-TW' || value === 'en' || value === 'ms') {
+//     return value;
+//   }
 
-  return 'zh-TW';
-}
+//   return 'zh-TW';
+// }
 
 export default function LoginScreen() {
   const params = useLocalSearchParams<{ lang?: string }>();
@@ -193,6 +196,15 @@ export default function LoginScreen() {
   const secondaryEmailInputRef = useRef<TextInput>(null);
 
   const [language, setLanguage] = useState<LanguageValue>(initialLanguage);
+
+  useEffect(() => {
+    if (!params.lang) {
+      return;
+    }
+
+    setLanguage(normalizeLanguage(params.lang));
+  }, [params.lang, setLanguage]);
+
   const [canvasMode, setCanvasMode] = useState<AuthCanvasMode>('login');
   const [isLanguagePanelVisible, setIsLanguagePanelVisible] = useState(false);
 
@@ -381,9 +393,9 @@ export default function LoginScreen() {
     setIsLanguagePanelVisible((current) => !current);
   };
 
-  const handleSelectLanguage = (nextLanguage: LanguageValue) => {
+  const handleSelectLanguage = async (nextLanguage: LanguageValue) => {
     pushDebugLog(`[LoginScreen] select language=${nextLanguage}`);
-    setLanguage(nextLanguage);
+    await setLanguage(nextLanguage);
     setIsLanguagePanelVisible(false);
   };
 
