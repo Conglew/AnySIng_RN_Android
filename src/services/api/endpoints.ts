@@ -13,6 +13,10 @@ export const ENDPOINTS = {
   user: {
     me: '/auth/users/me',
     billing: '/auth/users/me/billing',
+    setDefaultPaymentMethod: (paymentMethodId: string) =>
+      `/auth/users/me/payment-methods/${paymentMethodId}/default`,
+    deletePaymentMethod: (paymentMethodId: string) =>
+      `/auth/users/me/payment-methods/${paymentMethodId}`,
   },
 
   playlists: {

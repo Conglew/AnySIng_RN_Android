@@ -143,3 +143,13 @@ export type BillingSummaryResponse = {
   subscription: BillingSubscription | null;
   paymentMethods: BillingPaymentMethod[];
 };
+
+export type SetDefaultPaymentMethodResponse = {
+  message: string;
+  defaultPaymentMethodId: string;
+};
+
+export type DeletePaymentMethodResponse = {
+  message: string;
+  paymentMethodId: string;
+};

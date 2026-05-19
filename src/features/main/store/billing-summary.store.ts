@@ -24,6 +24,9 @@ type BillingSummaryStore = {
   fetchBillingSummaryOnce: () => Promise<void>;
   refreshBillingSummary: () => Promise<void>;
   clearBillingSummary: () => void;
+
+  setDefaultPaymentMethod: (paymentMethodId: string) => Promise<void>;
+  deletePaymentMethod: (paymentMethodId: string) => Promise<void>;
 };
 
 function formatDate(value?: string | null) {
@@ -53,6 +56,42 @@ function formatDateRange(startValue?: string | null, endValue?: string | null) {
   }
 
   return `${startText} - ${endText}`;
+}
+
+function calculateNextBillingDate(subscribedAt?: string | null, interval?: string | null) {
+  if (!subscribedAt) {
+    return null;
+  }
+
+  const date = new Date(subscribedAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const nextDate = new Date(date);
+
+  if (interval === 'year') {
+    nextDate.setFullYear(nextDate.getFullYear() + 1);
+    return nextDate.toISOString();
+  }
+
+  if (interval === 'month') {
+    nextDate.setMonth(nextDate.getMonth() + 1);
+    return nextDate.toISOString();
+  }
+
+  if (interval === 'week') {
+    nextDate.setDate(nextDate.getDate() + 7);
+    return nextDate.toISOString();
+  }
+
+  if (interval === 'day') {
+    nextDate.setDate(nextDate.getDate() + 1);
+    return nextDate.toISOString();
+  }
+
+  return null;
 }
 
 function formatAmount(amount?: number | null, currency?: string | null) {
@@ -91,7 +130,7 @@ function formatPaymentAccount(
   const brand = record.brand ? record.brand.toUpperCase() : 'CARD';
   const last4 = record.last4 ? `**** ${record.last4}` : '****';
 
-  return `${brand} ${last4}`;
+  return `${last4} ${brand}`;
 }
 
 function formatBillingAddress(address?: Record<string, unknown> | null) {
@@ -117,6 +156,10 @@ function mapBillingSummaryToSettingsView(
   const subscription = billing.subscription;
   const paymentMethod = subscription?.defaultPaymentMethod ?? null;
 
+  const nextBillingDate =
+    subscription?.currentPeriodEnd ??
+    calculateNextBillingDate(subscription?.subscribedAt, subscription?.interval);
+
   return {
     userEmail: billing.userEmail || '-',
 
@@ -132,7 +175,7 @@ function mapBillingSummaryToSettingsView(
      */
     subscriptionPeriod: formatDateRange(
       subscription?.currentPeriodStart ?? subscription?.subscribedAt,
-      subscription?.currentPeriodEnd,
+      nextBillingDate,
     ),
 
     planName: subscription?.planName || '-',
@@ -213,5 +256,72 @@ export const useBillingSummaryStore = create<BillingSummaryStore>((set, get) => 
       isLoading: false,
       errorMessage: '',
     });
+  },
+
+  setDefaultPaymentMethod: async (paymentMethodId: string) => {
+    try {
+      set({
+        isLoading: true,
+        errorMessage: '',
+      });
+
+      const token = await getAccessToken();
+
+      if (!token) {
+        set({
+          isLoading: false,
+          errorMessage: 'Missing access token.',
+        });
+        return;
+      }
+
+      await authClient.setDefaultPaymentMethod({
+        token,
+        paymentMethodId,
+      });
+
+      await get().refreshBillingSummary();
+    } catch (error) {
+      console.log('[BillingSummaryStore] set default payment method failed:', error);
+
+      set({
+        isLoading: false,
+        errorMessage:
+          error instanceof Error ? error.message : 'Failed to set default payment method.',
+      });
+    }
+  },
+
+  deletePaymentMethod: async (paymentMethodId: string) => {
+    try {
+      set({
+        isLoading: true,
+        errorMessage: '',
+      });
+
+      const token = await getAccessToken();
+
+      if (!token) {
+        set({
+          isLoading: false,
+          errorMessage: 'Missing access token.',
+        });
+        return;
+      }
+
+      await authClient.deletePaymentMethod({
+        token,
+        paymentMethodId,
+      });
+
+      await get().refreshBillingSummary();
+    } catch (error) {
+      console.log('[BillingSummaryStore] delete payment method failed:', error);
+
+      set({
+        isLoading: false,
+        errorMessage: error instanceof Error ? error.message : 'Failed to delete payment method.',
+      });
+    }
   },
 }));

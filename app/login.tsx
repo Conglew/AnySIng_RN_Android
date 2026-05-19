@@ -411,6 +411,7 @@ export default function LoginScreen() {
           onDone={() => {
             setActiveLoginKeyboardTarget(null);
           }}
+          offsetY={475}
         />
 
         <CustomEmailKeyboard
@@ -424,6 +425,7 @@ export default function LoginScreen() {
           onDone={() => {
             setActiveLoginKeyboardTarget(null);
           }}
+          offsetY={475}
         />
       </>
     );

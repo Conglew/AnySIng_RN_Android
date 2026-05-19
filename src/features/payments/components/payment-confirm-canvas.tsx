@@ -306,6 +306,7 @@ export function PaymentConfirmCanvas({
           setHasTriedCoupon(true);
           couponInputRef.current?.blur();
         }}
+        offsetY={475}
       />
     </View>
   );

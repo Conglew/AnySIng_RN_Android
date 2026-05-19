@@ -385,6 +385,7 @@ export function RegisterCanvas({
         onDone={() => {
           setActiveKeyboardTarget(null);
         }}
+        offsetY={475}
       />
 
       <LeaveConfirmModal

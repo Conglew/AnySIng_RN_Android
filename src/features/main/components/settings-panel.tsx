@@ -5,14 +5,19 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
+  ActivityIndicator,
   View,
 } from 'react-native';
-import { useEffect, useState } from 'react';
+import { CustomEmailKeyboard } from '@/src/shared/components/custom-email-keyboard';
+import { useEffect, useRef, useState } from 'react';
 import type { SvgProps } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import QRCode from 'react-native-qrcode-svg';
+
+import { Ionicons } from '@expo/vector-icons';
 
 import { LanguageSelectModal } from '@/src/features/main/components/language-select-modal';
 
@@ -46,7 +51,14 @@ type SettingItem = {
   isPlaceholder?: boolean;
 };
 
-type SettingsPage = 'menu' | 'subscription' | 'account' | 'planContent' | 'cardManagement';
+type SettingsPage =
+  | 'menu'
+  | 'subscription'
+  | 'account'
+  | 'planContent'
+  | 'cardManagement'
+  | 'passwordChange'
+  | 'deleteAccount';
 
 type SubscriptionItem = {
   id: string;
@@ -76,21 +88,6 @@ type AccountItem = {
   description: string;
   Icon: React.ComponentType<SvgProps>;
 };
-
-const ACCOUNT_ITEMS: AccountItem[] = [
-  {
-    id: 'email',
-    title: '帳號',
-    description: 'poccccc@gmail.com',
-    Icon: SettingIcon2,
-  },
-  {
-    id: 'password',
-    title: '密碼',
-    description: '••••••',
-    Icon: SettingAccPassIcon,
-  },
-];
 
 const SETTINGS_ITEMS: SettingItem[] = [
   {
@@ -131,95 +128,6 @@ const SETTINGS_ITEMS: SettingItem[] = [
   },
 ];
 
-type LanguageOption = {
-  id: string;
-  label: string;
-};
-
-const LANGUAGE_OPTIONS: LanguageOption[] = [
-  {
-    id: 'zh-CN',
-    label: '简体中文',
-  },
-  {
-    id: 'zh-TW',
-    label: '繁體中文',
-  },
-  {
-    id: 'en',
-    label: 'English',
-  },
-  {
-    id: 'ms',
-    label: 'Bahasa Melayu',
-  },
-];
-
-type PlanContentRow = {
-  id: string;
-  label: string;
-  value: string;
-  rightValue?: string;
-  rightMutedValue?: string;
-};
-
-const PLAN_CONTENT_ROWS: PlanContentRow[] = [
-  {
-    id: 'subscription-code',
-    label: '訂單號碼',
-    value: 'as_000000000000015',
-  },
-  {
-    id: 'subscription-date',
-    label: '訂購日期',
-    value: '6月18日2025年',
-  },
-  {
-    id: 'plan',
-    label: '方案選擇',
-    value: '年繳計畫',
-    rightMutedValue: '$2,988',
-    rightValue: 'NT$1,980',
-  },
-  {
-    id: 'coupon',
-    label: '優惠折抵',
-    value: 'Abc2025615',
-    rightValue: '-NT$1,979',
-  },
-  {
-    id: 'card',
-    label: '扣款帳號',
-    value: '**** 0000',
-  },
-  {
-    id: 'address',
-    label: '帳單地址',
-    value: '地址是地址',
-  },
-];
-
-type PaymentCardItem = {
-  id: string;
-  brand: string;
-  number: string;
-  isDefault?: boolean;
-};
-
-const PAYMENT_CARD_ITEMS: PaymentCardItem[] = [
-  {
-    id: 'card-1',
-    brand: 'VISA',
-    number: '**** 0000',
-    isDefault: true,
-  },
-  {
-    id: 'card-2',
-    brand: 'VISA',
-    number: '**** 0000',
-  },
-];
-
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -232,8 +140,11 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const [currentPage, setCurrentPage] = useState<SettingsPage>('menu');
   const [isLogoutConfirmVisible, setIsLogoutConfirmVisible] = useState(false);
 
-  const [isLanguageSelectVisible, setIsLanguageSelectVisible] = useState(false);
   const [qrModalType, setQrModalType] = useState<'add-song' | 'report' | null>(null);
+
+  const [activePaymentMethodId, setActivePaymentMethodId] = useState<string | null>(null);
+  const setDefaultPaymentMethod = useBillingSummaryStore((state) => state.setDefaultPaymentMethod);
+  const deletePaymentMethod = useBillingSummaryStore((state) => state.deletePaymentMethod);
 
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
 
@@ -242,43 +153,53 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const billingErrorMessage = useBillingSummaryStore((state) => state.errorMessage);
   const fetchBillingSummaryOnce = useBillingSummaryStore((state) => state.fetchBillingSummaryOnce);
 
-  // useEffect(() => {
-  //   if (!visible) {
-  //     return;
-  //   }
+  const [passwordStep, setPasswordStep] = useState<'current' | 'newPassword'>('current');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isConfirmPasswordInputVisible, setIsConfirmPasswordInputVisible] = useState(false);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+  const [isPasswordLeaveConfirmVisible, setIsPasswordLeaveConfirmVisible] = useState(false);
 
-  //   let isMounted = true;
+  const [isCurrentPasswordVisible, setIsCurrentPasswordVisible] = useState(false);
+  const [isNewPasswordVisible, setIsNewPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
-  //   async function fetchSettingsUserData() {
-  //     try {
-  //       const token = await getAccessToken();
+  const [activeCustomKeyboardInput, setActiveCustomKeyboardInput] = useState<
+    'currentPassword' | 'newPassword' | 'confirmPassword' | 'deleteAccount' | null
+  >(null);
 
-  //       if (!token) {
-  //         console.log('[SettingsPanel] missing access token');
-  //         return;
-  //       }
+  const isValidPassword = (value: string) => {
+    /**
+     * 密碼規則：
+     * 1. 至少 8 個字
+     * 2. 至少一個小寫英文字母
+     * 3. 至少一個大寫英文字母
+     * 4. 至少一個數字
+     * 5. 只允許英文字母、數字、常見符號
+     */
+    const passwordPattern =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d!@#$%^&*()_\-+=\[\]{};:'",.<>/?\\|`~]{8,}$/;
 
-  //       const session = await authClient.me(token);
+    return passwordPattern.test(value);
+  };
 
-  //       if (!isMounted) {
-  //         return;
-  //       }
+  const [isCurrentPasswordChecking, setIsCurrentPasswordChecking] = useState(false);
 
-  //       console.log(
-  //         '[SettingsPanel] authClient.me response:',
-  //         JSON.stringify(session, null, 2),
-  //       );
-  //     } catch (error) {
-  //       console.log('[SettingsPanel] failed to fetch user data:', error);
-  //     }
-  //   }
+  const currentPasswordInputRef = useRef<TextInput>(null);
+  const newPasswordInputRef = useRef<TextInput>(null);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
+  const deleteAccountInputRef = useRef<TextInput>(null);
 
-  //   fetchSettingsUserData();
+  const hasPasswordDraft =
+    currentPassword.trim().length > 0 ||
+    newPassword.trim().length > 0 ||
+    confirmPassword.trim().length > 0;
 
-  //   return () => {
-  //     isMounted = false;
-  //   };
-  // }, [visible]);
+  const [deleteAccountText, setDeleteAccountText] = useState('');
+  const [deleteAccountErrorMessage, setDeleteAccountErrorMessage] = useState('');
+  const [isDeleteAccountSubmitting, setIsDeleteAccountSubmitting] = useState(false);
 
   useEffect(() => {
     if (!visible) {
@@ -289,6 +210,19 @@ export function SettingsPanel({ visible, onClose }: Props) {
     setIsLogoutConfirmVisible(false);
     setIsLanguageModalVisible(false);
     setQrModalType(null);
+
+    setPasswordStep('current');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordErrorMessage('');
+    setIsConfirmPasswordInputVisible(false);
+    setIsPasswordSubmitting(false);
+    setIsCurrentPasswordChecking(false);
+    setIsCurrentPasswordVisible(false);
+    setIsNewPasswordVisible(false);
+    setIsConfirmPasswordVisible(false);
+    setActiveCustomKeyboardInput(null);
   }, [visible]);
 
   useEffect(() => {
@@ -309,6 +243,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
   const qrModalTitle = qrModalType === 'report' ? '掃描回報問題' : '掃描新增歌曲';
   const qrModalUrl = qrModalType === 'report' ? REPORT_PROBLEM_URL : SONG_REQUEST_URL;
+
+  const placeholderText = isBillingLoading ? '...' : '-';
 
   const planContentRows = [
     {
@@ -379,10 +315,63 @@ export function SettingsPanel({ visible, onClose }: Props) {
       id: paymentMethod.id,
       brand: paymentMethod.brand?.toUpperCase() ?? 'CARD',
       number: paymentMethod.last4 ? `**** ${paymentMethod.last4}` : '****',
-      isDefault: paymentMethod.isDefault,
+      isDefault: paymentMethod.isDefault === true,
     })) ?? [];
 
+  const resetPasswordChangeState = () => {
+    setPasswordStep('current');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsConfirmPasswordInputVisible(false);
+    setPasswordErrorMessage('');
+    setIsCurrentPasswordChecking(false);
+    setIsPasswordSubmitting(false);
+    setIsCurrentPasswordVisible(false);
+    setIsNewPasswordVisible(false);
+    setIsConfirmPasswordVisible(false);
+    setActiveCustomKeyboardInput(null);
+    setIsPasswordLeaveConfirmVisible(false);
+  };
+
+  const leavePasswordChangePage = () => {
+    resetPasswordChangeState();
+    setCurrentPage('account');
+  };
+
+  const resetDeleteAccountState = () => {
+    setDeleteAccountText('');
+    setDeleteAccountErrorMessage('');
+    setIsDeleteAccountSubmitting(false);
+    setActiveCustomKeyboardInput(null);
+  };
+
   const handlePressBack = () => {
+    if (currentPage === 'passwordChange') {
+      if (isCurrentPasswordChecking || isPasswordSubmitting) {
+        return;
+      }
+
+      if (hasPasswordDraft) {
+        setActiveCustomKeyboardInput(null);
+        setIsPasswordLeaveConfirmVisible(true);
+        return;
+      }
+
+      leavePasswordChangePage();
+      return;
+    }
+
+    if (currentPage === 'deleteAccount') {
+      if (isDeleteAccountSubmitting) {
+        return;
+      }
+
+      resetDeleteAccountState();
+      setCurrentPage('account');
+      return;
+    }
+
     if (currentPage === 'planContent' || currentPage === 'cardManagement') {
       setCurrentPage('subscription');
       return;
@@ -417,7 +406,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
     });
   };
 
-  const placeholderText = isBillingLoading ? '...' : '-';
+  // const placeholderText = isBillingLoading ? '...' : '-';
 
   const subscriptionItems = SUBSCRIPTION_ITEMS.map((item) => {
     if (item.id === 'plan-content') {
@@ -426,9 +415,89 @@ export function SettingsPanel({ visible, onClose }: Props) {
         description: settingsBilling?.subscriptionPeriod ?? placeholderText,
       };
     }
-  
+
     return item;
   });
+
+  const handlePasswordKeyboardInput = (value: string) => {
+    if (!activeCustomKeyboardInput) {
+      return;
+    }
+
+    setPasswordErrorMessage('');
+
+    if (activeCustomKeyboardInput === 'currentPassword') {
+      setCurrentPassword((current) => `${current}${value}`);
+      return;
+    }
+
+    if (activeCustomKeyboardInput === 'newPassword') {
+      setNewPassword((current) => `${current}${value}`);
+
+      /**
+       * 使用者只要重新輸入新密碼，就關閉確認密碼欄位。
+       * 必須再按一次「完成」才會進入確認密碼階段。
+       */
+      setConfirmPassword('');
+      setIsConfirmPasswordInputVisible(false);
+
+      return;
+    }
+
+    if (activeCustomKeyboardInput === 'confirmPassword') {
+      setConfirmPassword((current) => `${current}${value}`);
+      return;
+    }
+
+    if (activeCustomKeyboardInput === 'deleteAccount') {
+      setDeleteAccountText((current) => `${current}${value}`);
+      setDeleteAccountErrorMessage('');
+    }
+  };
+
+  const handlePasswordKeyboardBackspace = () => {
+    if (!activeCustomKeyboardInput) {
+      return;
+    }
+
+    setPasswordErrorMessage('');
+
+    if (activeCustomKeyboardInput === 'currentPassword') {
+      setCurrentPassword((current) => current.slice(0, -1));
+      return;
+    }
+
+    if (activeCustomKeyboardInput === 'newPassword') {
+      setNewPassword((current) => current.slice(0, -1));
+
+      /**
+       * 使用者刪除新密碼後，確認密碼必須重新輸入。
+       */
+      setConfirmPassword('');
+      setIsConfirmPasswordInputVisible(false);
+
+      return;
+    }
+
+    if (activeCustomKeyboardInput === 'confirmPassword') {
+      setConfirmPassword((current) => current.slice(0, -1));
+      return;
+    }
+
+    if (activeCustomKeyboardInput === 'deleteAccount') {
+      setDeleteAccountText((current) => current.slice(0, -1));
+      setDeleteAccountErrorMessage('');
+    }
+  };
+
+  const handlePasswordKeyboardDone = () => {
+    currentPasswordInputRef.current?.blur();
+    newPasswordInputRef.current?.blur();
+    confirmPasswordInputRef.current?.blur();
+    deleteAccountInputRef.current?.blur();
+
+    setActiveCustomKeyboardInput(null);
+  };
 
   if (!visible) {
     return null;
@@ -446,7 +515,11 @@ export function SettingsPanel({ visible, onClose }: Props) {
                 ? '方案內容'
                 : currentPage === 'cardManagement'
                   ? '卡片管理'
-                  : '設定'}
+                  : currentPage === 'passwordChange'
+                    ? '密碼修改'
+                    : currentPage === 'deleteAccount'
+                      ? '永久刪除帳號'
+                      : '設定'}
         </Text>
 
         {currentPage === 'subscription' ? (
@@ -531,7 +604,17 @@ export function SettingsPanel({ visible, onClose }: Props) {
                 >
                   <View style={styles.paymentCardTopRow}>
                     <Text style={styles.paymentCardBrand}>{card.brand}</Text>
-                    <Text style={styles.paymentCardMore}>...</Text>
+                    {/* <Text style={styles.paymentCardMore}>...</Text> */}
+                    <Pressable
+                      style={styles.paymentCardMoreButton}
+                      onPress={() => {
+                        setActivePaymentMethodId((currentId) =>
+                          currentId === card.id ? null : card.id,
+                        );
+                      }}
+                    >
+                      <Text style={styles.paymentCardMore}>...</Text>
+                    </Pressable>
                   </View>
 
                   <View style={styles.paymentCardBottomRow}>
@@ -543,9 +626,483 @@ export function SettingsPanel({ visible, onClose }: Props) {
                       </View>
                     ) : null}
                   </View>
+
+                  {activePaymentMethodId === card.id ? (
+                    <View style={styles.paymentMethodMenu}>
+                      <Pressable
+                        style={styles.paymentMethodMenuItem}
+                        disabled={card.isDefault}
+                        onPress={async () => {
+                          setActivePaymentMethodId(null);
+                          await setDefaultPaymentMethod(card.id);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.paymentMethodMenuText,
+                            card.isDefault && styles.paymentMethodMenuTextDisabled,
+                          ]}
+                        >
+                          設為預設
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={styles.paymentMethodMenuItem}
+                        onPress={async () => {
+                          setActivePaymentMethodId(null);
+                          await deletePaymentMethod(card.id);
+                        }}
+                      >
+                        <Text style={styles.paymentMethodMenuDeleteText}>刪除卡片</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </ImageBackground>
               ))}
             </View>
+          </View>
+        ) : currentPage === 'passwordChange' ? (
+          <View style={styles.passwordChangePage}>
+            <Text style={styles.passwordChangeTitle}>
+              {passwordStep === 'current' ? '密碼修改' : '設定密碼'}
+            </Text>
+
+            <Text style={styles.passwordRuleText}>
+              密碼至少 8
+              個字，包含大小寫英文字母和數字。只接受英文字母、數字和常見符號（!@#|&lt;_&gt;）。
+            </Text>
+
+            {passwordStep === 'current' ? (
+              <View style={styles.passwordCurrentBlock}>
+                <View style={styles.passwordInputGroup}>
+                  <Text style={styles.passwordInputLabel}>原先密碼</Text>
+
+                  <View
+                    style={[
+                      styles.passwordInputWrapper,
+                      passwordErrorMessage && styles.passwordInputWrapperError,
+                    ]}
+                  >
+                    <TextInput
+                      ref={currentPasswordInputRef}
+                      value={currentPassword}
+                      onChangeText={(value) => {
+                        setCurrentPassword(value);
+                        setPasswordErrorMessage('');
+                      }}
+                      secureTextEntry={!isCurrentPasswordVisible}
+                      placeholder="至少8位英數字"
+                      placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      showSoftInputOnFocus={false}
+                      caretHidden={false}
+                      onFocus={() => {
+                        setActiveCustomKeyboardInput('currentPassword');
+                      }}
+                      onPressIn={() => {
+                        setActiveCustomKeyboardInput('currentPassword');
+                      }}
+                      style={styles.passwordInput}
+                    />
+                    <Pressable
+                      style={styles.passwordEyeButton}
+                      hitSlop={10}
+                      onPress={() => {
+                        setIsCurrentPasswordVisible((current) => !current);
+                      }}
+                    >
+                      <Ionicons
+                        name={isCurrentPasswordVisible ? 'eye-outline' : 'eye-off-outline'}
+                        size={24}
+                        color="rgba(255, 255, 255, 0.72)"
+                      />
+                    </Pressable>
+                  </View>
+
+                  {passwordErrorMessage ? (
+                    <Text style={styles.passwordErrorText}>{passwordErrorMessage}</Text>
+                  ) : null}
+                </View>
+
+                <View style={styles.passwordActionGroup}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.passwordConfirmButton,
+                      pressed && !isCurrentPasswordChecking && styles.passwordConfirmButtonPressed,
+                      (currentPassword.length === 0 || isCurrentPasswordChecking) &&
+                        styles.passwordConfirmButtonDisabled,
+                    ]}
+                    disabled={currentPassword.length === 0 || isCurrentPasswordChecking}
+                    onPress={async () => {
+                      if (currentPassword.length < 8) {
+                        setPasswordErrorMessage('密碼錯誤');
+                        return;
+                      }
+
+                      setIsCurrentPasswordChecking(true);
+                      setPasswordErrorMessage('');
+                      setActiveCustomKeyboardInput(null);
+
+                      try {
+                        /**
+                         * 這裡之後替換成正式驗證原密碼 API。
+                         * 例如：
+                         * await authClient.verifyCurrentPassword({
+                         *   currentPassword,
+                         * });
+                         */
+                        await new Promise((resolve) => setTimeout(resolve, 800));
+
+                        setPasswordStep('newPassword');
+                        setPasswordErrorMessage('');
+                      } catch (error) {
+                        console.log('[SettingsPanel] current password check failed:', error);
+                        setPasswordErrorMessage('密碼錯誤');
+                      } finally {
+                        setIsCurrentPasswordChecking(false);
+                      }
+                    }}
+                  >
+                    {isCurrentPasswordChecking ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.passwordConfirmButtonText}>確認</Text>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    disabled={isCurrentPasswordChecking}
+                    onPress={() => {
+                      console.log('[SettingsPanel] press forgot password');
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.forgotPasswordText,
+                        isCurrentPasswordChecking && styles.forgotPasswordTextDisabled,
+                      ]}
+                    >
+                      忘記密碼了?
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.passwordNewBlock}>
+                <View style={styles.passwordInputGroup}>
+                  <Text style={styles.passwordInputLabel}>新密碼</Text>
+
+                  <View
+                    style={[
+                      styles.passwordInputWrapper,
+                      passwordErrorMessage &&
+                        !isConfirmPasswordInputVisible &&
+                        styles.passwordInputWrapperError,
+                    ]}
+                  >
+                    <TextInput
+                      ref={newPasswordInputRef}
+                      value={newPassword}
+                      onChangeText={(value) => {
+                        setNewPassword(value);
+                        setPasswordErrorMessage('');
+
+                        /**
+                         * 使用者只要重新修改新密碼，
+                         * 就必須重新按一次「完成」確認格式。
+                         */
+                        setConfirmPassword('');
+                        setIsConfirmPasswordInputVisible(false);
+
+                        if (activeCustomKeyboardInput === 'confirmPassword') {
+                          setActiveCustomKeyboardInput('newPassword');
+                        }
+                      }}
+                      secureTextEntry={!isNewPasswordVisible}
+                      placeholder="至少8位英數字"
+                      placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      showSoftInputOnFocus={false}
+                      caretHidden={false}
+                      onFocus={() => {
+                        setActiveCustomKeyboardInput('newPassword');
+                      }}
+                      onPressIn={() => {
+                        setActiveCustomKeyboardInput('newPassword');
+                      }}
+                      style={styles.passwordInput}
+                    />
+
+                    <Pressable
+                      style={styles.passwordEyeButton}
+                      hitSlop={10}
+                      onPress={() => {
+                        setIsNewPasswordVisible((current) => !current);
+                      }}
+                    >
+                      <Ionicons
+                        name={isNewPasswordVisible ? 'eye-outline' : 'eye-off-outline'}
+                        size={24}
+                        color="rgba(255, 255, 255, 0.72)"
+                      />
+                    </Pressable>
+                  </View>
+
+                  {passwordErrorMessage && !isConfirmPasswordInputVisible ? (
+                    <Text style={styles.passwordErrorText}>{passwordErrorMessage}</Text>
+                  ) : null}
+                </View>
+
+                {isConfirmPasswordInputVisible ? (
+                  <View style={styles.passwordInputGroup}>
+                    <Text style={styles.passwordInputLabel}>再次輸入密碼</Text>
+
+                    <View
+                      style={[
+                        styles.passwordInputWrapper,
+                        passwordErrorMessage && styles.passwordInputWrapperError,
+                      ]}
+                    >
+                      <TextInput
+                        ref={confirmPasswordInputRef}
+                        value={confirmPassword}
+                        onChangeText={(value) => {
+                          setConfirmPassword(value);
+                          setPasswordErrorMessage('');
+                        }}
+                        secureTextEntry={!isConfirmPasswordVisible}
+                        placeholder="至少8位英數字"
+                        placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        showSoftInputOnFocus={false}
+                        caretHidden={false}
+                        onFocus={() => {
+                          setActiveCustomKeyboardInput('confirmPassword');
+                        }}
+                        onPressIn={() => {
+                          setActiveCustomKeyboardInput('confirmPassword');
+                        }}
+                        style={styles.passwordInput}
+                      />
+
+                      <Pressable
+                        style={styles.passwordEyeButton}
+                        hitSlop={10}
+                        onPress={() => {
+                          setIsConfirmPasswordVisible((current) => !current);
+                        }}
+                      >
+                        <Ionicons
+                          name={isConfirmPasswordVisible ? 'eye-outline' : 'eye-off-outline'}
+                          size={24}
+                          color="rgba(255, 255, 255, 0.72)"
+                        />
+                      </Pressable>
+                    </View>
+
+                    {passwordErrorMessage ? (
+                      <Text style={styles.passwordErrorText}>{passwordErrorMessage}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.passwordDoneButton,
+                    pressed && !isPasswordSubmitting && styles.passwordConfirmButtonPressed,
+                    (newPassword.length === 0 || isPasswordSubmitting) &&
+                      styles.passwordConfirmButtonDisabled,
+                  ]}
+                  disabled={newPassword.length === 0 || isPasswordSubmitting}
+                  onPress={async () => {
+                    /**
+                     * 第一階段：
+                     * 還沒顯示確認密碼欄位時，這個「完成」只負責驗證新密碼格式。
+                     */
+                    if (!isConfirmPasswordInputVisible) {
+                      if (!isValidPassword(newPassword)) {
+                        setPasswordErrorMessage('至少8位英數字，並包含大小寫英文與數字');
+                        return;
+                      }
+
+                      setPasswordErrorMessage('');
+                      setConfirmPassword('');
+                      setIsConfirmPasswordInputVisible(true);
+
+                      requestAnimationFrame(() => {
+                        confirmPasswordInputRef.current?.focus();
+                        setActiveCustomKeyboardInput('confirmPassword');
+                      });
+
+                      return;
+                    }
+
+                    /**
+                     * 第二階段：
+                     * 確認密碼欄位已經出現後，這個「完成」才負責送出。
+                     */
+                    if (confirmPassword.length === 0) {
+                      setPasswordErrorMessage('請再次輸入密碼');
+                      return;
+                    }
+
+                    if (newPassword !== confirmPassword) {
+                      setPasswordErrorMessage('兩次密碼輸入不一致');
+                      return;
+                    }
+
+                    setIsPasswordSubmitting(true);
+                    setActiveCustomKeyboardInput(null);
+
+                    try {
+                      console.log('[SettingsPanel] password change submit:', {
+                        newPasswordLength: newPassword.length,
+                      });
+
+                      /**
+                       * 這裡之後替換成正式 API。
+                       * 例如：
+                       * await authClient.changePassword({
+                       *   oldPassword: currentPassword,
+                       *   newPassword,
+                       * });
+                       */
+                      await new Promise((resolve) => setTimeout(resolve, 800));
+
+                      handlePressBack();
+                    } catch (error) {
+                      console.log('[SettingsPanel] password change failed:', error);
+                      setPasswordErrorMessage('密碼修改失敗，請稍後再試');
+                    } finally {
+                      setIsPasswordSubmitting(false);
+                    }
+                  }}
+                >
+                  {isPasswordSubmitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.passwordConfirmButtonText}>完成</Text>
+                  )}
+                </Pressable>
+              </View>
+            )}
+          </View>
+        ) : currentPage === 'deleteAccount' ? (
+          <View style={styles.deleteAccountPage}>
+            <Text style={styles.deleteAccountTitle}>永久刪除帳號</Text>
+
+            <Text style={styles.deleteAccountDescription}>
+              刪除後帳號將無法復原。目前的訂閱將不再續扣，但不會退款。
+            </Text>
+
+            <Text style={styles.deleteAccountInstruction}>
+              若您仍希望刪除帳號，請輸入 <Text style={styles.deleteAccountKeyword}>Delete</Text>{' '}
+              確認
+            </Text>
+
+            <View style={styles.deleteAccountFormRow}>
+              <View
+                style={[
+                  styles.deleteAccountInputWrapper,
+                  deleteAccountErrorMessage && styles.deleteAccountInputWrapperError,
+                  deleteAccountText === 'Delete' && styles.deleteAccountInputWrapperValid,
+                ]}
+              >
+                <TextInput
+                  ref={deleteAccountInputRef}
+                  value={deleteAccountText}
+                  onChangeText={(value) => {
+                    setDeleteAccountText(value);
+                    setDeleteAccountErrorMessage('');
+                  }}
+                  placeholder="請輸入Delete"
+                  placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  showSoftInputOnFocus={false}
+                  caretHidden={false}
+                  editable={!isDeleteAccountSubmitting}
+                  onFocus={() => {
+                    setActiveCustomKeyboardInput('deleteAccount');
+                  }}
+                  onPressIn={() => {
+                    setActiveCustomKeyboardInput('deleteAccount');
+                  }}
+                  style={styles.deleteAccountInput}
+                />
+
+                {deleteAccountText === 'Delete' ? (
+                  <Ionicons name="checkmark-circle-outline" size={22} color="#00C853" />
+                ) : deleteAccountText.length > 0 ? (
+                  <Ionicons name="alert-circle-outline" size={22} color="#FF3B5C" />
+                ) : null}
+              </View>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.deleteAccountButton,
+                  pressed && !isDeleteAccountSubmitting && styles.passwordConfirmButtonPressed,
+                  isDeleteAccountSubmitting && styles.passwordConfirmButtonDisabled,
+                ]}
+                disabled={isDeleteAccountSubmitting}
+                onPress={async () => {
+                  if (deleteAccountText.trim().length === 0) {
+                    setDeleteAccountErrorMessage('必填');
+                    return;
+                  }
+
+                  if (deleteAccountText !== 'Delete') {
+                    setDeleteAccountErrorMessage('輸入錯誤');
+                    return;
+                  }
+
+                  setIsDeleteAccountSubmitting(true);
+                  setDeleteAccountErrorMessage('');
+
+                  try {
+                    console.log('[SettingsPanel] delete account submit');
+
+                    /**
+                     * 這裡之後替換成正式刪除帳號 API。
+                     * 例如：
+                     * await authClient.deleteAccount();
+                     *
+                     * API 成功後也應該清除本地 token / auth store。
+                     */
+
+                    await new Promise((resolve) => setTimeout(resolve, 900));
+
+                    resetDeleteAccountState();
+                    onClose();
+
+                    InteractionManager.runAfterInteractions(() => {
+                      setTimeout(() => {
+                        router.replace('/login');
+                      }, 0);
+                    });
+                  } catch (error) {
+                    console.log('[SettingsPanel] delete account failed:', error);
+                    setDeleteAccountErrorMessage('刪除失敗，請稍後再試');
+                  } finally {
+                    setIsDeleteAccountSubmitting(false);
+                  }
+                }}
+              >
+                {isDeleteAccountSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.deleteAccountButtonText}>刪除</Text>
+                )}
+              </Pressable>
+            </View>
+
+            {deleteAccountErrorMessage ? (
+              <Text style={styles.deleteAccountErrorText}>{deleteAccountErrorMessage}</Text>
+            ) : null}
           </View>
         ) : currentPage === 'account' ? (
           <View style={styles.accountPage}>
@@ -563,6 +1120,16 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     ]}
                     onPress={() => {
                       console.log('[SettingsPanel] press account item:', item.title);
+
+                      if (item.id === 'password') {
+                        setCurrentPage('passwordChange');
+                        setPasswordStep('current');
+                        setCurrentPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setPasswordErrorMessage('');
+                        setIsConfirmPasswordInputVisible(false);
+                      }
                     }}
                   >
                     <ImageBackground
@@ -600,7 +1167,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
               <Pressable
                 style={({ pressed }) => [styles.accountActionButton, pressed && styles.cardPressed]}
                 onPress={() => {
-                  console.log('[SettingsPanel] press delete account');
+                  resetDeleteAccountState();
+                  setCurrentPage('deleteAccount');
                 }}
               >
                 <View style={styles.accountActionContent}>
@@ -727,59 +1295,48 @@ export function SettingsPanel({ visible, onClose }: Props) {
         </View>
       ) : null}
 
-      {/* <Modal
-        visible={isLanguageSelectVisible}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        navigationBarTranslucent
-        onRequestClose={() => {
-          setIsLanguageSelectVisible(false);
-        }}
-      >
-        <Pressable
-          style={styles.languageModalOverlay}
-          onPress={() => {
-            setIsLanguageSelectVisible(false);
-          }}
-        >
-          <BlurView
-            intensity={28}
-            tint="dark"
-            style={StyleSheet.absoluteFillObject}
-            experimentalBlurMethod="dimezisBlurView"
-          />
-
-          <View style={styles.languageModalDarkLayer} />
-
-          <Pressable
-            style={styles.languagePopupBox}
-            onPress={(event) => {
-              event.stopPropagation();
-            }}
+      {isPasswordLeaveConfirmVisible ? (
+        <View style={styles.confirmOverlay}>
+          <ImageBackground
+            source={require('@/assets/images/language-bg.jpg')}
+            style={styles.passwordLeaveConfirmBox}
+            imageStyle={styles.passwordLeaveConfirmBoxImage}
+            resizeMode="cover"
           >
-            {LANGUAGE_OPTIONS.map((option) => {
-              const isActive = option.id === 'zh-TW';
+            <View style={styles.passwordLeaveConfirmDarkOverlay} />
 
-              return (
+            <View style={styles.passwordLeaveConfirmContent}>
+              <Text style={styles.passwordLeaveConfirmTitle}>尚未修改完成，要離開此頁面?</Text>
+
+              <Text style={styles.passwordLeaveConfirmDescription}>離開後將不會保留填寫紀錄</Text>
+
+              <View style={styles.passwordLeaveConfirmActions}>
                 <Pressable
-                  key={option.id}
-                  style={[styles.languageOptionRow, isActive && styles.languageOptionRowActive]}
+                  style={({ pressed }) => [
+                    styles.passwordLeaveButton,
+                    pressed && styles.confirmButtonPressed,
+                  ]}
+                  onPress={leavePasswordChangePage}
+                >
+                  <Text style={styles.passwordLeaveButtonText}>離開</Text>
+                </Pressable>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.passwordContinueButton,
+                    pressed && styles.confirmButtonPressed,
+                  ]}
                   onPress={() => {
-                    console.log('[SettingsPanel] press language option:', option);
+                    setIsPasswordLeaveConfirmVisible(false);
                   }}
                 >
-                  <Text
-                    style={[styles.languageOptionText, isActive && styles.languageOptionTextActive]}
-                  >
-                    {option.label}
-                  </Text>
+                  <Text style={styles.passwordContinueButtonText}>繼續</Text>
                 </Pressable>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      </Modal> */}
+              </View>
+            </View>
+          </ImageBackground>
+        </View>
+      ) : null}
 
       <LanguageSelectModal
         visible={isLanguageModalVisible}
@@ -836,6 +1393,17 @@ export function SettingsPanel({ visible, onClose }: Props) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <CustomEmailKeyboard
+        visible={
+          (currentPage === 'passwordChange' || currentPage === 'deleteAccount') &&
+          activeCustomKeyboardInput !== null
+        }
+        onInput={handlePasswordKeyboardInput}
+        onBackspace={handlePasswordKeyboardBackspace}
+        onDone={handlePasswordKeyboardDone}
+        offsetY={475}
+      />
     </View>
   );
 }
@@ -1422,5 +1990,396 @@ const styles = StyleSheet.create({
     color: '#FF5C7A',
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  paymentCardMoreButton: {
+    width: 40,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  paymentMethodMenu: {
+    position: 'absolute',
+    right: 10,
+    top: 45,
+    width: 120,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 30,
+    elevation: 30,
+  },
+
+  paymentMethodMenuItem: {
+    height: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  paymentMethodMenuText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+
+  paymentMethodMenuTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.38)',
+  },
+
+  paymentMethodMenuDeleteText: {
+    color: '#FF5C5C',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+
+  passwordChangePage: {
+    flex: 1,
+    // paddingHorizontal: 54,
+    paddingTop: 30,
+  },
+
+  passwordBackButton: {
+    position: 'absolute',
+    left: 74,
+    top: 0,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.42)',
+  },
+
+  passwordBackButtonText: {
+    color: '#FFFFFF',
+    fontSize: 36,
+    fontWeight: '300',
+    lineHeight: 38,
+    marginTop: -4,
+  },
+
+  passwordChangeTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+
+  passwordRuleText: {
+    color: '#7C8287',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 42,
+  },
+
+  passwordCurrentBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    columnGap: 8,
+  },
+
+  passwordNewBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    columnGap: 18,
+  },
+
+  passwordInputGroup: {
+    width: 475,
+    position: 'relative',
+  },
+
+  passwordInputLabel: {
+    color: '#B2B6BA',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 14,
+  },
+
+  passwordInputWrapper: {
+    height: 68,
+    borderRadius: 30,
+    borderWidth: 1,
+    // borderColor: '#FF7802',
+    borderColor: '#B2B6BA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 18,
+    paddingRight: 10,
+    // backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  },
+
+  passwordInputWrapperError: {
+    borderColor: '#FF3B5C',
+  },
+
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    padding: 0,
+  },
+
+  passwordEyeButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  passwordEyeText: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  passwordErrorText: {
+    position: 'absolute',
+    left: 8,
+    top: 130,
+
+    color: '#FF3B5C',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+
+  passwordActionGroup: {
+    width: 160,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    transform: [{ translateY: 22 }],
+  },
+
+  passwordConfirmButton: {
+    width: 156,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF7A00',
+    marginBottom: 14,
+  },
+
+  passwordDoneButton: {
+    width: 156,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF7A00',
+  },
+
+  passwordConfirmButtonPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.98 }],
+  },
+
+  passwordConfirmButtonDisabled: {
+    opacity: 0.35,
+  },
+
+  passwordConfirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+
+  forgotPasswordText: {
+    color: 'rgba(255, 255, 255, 0.64)',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  languageIconButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  languageIconImage: {
+    width: 34,
+    height: 34,
+  },
+  forgotPasswordTextDisabled: {
+    opacity: 0.35,
+  },
+
+  passwordLeaveConfirmBox: {
+    width: 500,
+    height: 284,
+    paddingTop: 20,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    overflow: 'hidden',
+  },
+
+  passwordLeaveConfirmBoxImage: {
+    borderRadius: 28,
+  },
+
+  passwordLeaveConfirmDarkOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+  },
+
+  passwordLeaveConfirmContent: {
+    flex: 1,
+    // paddingTop: 88,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  passwordLeaveConfirmTitle: {
+    color: '#B2B6BA',
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+
+  passwordLeaveConfirmDescription: {
+    color: '#B2B6BA',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+
+  passwordLeaveConfirmActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    columnGap: 0,
+  },
+
+  passwordLeaveButton: {
+    width: 210,
+    height: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  passwordLeaveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+  },
+
+  passwordContinueButton: {
+    width: 200,
+    height: 68,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#FF7802',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  passwordContinueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+  },
+
+  deleteAccountPage: {
+    flex: 1,
+    paddingTop: 30,
+    alignItems: 'center',
+  },
+
+  deleteAccountTitle: {
+    color: '#B2B6BA',
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 46,
+  },
+
+  deleteAccountDescription: {
+    color: '#B2B6BA',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 52,
+  },
+
+  deleteAccountInstruction: {
+    width: 685,
+    color: '#B2B6BA',
+    fontSize: 24,
+    marginBottom: 22,
+  },
+
+  deleteAccountKeyword: {
+    color: '#FF7802',
+  },
+
+  deleteAccountFormRow: {
+    width: 685,
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 18,
+  },
+
+  deleteAccountInputWrapper: {
+    width: 475,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1,
+    borderColor: '#7C8287',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 26,
+    paddingRight: 18,
+  },
+
+  deleteAccountInputWrapperError: {
+    borderColor: '#FF3B5C',
+  },
+
+  deleteAccountInputWrapperValid: {
+    borderColor: '#1DD75F',
+  },
+
+  deleteAccountInput: {
+    flex: 1,
+    height: '100%',
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    padding: 0,
+  },
+
+  deleteAccountButton: {
+    width: 200,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF7A00',
+  },
+
+  deleteAccountButtonText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+
+  deleteAccountErrorText: {
+    width: 685,
+    marginTop: 14,
+    paddingLeft: 8,
+    color: '#FF3B5C',
+    fontSize: 18,
+    fontWeight: '800',
   },
 });

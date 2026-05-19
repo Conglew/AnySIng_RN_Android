@@ -19,6 +19,8 @@ import {
   VerifyResetCodeResponse,
   VerifySignupCodeRequest,
   VerifySignupCodeResponse,
+  SetDefaultPaymentMethodResponse,
+  DeletePaymentMethodResponse,
 } from './auth.types';
 
 function toAuthSession(response: AuthLoginResponse): AuthSession {
@@ -123,6 +125,24 @@ export const authClient = {
       path: ENDPOINTS.auth.deleteAccount,
       token,
       body,
+    });
+  },
+
+  setDefaultPaymentMethod({ token, paymentMethodId }: { token: string; paymentMethodId: string }) {
+    return apiRequest<SetDefaultPaymentMethodResponse, undefined>({
+      method: 'PATCH',
+      path: ENDPOINTS.user.setDefaultPaymentMethod(paymentMethodId),
+      token,
+      timeoutMs: 15000,
+    });
+  },
+
+  deletePaymentMethod({ token, paymentMethodId }: { token: string; paymentMethodId: string }) {
+    return apiRequest<DeletePaymentMethodResponse, undefined>({
+      method: 'DELETE',
+      path: ENDPOINTS.user.deletePaymentMethod(paymentMethodId),
+      token,
+      timeoutMs: 15000,
     });
   },
 };

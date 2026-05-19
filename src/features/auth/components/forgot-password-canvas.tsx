@@ -368,6 +368,7 @@ export function ForgotPasswordCanvas({
         onDone={() => {
           setActiveKeyboardTarget(null);
         }}
+        offsetY={475}
       />
 
       <LeaveConfirmModal
