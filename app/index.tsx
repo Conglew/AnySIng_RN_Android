@@ -12,6 +12,7 @@ import { getRememberedLogin } from '@/src/services/auth/remembered-login-store';
 import {
   ActivityIndicator,
   ImageBackground,
+  InteractionManager,
   Pressable,
   StyleSheet,
   Text,
@@ -85,10 +86,24 @@ export default function LanguageSelectScreen() {
           try {
             console.log('[LanguageSelectScreen] existing token found, verifying token');
 
-            await authClient.me(existingToken);
+            // await authClient.me(existingToken);
 
             console.log('[LanguageSelectScreen] token verified, redirect to home');
-            router.replace('/(tabs)/home');
+            const session = await authClient.me(existingToken);
+
+            console.log('[LanguageSelectScreen] login success');
+            console.log('[LanguageSelectScreen] login session:', session);
+
+            InteractionManager.runAfterInteractions(() => {
+              setTimeout(() => {
+                if (session.currentSubscription) {
+                  router.replace('/(tabs)/home');
+                } else {
+                  router.replace('/payment');
+                }
+              }, 0);
+            });
+
             return;
           } catch (verifyError) {
             console.log('[LanguageSelectScreen] existing token invalid:', verifyError);
@@ -117,7 +132,17 @@ export default function LanguageSelectScreen() {
         await saveAuthSession(session);
 
         console.log('[LanguageSelectScreen] auto login success');
-        router.replace('/(tabs)/home');
+        console.log('[LanguageSelectScreen] login session:', session);
+
+        InteractionManager.runAfterInteractions(() => {
+          setTimeout(() => {
+            if (session.currentSubscription) {
+              router.replace('/(tabs)/home');
+            } else {
+              router.replace('/payment');
+            }
+          }, 0);
+        });
       } catch (error) {
         console.log('[LanguageSelectScreen] auto login failed:', error);
 
