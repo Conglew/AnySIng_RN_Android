@@ -30,7 +30,6 @@ import { useBillingSummaryStore } from '@/src/features/main/store/billing-summar
 
 import { SETTINGS_COPY } from '@/src/features/main/i18n/settings-copy';
 
-
 import SettingIcon1 from '@/assets/images/setting/setting-1.svg';
 import SettingIcon2 from '@/assets/images/setting/setting-2.svg';
 import SettingIcon3 from '@/assets/images/setting/setting-3.svg';
@@ -87,7 +86,6 @@ type SubscriptionItem = {
 //     Icon: SettingPlanCardIcon,
 //   },
 // ];
-
 
 type AccountItem = {
   id: string;
@@ -147,7 +145,6 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const language = useAppLanguageStore((state) => state.language);
   const setLanguage = useAppLanguageStore((state) => state.setLanguage);
   const copy = SETTINGS_COPY[language];
-
 
   const [currentPage, setCurrentPage] = useState<SettingsPage>('menu');
   const [isLogoutConfirmVisible, setIsLogoutConfirmVisible] = useState(false);
@@ -791,21 +788,21 @@ export function SettingsPanel({ visible, onClose }: Props) {
     <View style={styles.overlay}>
       <View style={styles.panel}>
         <Text style={styles.title}>
-        {currentPage === 'subscription'
-        ? copy.subscription
-        : currentPage === 'account'
-          ? copy.accountPassword
-          : currentPage === 'planContent'
-            ? copy.planContent
-            : currentPage === 'cardManagement'
-              ? copy.cardManagement
-              : currentPage === 'passwordChange'
-                ? ''
-                : currentPage === 'deleteAccount'
-                  ? ''
-                  : currentPage === 'emailChange'
+          {currentPage === 'subscription'
+            ? copy.subscription
+            : currentPage === 'account'
+              ? copy.accountPassword
+              : currentPage === 'planContent'
+                ? copy.planContent
+                : currentPage === 'cardManagement'
+                  ? copy.cardManagement
+                  : currentPage === 'passwordChange'
                     ? ''
-                    : copy.settings}
+                    : currentPage === 'deleteAccount'
+                      ? ''
+                      : currentPage === 'emailChange'
+                        ? ''
+                        : copy.settings}
         </Text>
 
         {currentPage === 'subscription' ? (
@@ -951,7 +948,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
         ) : currentPage === 'passwordChange' ? (
           <View style={styles.passwordChangePage}>
             <Text style={styles.passwordChangeTitle}>
-            {passwordStep === 'current' ? copy.passwordChange : copy.setPassword}
+              {passwordStep === 'current' ? copy.passwordChange : copy.setPassword}
             </Text>
 
             <Text style={styles.passwordRuleText}>
@@ -962,7 +959,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
             {passwordStep === 'current' ? (
               <View style={styles.passwordCurrentBlock}>
                 <View style={styles.passwordInputGroup}>
-                <Text style={styles.passwordInputLabel}>{copy.currentPassword}</Text>
+                  <Text style={styles.passwordInputLabel}>{copy.currentPassword}</Text>
 
                   <View
                     style={[
@@ -1078,7 +1075,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
             ) : (
               <View style={styles.passwordNewBlock}>
                 <View style={styles.passwordInputGroup}>
-                <Text style={styles.passwordInputLabel}>{copy.newPassword}</Text>
+                  <Text style={styles.passwordInputLabel}>{copy.newPassword}</Text>
 
                   <View
                     style={[
@@ -1285,8 +1282,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
             <Text style={styles.deleteAccountDescription}>{copy.deleteAccountDescription}</Text>
 
             <Text style={styles.deleteAccountInstruction}>
-            {copy.deleteAccountInstructionPrefix}
-            {copy.deleteAccountInstructionSuffix}
+              {copy.deleteAccountInstructionPrefix}
+              {copy.deleteAccountInstructionSuffix}
             </Text>
 
             <View style={styles.deleteAccountFormRow}>
@@ -1396,7 +1393,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
             {!isEmailVerificationSent ? (
               <Text style={styles.emailChangeDescription}>
                 {copy.emailTransferDescriptionPrefix}
-                  <Text style={styles.emailChangeHighlight}>{copy.emailTransferHighlight}</Text>
+                <Text style={styles.emailChangeHighlight}>{copy.emailTransferHighlight}</Text>
                 {copy.emailTransferDescriptionSuffix}
               </Text>
             ) : (
@@ -1404,7 +1401,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
             )}
 
             <View style={styles.emailChangeContent}>
-            <Text style={styles.emailChangeLabel}>{copy.emailLabel}</Text>
+              <Text style={styles.emailChangeLabel}>{copy.emailLabel}</Text>
 
               <View style={styles.emailChangeRow}>
                 <View
@@ -1499,7 +1496,9 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     )}
                   </Pressable>
                 ) : emailResendSeconds > 0 ? (
-                  <Text style={styles.emailResendText}>{copy.resendCountdown(emailResendSeconds)}</Text>
+                  <Text style={styles.emailResendText}>
+                    {copy.resendCountdown(emailResendSeconds)}
+                  </Text>
                 ) : (
                   <Pressable
                     style={({ pressed }) => [
@@ -1547,7 +1546,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
               {isEmailVerificationSent ? (
                 <View style={styles.emailCodeBlock}>
                   <View style={styles.emailCodeLabelRow}>
-                  <Text style={styles.emailCodeLabel}>{copy.verificationCodeLabel}</Text>
+                    <Text style={styles.emailCodeLabel}>{copy.verificationCodeLabel}</Text>
 
                     {emailChangeErrorMessage ? (
                       <Text style={styles.emailCodeErrorText}>{emailChangeErrorMessage}</Text>
@@ -1782,7 +1781,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
             <View style={styles.logoutConfirmDarkOverlay} />
 
             <View style={styles.logoutConfirmContent}>
-            <Text style={styles.logoutConfirmTitle}>{copy.logoutConfirmTitle}</Text>
+              <Text style={styles.logoutConfirmTitle}>{copy.logoutConfirmTitle}</Text>
 
               <View style={styles.logoutConfirmActions}>
                 <Pressable
@@ -1823,9 +1822,11 @@ export function SettingsPanel({ visible, onClose }: Props) {
             <View style={styles.passwordLeaveConfirmDarkOverlay} />
 
             <View style={styles.passwordLeaveConfirmContent}>
-            <Text style={styles.passwordLeaveConfirmTitle}>{copy.leavePasswordTitle}</Text>
+              <Text style={styles.passwordLeaveConfirmTitle}>{copy.leavePasswordTitle}</Text>
 
-            <Text style={styles.passwordLeaveConfirmDescription}>{copy.leavePasswordDescription}</Text>
+              <Text style={styles.passwordLeaveConfirmDescription}>
+                {copy.leavePasswordDescription}
+              </Text>
 
               <View style={styles.passwordLeaveConfirmActions}>
                 <Pressable

@@ -281,11 +281,11 @@ export const SETTINGS_COPY: Record<LanguageValue, SettingsCopy> = {
     loadingSubscription: 'Loading subscription data...',
     cardVerifiedDescription: 'Your card has been verified and stored securely.',
 
-    orderNumber: 'Order Number',
+    orderNumber: 'Order',
     orderDate: 'Order Date',
     planSelection: 'Plan',
-    paymentAccount: 'Payment Account',
-    billingAddress: 'Billing Address',
+    paymentAccount: 'Account',
+    billingAddress: 'Address',
 
     passwordChange: 'Change Password',
     setPassword: 'Set Password',
@@ -331,8 +331,8 @@ export const SETTINGS_COPY: Record<LanguageValue, SettingsCopy> = {
     resendCountdown: (seconds) => `Resend available in ${seconds}s`,
     resendCode: 'Resend code',
 
-    scanReportProblem: 'Scan to Report Issue',
-    scanAddSong: 'Scan to Add Song',
+    scanReportProblem: 'Report Issue',
+    scanAddSong: 'Request Song',
 
     logoutConfirmTitle: 'Log out of your account?',
   },
@@ -366,10 +366,10 @@ export const SETTINGS_COPY: Record<LanguageValue, SettingsCopy> = {
     loadingSubscription: 'Memuatkan data langganan...',
     cardVerifiedDescription: 'Kad anda telah disahkan dan disimpan dengan selamat.',
 
-    orderNumber: 'Nombor Pesanan',
-    orderDate: 'Tarikh Pesanan',
+    orderNumber: 'Pesanan',
+    orderDate: 'Tarikh',
     planSelection: 'Pelan',
-    paymentAccount: 'Akaun Pembayaran',
+    paymentAccount: 'Akaun',
     billingAddress: 'Alamat Bil',
 
     passwordChange: 'Tukar Kata Laluan',
@@ -417,8 +417,8 @@ export const SETTINGS_COPY: Record<LanguageValue, SettingsCopy> = {
     resendCountdown: (seconds) => `Boleh hantar semula dalam ${seconds}s`,
     resendCode: 'Hantar semula kod',
 
-    scanReportProblem: 'Imbas untuk Lapor Masalah',
-    scanAddSong: 'Imbas untuk Tambah Lagu',
+    scanReportProblem: 'Lapor Masalah',
+    scanAddSong: 'Tambah Lagu',
 
     logoutConfirmTitle: 'Log keluar daripada akaun?',
   },

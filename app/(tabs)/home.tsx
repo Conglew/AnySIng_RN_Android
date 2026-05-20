@@ -254,59 +254,59 @@ export default function HomeScreen() {
           style={[styles.cardSection, isFullscreenVideoVisible && styles.cardSectionHidden]}
         >
           {HOME_CARDS.map((item) => {
-  const title = copy[item.titleKey];
-  const titleParts = isCjkLanguage ? title.split('') : [title];
+            const title = copy[item.titleKey];
+            const titleParts = isCjkLanguage ? title.split('') : [title];
 
-  return (
-    <View key={item.id} style={styles.cardWrapper}>
-      <Pressable
-        style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
-        onPress={() => handlePressHomeCard(item.id)}
-      >
-        <ImageBackground
-          source={item.image}
-          style={styles.menuCardBackground}
-          imageStyle={styles.menuCardBackgroundImage}
-          resizeMode="cover"
-        >
-          <View style={styles.menuCardOverlay}>
-            <View
-              style={[
-                styles.verticalTitleGroup,
-                !isCjkLanguage && styles.verticalTitleGroupCompact,
-              ]}
-            >
-              {titleParts.map((text, index) => (
-                <Text
-                  key={`${item.id}-${index}`}
-                  style={[
-                    styles.menuCardTitle,
-                    !isCjkLanguage && styles.menuCardTitleCompact,
-                  ]}
+            return (
+              <View key={item.id} style={styles.cardWrapper}>
+                <Pressable
+                  style={({ pressed }) => [styles.menuCard, pressed && styles.menuCardPressed]}
+                  onPress={() => handlePressHomeCard(item.id)}
                 >
-                  {text}
-                </Text>
-              ))}
-            </View>
-          </View>
-        </ImageBackground>
-      </Pressable>
+                  <ImageBackground
+                    source={item.image}
+                    style={styles.menuCardBackground}
+                    imageStyle={styles.menuCardBackgroundImage}
+                    resizeMode="cover"
+                  >
+                    <View style={styles.menuCardOverlay}>
+                      <View
+                        style={[
+                          styles.verticalTitleGroup,
+                          !isCjkLanguage && styles.verticalTitleGroupCompact,
+                        ]}
+                      >
+                        {titleParts.map((text, index) => (
+                          <Text
+                            key={`${item.id}-${index}`}
+                            style={[
+                              styles.menuCardTitle,
+                              !isCjkLanguage && styles.menuCardTitleCompact,
+                            ]}
+                          >
+                            {text}
+                          </Text>
+                        ))}
+                      </View>
+                    </View>
+                  </ImageBackground>
+                </Pressable>
 
-      {item.foregroundImage ? (
-        <View
-          pointerEvents="none"
-          style={[styles.cardForegroundLayer, item.foregroundStyle]}
-        >
-          <Image
-            source={item.foregroundImage}
-            style={styles.cardForegroundImage}
-            resizeMode="contain"
-          />
-        </View>
-      ) : null}
-    </View>
-  );
-})}
+                {item.foregroundImage ? (
+                  <View
+                    pointerEvents="none"
+                    style={[styles.cardForegroundLayer, item.foregroundStyle]}
+                  >
+                    <Image
+                      source={item.foregroundImage}
+                      style={styles.cardForegroundImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.sidePanel}>

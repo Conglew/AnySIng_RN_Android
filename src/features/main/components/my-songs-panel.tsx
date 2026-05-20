@@ -18,7 +18,6 @@ import {
 } from '@/src/features/main/i18n/my-songs-panel-copy';
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
 
-
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -72,7 +71,6 @@ function getInsertButtonText(status: SongDownloadStatus | undefined, copy: MySon
 
   return copy.insert;
 }
-
 
 export function MySongsPanel({ visible, onClose }: Props) {
   const language = useAppLanguageStore((state) => state.language);
@@ -239,7 +237,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
                 </Text>
 
                 <Text style={styles.artistText} numberOfLines={1}>
-                {truncateText(formatArtists(item.artists, copy.unknownArtist), 10)}
+                  {truncateText(formatArtists(item.artists, copy.unknownArtist), 10)}
                 </Text>
 
                 <Pressable
@@ -266,7 +264,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
                   }}
                 >
                   <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                  {getInsertButtonText(songActionStatusMap[item._id], copy)}
+                    {getInsertButtonText(songActionStatusMap[item._id], copy)}
                   </Text>
                 </Pressable>
               </Pressable>
@@ -283,7 +281,7 @@ export function MySongsPanel({ visible, onClose }: Props) {
           <Text style={styles.pageText}>1/{totalPages}</Text>
 
           <Pressable style={styles.backButton} onPress={onClose}>
-          <Text style={styles.backButtonText}>{copy.back}</Text>
+            <Text style={styles.backButtonText}>{copy.back}</Text>
           </Pressable>
         </View>
       </View>

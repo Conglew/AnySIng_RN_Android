@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { memo, useCallback, useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
 
@@ -27,6 +27,131 @@ function truncateText(text: string, maxLength: number) {
   return `${text.slice(0, maxLength)}...`;
 }
 
+
+type QueuedSongRowProps = {
+  queueId: string;
+  songId: string;
+  title: string;
+  artistText?: string;
+  isCurrent: boolean;
+  isInterjecting: boolean;
+  onInterject: (queueId: string, songId: string) => void;
+};
+
+const QueuedSongRow = memo(function QueuedSongRow({
+  queueId,
+  songId,
+  title,
+  artistText,
+  isCurrent,
+  isInterjecting,
+  onInterject,
+}: QueuedSongRowProps) {
+  const songTitle = truncateText(formatDisplaySongTitle(title), 14);
+  const displayArtistText = truncateText(artistText ?? '未知歌手', 17);
+
+  return (
+    <View style={[styles.songRow, isCurrent && styles.currentSongRow]}>
+      <View style={styles.songIconBox}>
+        {isCurrent ? (
+          <Image
+            source={require('@/assets/images/songPrefab/playing/playing.webp')}
+            style={styles.playingIcon}
+            contentFit="contain"
+          />
+        ) : (
+          <SongReadyIcon width={48} height={48} />
+        )}
+      </View>
+
+      <View style={styles.songTextGroup}>
+        <Text style={styles.songTitle} numberOfLines={1}>
+          {songTitle}
+        </Text>
+
+        <Text style={styles.artistText} numberOfLines={1}>
+          {displayArtistText}
+        </Text>
+      </View>
+
+      {!isCurrent ? (
+        <Pressable
+          style={[styles.interjectButton, isInterjecting && styles.interjectButtonDisabled]}
+          disabled={isInterjecting}
+          onPress={() => onInterject(queueId, songId)}
+        >
+          <Text style={styles.interjectButtonText}>{isInterjecting ? '處理中' : '插播'}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+});
+
+type DownloadingSongRowProps = {
+  songId: string;
+  onCancel: (songId: string) => void;
+};
+
+const DownloadingSongRow = memo(function DownloadingSongRow({
+  songId,
+  onCancel,
+}: DownloadingSongRowProps) {
+  const status = useSongDownloadStatusStore((state) => state.statusMap[songId]);
+
+  if (!status) {
+    return null;
+  }
+
+  const songTitle = truncateText(formatDisplaySongTitle(status.song.title), 14);
+
+  const artistText = truncateText(
+    Array.isArray(status.song.artists)
+      ? status.song.artists
+          .map((artist) => {
+            if (typeof artist === 'string') {
+              return artist;
+            }
+
+            return artist?.name;
+          })
+          .filter(Boolean)
+          .join(' / ')
+      : '未知歌手',
+    17,
+  );
+
+  const progress = Math.max(0, Math.min(status.progress, 100));
+  const statusText = status.phase === 'preparing' ? '準備下載中' : `下載中 ${progress}%`;
+  const speedText = status.speedText ?? '-- MB/s';
+
+  return (
+    <View style={styles.downloadRow}>
+      <View style={styles.songIconBox}>
+        <SongReadyIcon width={48} height={48} />
+      </View>
+
+      <View style={styles.downloadSongInfo}>
+        <Text style={styles.songTitle} numberOfLines={1}>
+          {songTitle}
+        </Text>
+
+        <Text style={styles.artistText} numberOfLines={1}>
+          {artistText}
+        </Text>
+      </View>
+
+      <View style={styles.downloadStatusGroup}>
+        <Text style={styles.downloadStatusText}>{statusText}</Text>
+        <Text style={styles.downloadSpeedText}>{speedText}</Text>
+      </View>
+
+      <Pressable style={styles.cancelDownloadButton} onPress={() => onCancel(songId)} hitSlop={10}>
+        <Text style={styles.cancelDownloadButtonText}>×</Text>
+      </Pressable>
+    </View>
+  );
+});
+
 export function QueuedSongsPanel() {
   const isVisible = useQueuedSongsPanelStore((state) => state.isVisible);
   const closePanel = useQueuedSongsPanelStore((state) => state.closePanel);
@@ -37,27 +162,81 @@ export function QueuedSongsPanel() {
   const queue = usePlaybackQueueStore((state) => state.queue);
   const moveToNext = usePlaybackQueueStore((state) => state.moveToNext);
 
-  const downloadStatusMap = useSongDownloadStatusStore((state) => state.statusMap);
+  // const downloadStatusMap = useSongDownloadStatusStore((state) => state.statusMap);
+  const downloadingSongIds = useSongDownloadStatusStore((state) => state.downloadIds);
 
   const [activeTab, setActiveTab] = useState<PanelTab>('queued');
   const [interjectingQueueIdMap, setInterjectingQueueIdMap] = useState<Record<string, boolean>>({});
 
   const displayQueue = currentItem ? [currentItem, ...queue] : queue;
 
-  const downloadingItems = useMemo(() => {
-    return Object.entries(downloadStatusMap)
-      .map(([songId, status]) => ({
-        songId,
-        status,
-      }))
-      .filter((item) => Boolean(item.status))
-      .sort((a, b) => {
-        const aCreatedAt = a.status?.createdAt ?? 0;
-        const bCreatedAt = b.status?.createdAt ?? 0;
+  // const downloadingItems = useMemo(() => {
+  //   return Object.entries(downloadStatusMap)
+  //     .map(([songId, status]) => ({
+  //       songId,
+  //       status,
+  //     }))
+  //     .filter((item) => Boolean(item.status))
+  //     .sort((a, b) => {
+  //       const aCreatedAt = a.status?.createdAt ?? 0;
+  //       const bCreatedAt = b.status?.createdAt ?? 0;
 
-        return aCreatedAt - bCreatedAt;
-      });
-  }, [downloadStatusMap]);
+  //       return aCreatedAt - bCreatedAt;
+  //     });
+  // }, [downloadStatusMap]);
+
+  // const handleInterjectQueueItem = useCallback(
+  //   async (queueId: string, songId: string) => {
+  //     if (!queueId || !songId) {
+  //       console.log('[QueuedSongsPanel] interject ignored: missing ids', {
+  //         queueId,
+  //         songId,
+  //       });
+  //       return;
+  //     }
+
+  //     if (currentItem?.queueId === queueId) {
+  //       return;
+  //     }
+
+  //     if (interjectingQueueIdMap[queueId]) {
+  //       return;
+  //     }
+
+  //     setInterjectingQueueIdMap((previous) => ({
+  //       ...previous,
+  //       [queueId]: true,
+  //     }));
+
+  //     try {
+  //       const token = await getAccessToken();
+
+  //       if (!token) {
+  //         throw new Error('Missing access token.');
+  //       }
+
+  //       await playlistClient.interjectSongNext({
+  //         token,
+  //         songId,
+  //       });
+
+  //       moveToNext(queueId);
+  //     } catch (error) {
+  //       console.log('[QueuedSongsPanel] interject failed:', {
+  //         queueId,
+  //         songId,
+  //         error,
+  //       });
+  //     } finally {
+  //       setInterjectingQueueIdMap((previous) => {
+  //         const next = { ...previous };
+  //         delete next[queueId];
+  //         return next;
+  //       });
+  //     }
+  //   },
+  //   [currentItem?.queueId, interjectingQueueIdMap, moveToNext],
+  // );
 
   const handleInterjectQueueItem = useCallback(
     async (queueId: string, songId: string) => {
@@ -68,32 +247,41 @@ export function QueuedSongsPanel() {
         });
         return;
       }
-
+  
       if (currentItem?.queueId === queueId) {
         return;
       }
-
-      if (interjectingQueueIdMap[queueId]) {
+  
+      let shouldContinue = true;
+  
+      setInterjectingQueueIdMap((previous) => {
+        if (previous[queueId]) {
+          shouldContinue = false;
+          return previous;
+        }
+  
+        return {
+          ...previous,
+          [queueId]: true,
+        };
+      });
+  
+      if (!shouldContinue) {
         return;
       }
-
-      setInterjectingQueueIdMap((previous) => ({
-        ...previous,
-        [queueId]: true,
-      }));
-
+  
       try {
         const token = await getAccessToken();
-
+  
         if (!token) {
           throw new Error('Missing access token.');
         }
-
+  
         await playlistClient.interjectSongNext({
           token,
           songId,
         });
-
+  
         moveToNext(queueId);
       } catch (error) {
         console.log('[QueuedSongsPanel] interject failed:', {
@@ -109,7 +297,21 @@ export function QueuedSongsPanel() {
         });
       }
     },
-    [currentItem?.queueId, interjectingQueueIdMap, moveToNext],
+    [currentItem?.queueId, moveToNext],
+  );
+
+  const handleCancelDownload = useCallback(
+    (songId: string) => {
+      console.log('[QueuedSongsPanel] press cancel download:', songId);
+  
+      cancelSongDownload(songId).catch((error) => {
+        console.log('[QueuedSongsPanel] cancel download failed:', {
+          songId,
+          error,
+        });
+      });
+    },
+    [cancelSongDownload],
   );
 
   if (!isVisible) {
@@ -210,185 +412,240 @@ export function QueuedSongsPanel() {
               正在下載
             </Text>
 
-            {downloadingItems.length > 0 ? (
+            {/* {downloadingItems.length > 0 ? (
               <View style={styles.downloadCountBadge}>
                 <Text style={styles.downloadCountText}>{downloadingItems.length}</Text>
+              </View>
+            ) : null} */}
+            {downloadingSongIds.length > 0 ? (
+              <View style={styles.downloadCountBadge}>
+                <Text style={styles.downloadCountText}>{downloadingSongIds.length}</Text>
               </View>
             ) : null}
           </Pressable>
         </View>
 
         {activeTab === 'queued' ? (
-          <ScrollView
+          // <ScrollView
+          //   style={styles.list}
+          //   contentContainerStyle={styles.listContent}
+          //   showsVerticalScrollIndicator={false}
+          //   nestedScrollEnabled
+          //   keyboardShouldPersistTaps="handled"
+          // >
+          //   {displayQueue.length === 0 ? (
+          //     <View style={styles.emptyBox}>
+          //       <Text style={styles.emptyText}>目前尚未點歌</Text>
+          //     </View>
+          //   ) : (
+          //     displayQueue.map((item) => {
+          //       const songTitle = truncateText(formatDisplaySongTitle(item.title), 14);
+          //       const artistText = truncateText(item.artistText ?? '未知歌手', 17);
+          //       const isCurrent = item.queueId === currentItem?.queueId;
+          //       const isInterjecting = Boolean(interjectingQueueIdMap[item.queueId]);
+
+          //       return (
+          //         <View
+          //           key={item.queueId}
+          //           style={[styles.songRow, isCurrent && styles.currentSongRow]}
+          //         >
+          //           <View style={styles.songIconBox}>
+          //             {isCurrent ? (
+          //               <Image
+          //                 source={require('@/assets/images/songPrefab/playing/playing.webp')}
+          //                 style={styles.playingIcon}
+          //                 contentFit="contain"
+          //               />
+          //             ) : (
+          //               <SongReadyIcon width={48} height={48} />
+          //             )}
+          //           </View>
+
+          //           <View style={styles.songTextGroup}>
+          //             <Text style={styles.songTitle} numberOfLines={1}>
+          //               {songTitle}
+          //             </Text>
+
+          //             <Text style={styles.artistText} numberOfLines={1}>
+          //               {artistText}
+          //             </Text>
+          //           </View>
+
+          //           {!isCurrent ? (
+          //             <Pressable
+          //               style={[
+          //                 styles.interjectButton,
+          //                 isInterjecting && styles.interjectButtonDisabled,
+          //               ]}
+          //               disabled={isInterjecting}
+          //               onPress={() => handleInterjectQueueItem(item.queueId, item.songId)}
+          //             >
+          //               <Text style={styles.interjectButtonText}>
+          //                 {isInterjecting ? '處理中' : '插播'}
+          //               </Text>
+          //             </Pressable>
+          //           ) : null}
+          //         </View>
+          //       );
+          //     })
+          //   )}
+          // </ScrollView>
+
+          <FlatList
             style={styles.list}
             contentContainerStyle={styles.listContent}
+            data={displayQueue}
+            keyExtractor={(item) => item.queueId}
             showsVerticalScrollIndicator={false}
-            nestedScrollEnabled
             keyboardShouldPersistTaps="handled"
-          >
-            {displayQueue.length === 0 ? (
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            removeClippedSubviews
+            ListEmptyComponent={
               <View style={styles.emptyBox}>
                 <Text style={styles.emptyText}>目前尚未點歌</Text>
               </View>
-            ) : (
-              displayQueue.map((item) => {
-                const songTitle = truncateText(formatDisplaySongTitle(item.title), 14);
-                const artistText = truncateText(item.artistText ?? '未知歌手', 17);
-                const isCurrent = item.queueId === currentItem?.queueId;
-                const isInterjecting = Boolean(interjectingQueueIdMap[item.queueId]);
-
-                return (
-                  <View
-                    key={item.queueId}
-                    style={[styles.songRow, isCurrent && styles.currentSongRow]}
-                  >
-                    <View style={styles.songIconBox}>
-                      {isCurrent ? (
-                        <Image
-                          source={require('@/assets/images/songPrefab/playing/playing.webp')}
-                          style={styles.playingIcon}
-                          contentFit="contain"
-                        />
-                      ) : (
-                        <SongReadyIcon width={48} height={48} />
-                      )}
-                    </View>
-
-                    <View style={styles.songTextGroup}>
-                      <Text style={styles.songTitle} numberOfLines={1}>
-                        {songTitle}
-                      </Text>
-
-                      <Text style={styles.artistText} numberOfLines={1}>
-                        {artistText}
-                      </Text>
-                    </View>
-
-                    {!isCurrent ? (
-                      <Pressable
-                        style={[
-                          styles.interjectButton,
-                          isInterjecting && styles.interjectButtonDisabled,
-                        ]}
-                        disabled={isInterjecting}
-                        onPress={() => handleInterjectQueueItem(item.queueId, item.songId)}
-                      >
-                        <Text style={styles.interjectButtonText}>
-                          {isInterjecting ? '處理中' : '插播'}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                );
-              })
+            }
+            renderItem={({ item }) => (
+              <QueuedSongRow
+                queueId={item.queueId}
+                songId={item.songId}
+                title={item.title}
+                artistText={item.artistText}
+                isCurrent={item.queueId === currentItem?.queueId}
+                isInterjecting={Boolean(interjectingQueueIdMap[item.queueId])}
+                onInterject={handleInterjectQueueItem}
+              />
             )}
-          </ScrollView>
+          />
         ) : (
-          <ScrollView
+          // <ScrollView
+          //   style={styles.list}
+          //   contentContainerStyle={styles.listContent}
+          //   showsVerticalScrollIndicator={false}
+          //   nestedScrollEnabled
+          //   keyboardShouldPersistTaps="handled"
+          // >
+          //   {downloadingItems.length === 0 ? (
+          //     <View style={styles.emptyBox}>
+          //       <Text style={styles.emptyText}>目前尚未下載的歌曲</Text>
+          //     </View>
+          //   ) : (
+          //     downloadingItems.map(({ songId, status }) => {
+          //       if (!status) {
+          //         return null;
+          //       }
+
+          //       const songTitle = truncateText(formatDisplaySongTitle(status.song.title), 14);
+          //       const artistText = truncateText(
+          //         Array.isArray(status.song.artists)
+          //           ? status.song.artists
+          //               .map((artist) => {
+          //                 if (typeof artist === 'string') {
+          //                   return artist;
+          //                 }
+
+          //                 return artist?.name;
+          //               })
+          //               .filter(Boolean)
+          //               .join(' / ')
+          //           : '未知歌手',
+          //         17,
+          //       );
+          //       const progress = Math.max(0, Math.min(status.progress, 100));
+          //       const statusText =
+          //         status.phase === 'preparing' ? '準備下載中' : `下載中 ${progress}%`;
+
+          //       const speedText = status.speedText ?? '-- MB/s';
+          //       // return (
+          //       //   <View key={songId} style={styles.downloadRow}>
+          //       //     <View style={styles.songIconBox}>
+          //       //       <SongReadyIcon width={48} height={48} />
+          //       //     </View>
+
+          //       //     <View style={styles.downloadTextGroup}>
+          //       //       <Text style={styles.songTitle} numberOfLines={1}>
+          //       //         {songTitle}
+          //       //       </Text>
+
+          //       //       <Text style={styles.artistText} numberOfLines={1}>
+          //       //         {artistText}
+          //       //       </Text>
+
+          //       //       <Text style={styles.downloadStatusText}>{statusText}</Text>
+
+          //       //       <View style={styles.progressTrack}>
+          //       //         <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          //       //       </View>
+          //       //     </View>
+          //       //   </View>
+          //       // );
+
+          //       return (
+          //         <View key={songId} style={styles.downloadRow}>
+          //           <View style={styles.songIconBox}>
+          //             <SongReadyIcon width={48} height={48} />
+          //           </View>
+
+          //           <View style={styles.downloadSongInfo}>
+          //             <Text style={styles.songTitle} numberOfLines={1}>
+          //               {songTitle}
+          //             </Text>
+
+          //             <Text style={styles.artistText} numberOfLines={1}>
+          //               {artistText}
+          //             </Text>
+          //           </View>
+
+          //           <View style={styles.downloadStatusGroup}>
+          //             <Text style={styles.downloadStatusText}>{statusText}</Text>
+
+          //             <Text style={styles.downloadSpeedText}>{speedText}</Text>
+          //           </View>
+
+          //           <Pressable
+          //             style={styles.cancelDownloadButton}
+          //             onPress={() => {
+          //               console.log('[QueuedSongsPanel] press cancel download:', songId);
+
+          //               cancelSongDownload(songId).catch((error) => {
+          //                 console.log('[QueuedSongsPanel] cancel download failed:', {
+          //                   songId,
+          //                   error,
+          //                 });
+          //               });
+          //             }}
+          //             hitSlop={10}
+          //           >
+          //             <Text style={styles.cancelDownloadButtonText}>×</Text>
+          //           </Pressable>
+          //         </View>
+          //       );
+          //     })
+          //   )}
+          // </ScrollView>
+
+          <FlatList
             style={styles.list}
             contentContainerStyle={styles.listContent}
+            data={downloadingSongIds}
+            keyExtractor={(songId) => songId}
             showsVerticalScrollIndicator={false}
-            nestedScrollEnabled
             keyboardShouldPersistTaps="handled"
-          >
-            {downloadingItems.length === 0 ? (
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            removeClippedSubviews
+            ListEmptyComponent={
               <View style={styles.emptyBox}>
                 <Text style={styles.emptyText}>目前尚未下載的歌曲</Text>
               </View>
-            ) : (
-              downloadingItems.map(({ songId, status }) => {
-                if (!status) {
-                  return null;
-                }
-
-                const songTitle = truncateText(formatDisplaySongTitle(status.song.title), 14);
-                const artistText = truncateText(
-                  Array.isArray(status.song.artists)
-                    ? status.song.artists
-                        .map((artist) => {
-                          if (typeof artist === 'string') {
-                            return artist;
-                          }
-
-                          return artist?.name;
-                        })
-                        .filter(Boolean)
-                        .join(' / ')
-                    : '未知歌手',
-                  17,
-                );
-                const progress = Math.max(0, Math.min(status.progress, 100));
-                const statusText =
-                  status.phase === 'preparing' ? '準備下載中' : `下載中 ${progress}%`;
-
-                const speedText = status.speedText ?? '-- MB/s';
-                // return (
-                //   <View key={songId} style={styles.downloadRow}>
-                //     <View style={styles.songIconBox}>
-                //       <SongReadyIcon width={48} height={48} />
-                //     </View>
-
-                //     <View style={styles.downloadTextGroup}>
-                //       <Text style={styles.songTitle} numberOfLines={1}>
-                //         {songTitle}
-                //       </Text>
-
-                //       <Text style={styles.artistText} numberOfLines={1}>
-                //         {artistText}
-                //       </Text>
-
-                //       <Text style={styles.downloadStatusText}>{statusText}</Text>
-
-                //       <View style={styles.progressTrack}>
-                //         <View style={[styles.progressFill, { width: `${progress}%` }]} />
-                //       </View>
-                //     </View>
-                //   </View>
-                // );
-
-                return (
-                  <View key={songId} style={styles.downloadRow}>
-                    <View style={styles.songIconBox}>
-                      <SongReadyIcon width={48} height={48} />
-                    </View>
-
-                    <View style={styles.downloadSongInfo}>
-                      <Text style={styles.songTitle} numberOfLines={1}>
-                        {songTitle}
-                      </Text>
-
-                      <Text style={styles.artistText} numberOfLines={1}>
-                        {artistText}
-                      </Text>
-                    </View>
-
-                    <View style={styles.downloadStatusGroup}>
-                      <Text style={styles.downloadStatusText}>{statusText}</Text>
-
-                      <Text style={styles.downloadSpeedText}>{speedText}</Text>
-                    </View>
-
-                    <Pressable
-                      style={styles.cancelDownloadButton}
-                      onPress={() => {
-                        console.log('[QueuedSongsPanel] press cancel download:', songId);
-
-                        cancelSongDownload(songId).catch((error) => {
-                          console.log('[QueuedSongsPanel] cancel download failed:', {
-                            songId,
-                            error,
-                          });
-                        });
-                      }}
-                      hitSlop={10}
-                    >
-                      <Text style={styles.cancelDownloadButtonText}>×</Text>
-                    </Pressable>
-                  </View>
-                );
-              })
+            }
+            renderItem={({ item: songId }) => (
+              <DownloadingSongRow songId={songId} onCancel={handleCancelDownload} />
             )}
-          </ScrollView>
+          />
         )}
       </View>
     </View>
