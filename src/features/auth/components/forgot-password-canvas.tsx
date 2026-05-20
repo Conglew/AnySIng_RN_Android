@@ -114,7 +114,9 @@ export function ForgotPasswordCanvas({
                   autoCorrect={false}
                   editable={flow.forgotPasswordStep === 'email'}
                   showSoftInputOnFocus={false}
-                  caretHidden={true}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
                   style={styles.secondaryInput}
                 />
               </View>
@@ -178,7 +180,9 @@ export function ForgotPasswordCanvas({
                   onChangeText={flow.handleVerificationCodeChange}
                   keyboardType="number-pad"
                   maxLength={5}
-                  caretHidden={true}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
                   showSoftInputOnFocus={false}
                   editable={!flow.isForgotSubmitting}
                   style={styles.hiddenVerificationCodeInput}
@@ -233,7 +237,9 @@ export function ForgotPasswordCanvas({
                   autoCorrect={false}
                   editable={flow.resetPasswordPhase === 'newPassword'}
                   showSoftInputOnFocus={false}
-                  caretHidden={true}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
                   style={[
                     styles.secondaryInput,
                     styles.resetPasswordInput,
@@ -268,7 +274,9 @@ export function ForgotPasswordCanvas({
                     autoCorrect={false}
                     editable={!flow.isForgotSubmitting}
                     showSoftInputOnFocus={false}
-                    caretHidden={true}
+                    caretHidden={false}
+                    selectionColor="#FF7A00"
+                    cursorColor="#FF7A00"
                     style={[
                       styles.secondaryInput,
                       styles.resetPasswordInput,
@@ -366,7 +374,7 @@ export function ForgotPasswordCanvas({
         onDone={() => {
           setActiveKeyboardTarget(null);
         }}
-        offsetY={475}
+        offsetY={0}
       />
 
       <LeaveConfirmModal

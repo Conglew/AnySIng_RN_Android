@@ -136,7 +136,9 @@ export function RegisterCanvas({
                   autoCorrect={false}
                   editable={flow.registerStep === 'email'}
                   showSoftInputOnFocus={false}
-                  caretHidden={true}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
                   style={styles.secondaryInput}
                 />
               </View>
@@ -203,7 +205,9 @@ export function RegisterCanvas({
                   }}
                   keyboardType="number-pad"
                   maxLength={5}
-                  caretHidden={true}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
                   showSoftInputOnFocus={false}
                   editable={!flow.isRegisterSubmitting}
                   style={styles.hiddenVerificationCodeInput}
@@ -258,7 +262,9 @@ export function RegisterCanvas({
                   autoCorrect={false}
                   editable={flow.resetPasswordPhase === 'newPassword'}
                   showSoftInputOnFocus={false}
-                  caretHidden={true}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
                   style={[
                     styles.secondaryInput,
                     flow.newPasswordError && styles.inputError,
@@ -291,7 +297,9 @@ export function RegisterCanvas({
                     autoCorrect={false}
                     editable={!flow.isRegisterSubmitting}
                     showSoftInputOnFocus={false}
-                    caretHidden={true}
+                    caretHidden={false}
+                    selectionColor="#FF7A00"
+                    cursorColor="#FF7A00"
                     style={[styles.secondaryInput, flow.confirmPasswordError && styles.inputError]}
                   />
 
@@ -386,7 +394,7 @@ export function RegisterCanvas({
         onDone={() => {
           setActiveKeyboardTarget(null);
         }}
-        offsetY={475}
+        offsetY={0}
       />
 
       <LeaveConfirmModal

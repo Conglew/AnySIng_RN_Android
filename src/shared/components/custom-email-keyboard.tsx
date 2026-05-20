@@ -149,6 +149,82 @@ export function CustomEmailKeyboard({ visible, onInput, onBackspace, onDone, off
     }
   };
 
+  // return (
+  //   <Modal
+  //     visible={visible}
+  //     transparent
+  //     animationType="fade"
+  //     statusBarTranslucent
+  //     navigationBarTranslucent
+  //     onRequestClose={onDone}
+  //   >
+  //     <View
+  //       style={[
+  //         styles.keyboard,
+  //         {
+  //           paddingBottom: 12 + insets.bottom,
+  //           transform: [{ translateY: offsetY }],
+  //         },
+  //       ]}
+  //     >
+  //       {ROWS.map((row, rowIndex) => (
+  //         <View key={`email-keyboard-row-${rowIndex}`} style={styles.row}>
+  //           {row.map((key, keyIndex) => {
+  //             const isControlKey =
+  //               key.type === 'tab' ||
+  //               key.type === 'caps' ||
+  //               key.type === 'shift' ||
+  //               key.type === 'done' ||
+  //               key.type === 'backspace';
+
+  //             const isActiveShiftKey = key.type === 'shift' && isUppercase;
+  //             const isActiveCapsKey = key.type === 'caps' && isCapsLock;
+
+  //             const displayLabel =
+  //               shouldUseUppercase && key.value && isLetterKey(key.value)
+  //                 ? key.label.toUpperCase()
+  //                 : key.label;
+
+  //             return (
+  //               <Pressable
+  //                 key={`email-key-${rowIndex}-${keyIndex}-${key.label}`}
+  //                 style={({ pressed }) => [
+  //                   styles.key,
+  //                   {
+  //                     flex: key.flex ?? 1,
+  //                   },
+  //                   isControlKey && styles.controlKey,
+  //                   key.type === 'done' && styles.doneKey,
+  //                   key.type === 'backspace' && styles.backspaceKey,
+  //                   isActiveShiftKey && styles.activeControlKey,
+  //                   isActiveCapsKey && styles.activeControlKey,
+  //                   pressed && styles.keyPressed,
+  //                 ]}
+  //                 onPress={() => {
+  //                   handleKeyPress(key);
+  //                 }}
+  //               >
+  //                 <Text
+  //                   style={[
+  //                     styles.keyText,
+  //                     isControlKey && styles.controlKeyText,
+  //                     key.type === 'done' && styles.doneKeyText,
+  //                     key.type === 'caps' && styles.shiftSymbolText,
+  //                     isActiveCapsKey && styles.activeShiftSymbolText,
+  //                     isActiveShiftKey && styles.activeShiftSymbolText,
+  //                   ]}
+  //                 >
+  //                   {displayLabel}
+  //                 </Text>
+  //               </Pressable>
+  //             );
+  //           })}
+  //         </View>
+  //       ))}
+  //     </View>
+  //   </Modal>
+  // );
+
   return (
     <Modal
       visible={visible}
@@ -158,70 +234,75 @@ export function CustomEmailKeyboard({ visible, onInput, onBackspace, onDone, off
       navigationBarTranslucent
       onRequestClose={onDone}
     >
-      <View
-        style={[
-          styles.keyboard,
-          {
-            paddingBottom: 12 + insets.bottom,
-            transform: [{ translateY: offsetY }],
-          },
-        ]}
-      >
-        {ROWS.map((row, rowIndex) => (
-          <View key={`email-keyboard-row-${rowIndex}`} style={styles.row}>
-            {row.map((key, keyIndex) => {
-              const isControlKey =
-                key.type === 'tab' ||
-                key.type === 'caps' ||
-                key.type === 'shift' ||
-                key.type === 'done' ||
-                key.type === 'backspace';
+      <Pressable style={styles.modalRoot} onPress={onDone}>
+        <Pressable
+          style={[
+            styles.keyboard,
+            {
+              paddingBottom: 12 + insets.bottom,
+              transform: [{ translateY: offsetY }],
+            },
+          ]}
+          onPress={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          {ROWS.map((row, rowIndex) => (
+            <View key={`email-keyboard-row-${rowIndex}`} style={styles.row}>
+              {row.map((key, keyIndex) => {
+                const isControlKey =
+                  key.type === 'tab' ||
+                  key.type === 'caps' ||
+                  key.type === 'shift' ||
+                  key.type === 'done' ||
+                  key.type === 'backspace';
 
-              const isActiveShiftKey = key.type === 'shift' && isUppercase;
-              const isActiveCapsKey = key.type === 'caps' && isCapsLock;
+                const isActiveShiftKey = key.type === 'shift' && isUppercase;
+                const isActiveCapsKey = key.type === 'caps' && isCapsLock;
 
-              const displayLabel =
-                shouldUseUppercase && key.value && isLetterKey(key.value)
-                  ? key.label.toUpperCase()
-                  : key.label;
+                const displayLabel =
+                  shouldUseUppercase && key.value && isLetterKey(key.value)
+                    ? key.label.toUpperCase()
+                    : key.label;
 
-              return (
-                <Pressable
-                  key={`email-key-${rowIndex}-${keyIndex}-${key.label}`}
-                  style={({ pressed }) => [
-                    styles.key,
-                    {
-                      flex: key.flex ?? 1,
-                    },
-                    isControlKey && styles.controlKey,
-                    key.type === 'done' && styles.doneKey,
-                    key.type === 'backspace' && styles.backspaceKey,
-                    isActiveShiftKey && styles.activeControlKey,
-                    isActiveCapsKey && styles.activeControlKey,
-                    pressed && styles.keyPressed,
-                  ]}
-                  onPress={() => {
-                    handleKeyPress(key);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.keyText,
-                      isControlKey && styles.controlKeyText,
-                      key.type === 'done' && styles.doneKeyText,
-                      key.type === 'caps' && styles.shiftSymbolText,
-                      isActiveCapsKey && styles.activeShiftSymbolText,
-                      isActiveShiftKey && styles.activeShiftSymbolText,
+                return (
+                  <Pressable
+                    key={`email-key-${rowIndex}-${keyIndex}-${key.label}`}
+                    style={({ pressed }) => [
+                      styles.key,
+                      {
+                        flex: key.flex ?? 1,
+                      },
+                      isControlKey && styles.controlKey,
+                      key.type === 'done' && styles.doneKey,
+                      key.type === 'backspace' && styles.backspaceKey,
+                      isActiveShiftKey && styles.activeControlKey,
+                      isActiveCapsKey && styles.activeControlKey,
+                      pressed && styles.keyPressed,
                     ]}
+                    onPress={() => {
+                      handleKeyPress(key);
+                    }}
                   >
-                    {displayLabel}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-      </View>
+                    <Text
+                      style={[
+                        styles.keyText,
+                        isControlKey && styles.controlKeyText,
+                        key.type === 'done' && styles.doneKeyText,
+                        key.type === 'caps' && styles.shiftSymbolText,
+                        isActiveCapsKey && styles.activeShiftSymbolText,
+                        isActiveShiftKey && styles.activeShiftSymbolText,
+                      ]}
+                    >
+                      {displayLabel}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

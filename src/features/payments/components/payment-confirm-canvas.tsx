@@ -143,7 +143,8 @@ export function PaymentConfirmCanvas({
                 autoCapitalize="none"
                 autoCorrect={false}
                 showSoftInputOnFocus={false}
-                caretHidden={!isCouponFocused}
+                caretHidden={false}
+                cursorColor="#FF7A00"
                 selectionColor={couponCursorColor}
                 style={[
                   styles.couponInput,
@@ -306,7 +307,7 @@ export function PaymentConfirmCanvas({
           setHasTriedCoupon(true);
           couponInputRef.current?.blur();
         }}
-        offsetY={475}
+        offsetY={0}
       />
     </View>
   );

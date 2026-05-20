@@ -423,7 +423,7 @@ export default function LoginScreen() {
           onDone={() => {
             setActiveLoginKeyboardTarget(null);
           }}
-          offsetY={475}
+          offsetY={0}
         />
 
         <CustomEmailKeyboard
@@ -437,7 +437,7 @@ export default function LoginScreen() {
           onDone={() => {
             setActiveLoginKeyboardTarget(null);
           }}
-          offsetY={475}
+          offsetY={0}
         />
       </>
     );
@@ -549,7 +549,9 @@ export default function LoginScreen() {
                 autoCorrect={false}
                 editable={true}
                 showSoftInputOnFocus={false}
-                caretHidden={true}
+                caretHidden={false}
+                selectionColor="#FF7A00"
+                cursorColor="#FF7A00"
                 returnKeyType="next"
                 style={styles.input}
               />
@@ -602,7 +604,9 @@ export default function LoginScreen() {
                   autoCorrect={false}
                   editable={true}
                   showSoftInputOnFocus={false}
-                  caretHidden={true}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
                   returnKeyType="done"
                   style={[styles.input, styles.passwordInput]}
                 />

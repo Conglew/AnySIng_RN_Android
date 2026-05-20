@@ -42,23 +42,23 @@ async function downloadFile({
     {},
     (downloadProgress) => {
       const expected = downloadProgress.totalBytesExpectedToWrite;
-    
+
       if (expected <= 0) {
         return;
       }
-    
+
       const progress = Math.floor((downloadProgress.totalBytesWritten / expected) * 100);
-    
+
       const now = Date.now();
       const progressDelta = progress - lastProgress;
       const timeDelta = now - lastProgressUpdateAt;
-    
+
       const isFirstUpdate = lastProgress < 0;
       const isCompleted = progress >= 100;
       const isProgressChanged = progress !== lastProgress;
       const isProgressChangedEnough = progressDelta >= 1;
       const isTimePassedEnough = timeDelta >= 300;
-    
+
       if (
         !isFirstUpdate &&
         !isCompleted &&
@@ -66,23 +66,23 @@ async function downloadFile({
       ) {
         return;
       }
-    
+
       const bytesWritten = downloadProgress.totalBytesWritten;
       const speedTimeDelta = Math.max(1, now - lastSpeedCalculatedAt);
       const bytesDelta = Math.max(0, bytesWritten - lastBytesWritten);
       const bytesPerSecond = (bytesDelta / speedTimeDelta) * 1000;
       const speedText = `${(bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s`;
-    
+
       lastBytesWritten = bytesWritten;
       lastSpeedCalculatedAt = now;
-    
+
       lastProgress = progress;
       lastProgressUpdateAt = now;
-    
+
       useDownloadQueueStore.getState().updateTask(task.taskId, {
         progress,
       });
-    
+
       useSongDownloadStatusStore.getState().setDownloading(task.song, progress, speedText);
     },
   );
@@ -157,7 +157,7 @@ async function executeTask(task: SongDownloadTask) {
       status: 'downloading',
       progress: 0,
     });
-    
+
     setPreparing(task.song);
 
     const assets = await songAssetResolverService.resolve(task.songId);

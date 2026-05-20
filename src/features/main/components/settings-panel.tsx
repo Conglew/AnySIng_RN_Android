@@ -981,6 +981,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
                       autoCorrect={false}
                       showSoftInputOnFocus={false}
                       caretHidden={false}
+                      selectionColor="#FF7A00"
+                      cursorColor="#FF7A00"
                       onFocus={() => {
                         setActiveCustomKeyboardInput('currentPassword');
                       }}
@@ -1110,6 +1112,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
                       autoCorrect={false}
                       showSoftInputOnFocus={false}
                       caretHidden={false}
+                      selectionColor="#FF7A00"
+                      cursorColor="#FF7A00"
                       onFocus={() => {
                         setActiveCustomKeyboardInput('newPassword');
                       }}
@@ -1163,6 +1167,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         autoCorrect={false}
                         showSoftInputOnFocus={false}
                         caretHidden={false}
+                        selectionColor="#FF7A00"
+                        cursorColor="#FF7A00"
                         onFocus={() => {
                           setActiveCustomKeyboardInput('confirmPassword');
                         }}
@@ -1307,6 +1313,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
                   autoCorrect={false}
                   showSoftInputOnFocus={false}
                   caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
                   editable={!isDeleteAccountSubmitting}
                   onFocus={() => {
                     setActiveCustomKeyboardInput('deleteAccount');
@@ -1426,6 +1434,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     autoCorrect={false}
                     showSoftInputOnFocus={false}
                     caretHidden={false}
+                    selectionColor="#FF7A00"
+                    cursorColor="#FF7A00"
                     editable={!isEmailSubmitting && !isEmailVerificationSent}
                     onFocus={() => {
                       if (!isEmailVerificationSent) {
@@ -1596,6 +1606,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         }}
                         showSoftInputOnFocus={false}
                         caretHidden={false}
+                        selectionColor="#FF7A00"
+                        cursorColor="#FF7A00"
                         editable={!isEmailSubmitting}
                         onFocus={() => {
                           setActiveCustomKeyboardInput(`emailCode-${index}`);
@@ -1918,7 +1930,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
         onInput={handlePasswordKeyboardInput}
         onBackspace={handlePasswordKeyboardBackspace}
         onDone={handlePasswordKeyboardDone}
-        offsetY={475}
+        offsetY={0}
       />
     </View>
   );

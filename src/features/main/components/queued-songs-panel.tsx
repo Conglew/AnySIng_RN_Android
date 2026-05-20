@@ -27,7 +27,6 @@ function truncateText(text: string, maxLength: number) {
   return `${text.slice(0, maxLength)}...`;
 }
 
-
 type QueuedSongRowProps = {
   queueId: string;
   songId: string;
@@ -247,41 +246,41 @@ export function QueuedSongsPanel() {
         });
         return;
       }
-  
+
       if (currentItem?.queueId === queueId) {
         return;
       }
-  
+
       let shouldContinue = true;
-  
+
       setInterjectingQueueIdMap((previous) => {
         if (previous[queueId]) {
           shouldContinue = false;
           return previous;
         }
-  
+
         return {
           ...previous,
           [queueId]: true,
         };
       });
-  
+
       if (!shouldContinue) {
         return;
       }
-  
+
       try {
         const token = await getAccessToken();
-  
+
         if (!token) {
           throw new Error('Missing access token.');
         }
-  
+
         await playlistClient.interjectSongNext({
           token,
           songId,
         });
-  
+
         moveToNext(queueId);
       } catch (error) {
         console.log('[QueuedSongsPanel] interject failed:', {
@@ -303,7 +302,7 @@ export function QueuedSongsPanel() {
   const handleCancelDownload = useCallback(
     (songId: string) => {
       console.log('[QueuedSongsPanel] press cancel download:', songId);
-  
+
       cancelSongDownload(songId).catch((error) => {
         console.log('[QueuedSongsPanel] cancel download failed:', {
           songId,
