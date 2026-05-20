@@ -6,8 +6,8 @@ import {
   ImageBackground,
   InteractionManager,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
+  // KeyboardAvoidingView,
+  // Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -38,18 +38,18 @@ type LanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ms';
 
 type AuthCanvasMode = 'login' | 'register' | 'forgotPassword';
 
-type LoginCopy = {
-  register: string;
-  emailLabel: string;
-  emailPlaceholder: string;
-  passwordLabel: string;
-  passwordPlaceholder: string;
-  rememberMe: string;
-  loginButton: string;
-  forgotPassword: string;
-  welcomeTitle: string;
-  welcomeSubtitle: string;
-};
+// type LoginCopy = {
+//   register: string;
+//   emailLabel: string;
+//   emailPlaceholder: string;
+//   passwordLabel: string;
+//   passwordPlaceholder: string;
+//   rememberMe: string;
+//   loginButton: string;
+//   forgotPassword: string;
+//   welcomeTitle: string;
+//   welcomeSubtitle: string;
+// };
 
 // type SecondaryCanvasCopy = {
 //   title: string;
