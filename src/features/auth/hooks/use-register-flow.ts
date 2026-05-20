@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { RegisterCopy, RegisterStep } from '@/src/features/auth/i18n/register-copy';
 
+import { authClient } from '@/src/services/auth/auth-client';
+
 type UseRegisterFlowParams = {
   registerCopy: RegisterCopy;
   onBackToLogin: () => void;
@@ -107,13 +109,9 @@ export function useRegisterFlow({
 
       pushDebugLog?.(`[RegisterFlow] send register code email=${normalizedEmail}`);
 
-      /*
-       * 後端 API 接好後，這裡改成：
-       *
-       * await authService.sendRegisterCode({
-       *   email: normalizedEmail,
-       * });
-       */
+      await authClient.sendSignupCode({
+        email: normalizedEmail,
+      }); 
 
       setRegisterStep('code');
       setResendSeconds(RESEND_SECONDS);
@@ -149,16 +147,10 @@ export function useRegisterFlow({
       try {
         pushDebugLog?.(`[RegisterFlow] verify code=${onlyNumbers}`);
 
-        /*
-         * 後端 API 接好後，這裡改成：
-         *
-         * await authService.verifyRegisterCode({
-         *   email: registerEmail.trim(),
-         *   code: onlyNumbers,
-         * });
-         *
-         * 目前先讓 5 碼輸入完成後進入設定密碼階段。
-         */
+        await authClient.verifySignupCode({
+          email: registerEmail.trim(),
+          code: onlyNumbers,
+        });        
 
         setRegisterStep('resetPassword');
       } catch (error) {
@@ -170,7 +162,9 @@ export function useRegisterFlow({
         setIsRegisterSubmitting(false);
       }
     },
-    [pushDebugLog, registerCopy.verifyFailed],
+    [pushDebugLog,
+      registerCopy.verifyFailed,
+      registerEmail,],
   );
 
   const validatePassword = useCallback((password: string) => {
@@ -223,15 +217,12 @@ export function useRegisterFlow({
     try {
       pushDebugLog?.('[RegisterFlow] submit register password');
 
-      /*
-       * 後端 API 接好後，這裡改成：
-       *
-       * await authService.completeRegister({
-       *   email: registerEmail.trim(),
-       *   code: verificationCode,
-       *   password: newPassword,
-       * });
-       */
+      await authClient.signup({
+        email: registerEmail.trim(),
+        code: verificationCode,
+        password: newPassword,
+      });
+      
 
       setRegisterStep('success');
     } catch (error) {

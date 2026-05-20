@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Image,
   ImageBackground,
+  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -353,9 +354,18 @@ export default function LoginScreen() {
 
       pushDebugLog('[LoginScreen] login success');
 
+      console.log('[LoginScreen] login success');
       console.log('[LoginScreen] login session:', session);
 
-      router.replace('/(tabs)/home');
+      InteractionManager.runAfterInteractions(() => {
+        setTimeout(() => {
+          if (session.currentSubscription) {
+            router.replace('/(tabs)/home');
+          } else {
+            router.replace('/payment');
+          }
+        }, 0);
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown login error.';
 
