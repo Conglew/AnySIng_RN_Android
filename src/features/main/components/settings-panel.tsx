@@ -28,6 +28,9 @@ import { LanguageSelectModal } from '@/src/features/main/components/language-sel
 
 import { useBillingSummaryStore } from '@/src/features/main/store/billing-summary.store';
 
+import { SETTINGS_COPY } from '@/src/features/main/i18n/settings-copy';
+
+
 import SettingIcon1 from '@/assets/images/setting/setting-1.svg';
 import SettingIcon2 from '@/assets/images/setting/setting-2.svg';
 import SettingIcon3 from '@/assets/images/setting/setting-3.svg';
@@ -70,20 +73,21 @@ type SubscriptionItem = {
   Icon: React.ComponentType<SvgProps>;
 };
 
-const SUBSCRIPTION_ITEMS: SubscriptionItem[] = [
-  {
-    id: 'plan-content',
-    title: '方案內容',
-    description: '06/16/2025 - 06/16/2026',
-    Icon: SettingPlanPersonIcon,
-  },
-  {
-    id: 'card-management',
-    title: '卡片管理',
-    description: '',
-    Icon: SettingPlanCardIcon,
-  },
-];
+// const SUBSCRIPTION_ITEMS: SubscriptionItem[] = [
+//   {
+//     id: 'plan-content',
+//     title: '方案內容',
+//     description: '06/16/2025 - 06/16/2026',
+//     Icon: SettingPlanPersonIcon,
+//   },
+//   {
+//     id: 'card-management',
+//     title: '卡片管理',
+//     description: '',
+//     Icon: SettingPlanCardIcon,
+//   },
+// ];
+
 
 type AccountItem = {
   id: string;
@@ -92,44 +96,44 @@ type AccountItem = {
   Icon: React.ComponentType<SvgProps>;
 };
 
-const SETTINGS_ITEMS: SettingItem[] = [
-  {
-    id: 'subscription',
-    title: '訂閱方案',
-    description: '年繳',
-    Icon: SettingIcon1,
-  },
-  {
-    id: 'account',
-    title: '帳號密碼',
-    description: 'poccccc@gmail.com',
-    Icon: SettingIcon2,
-  },
-  {
-    id: 'language',
-    title: '語言選擇',
-    description: '繁體中文',
-    Icon: SettingIcon3,
-  },
-  {
-    id: 'add-song',
-    title: '新增歌曲',
-    description: '想要加入的歌曲',
-    Icon: SettingIcon4,
-  },
-  {
-    id: 'report',
-    title: '回報問題',
-    description: '幫助您解決遇到的問題',
-    Icon: SettingIcon5,
-  },
-  {
-    id: 'placeholder',
-    title: '',
-    description: '',
-    isPlaceholder: true,
-  },
-];
+// const SETTINGS_ITEMS: SettingItem[] = [
+//   {
+//     id: 'subscription',
+//     title: '訂閱方案',
+//     description: '年繳',
+//     Icon: SettingIcon1,
+//   },
+//   {
+//     id: 'account',
+//     title: '帳號密碼',
+//     description: 'poccccc@gmail.com',
+//     Icon: SettingIcon2,
+//   },
+//   {
+//     id: 'language',
+//     title: '語言選擇',
+//     description: '繁體中文',
+//     Icon: SettingIcon3,
+//   },
+//   {
+//     id: 'add-song',
+//     title: '新增歌曲',
+//     description: '想要加入的歌曲',
+//     Icon: SettingIcon4,
+//   },
+//   {
+//     id: 'report',
+//     title: '回報問題',
+//     description: '幫助您解決遇到的問題',
+//     Icon: SettingIcon5,
+//   },
+//   {
+//     id: 'placeholder',
+//     title: '',
+//     description: '',
+//     isPlaceholder: true,
+//   },
+// ];
 
 type Props = {
   visible: boolean;
@@ -142,6 +146,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
   const language = useAppLanguageStore((state) => state.language);
   const setLanguage = useAppLanguageStore((state) => state.setLanguage);
+  const copy = SETTINGS_COPY[language];
+
 
   const [currentPage, setCurrentPage] = useState<SettingsPage>('menu');
   const [isLogoutConfirmVisible, setIsLogoutConfirmVisible] = useState(false);
@@ -288,7 +294,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
     (width - panelHorizontalPadding - cardGap * (cardColumnCount - 1)) / cardColumnCount,
   );
 
-  const qrModalTitle = qrModalType === 'report' ? '掃描回報問題' : '掃描新增歌曲';
+  const qrModalTitle = qrModalType === 'report' ? copy.scanReportProblem : copy.scanAddSong;
   const qrModalUrl = qrModalType === 'report' ? REPORT_PROBLEM_URL : SONG_REQUEST_URL;
 
   const placeholderText = isBillingLoading ? '...' : '-';
@@ -296,28 +302,28 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const planContentRows = [
     {
       id: 'subscription-code',
-      label: '訂單號碼',
+      label: copy.orderNumber,
       value: settingsBilling?.orderNumber ?? '-',
     },
     {
       id: 'subscription-date',
-      label: '訂購日期',
+      label: copy.orderDate,
       value: settingsBilling?.orderDate ?? '-',
     },
     {
       id: 'plan',
-      label: '方案選擇',
+      label: copy.planSelection,
       value: settingsBilling?.planName ?? '-',
       rightValue: settingsBilling?.planAmount ?? '-',
     },
     {
       id: 'card',
-      label: '扣款帳號',
+      label: copy.paymentAccount,
       value: settingsBilling?.paymentAccount ?? '-',
     },
     {
       id: 'address',
-      label: '帳單地址',
+      label: copy.billingAddress,
       value: settingsBilling?.billingAddress ?? '-',
     },
   ];
@@ -325,35 +331,96 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const accountItems: AccountItem[] = [
     {
       id: 'email',
-      title: '帳號',
+      title: copy.account,
       description: settingsBilling?.userEmail ?? '-',
       Icon: SettingIcon2,
     },
     {
       id: 'password',
-      title: '密碼',
+      title: copy.password,
       description: '••••••',
       Icon: SettingAccPassIcon,
     },
   ];
 
-  const settingItems = SETTINGS_ITEMS.map((item) => {
-    if (item.id === 'subscription') {
-      return {
-        ...item,
-        description: settingsBilling?.planName ?? placeholderText,
-      };
-    }
+  const settingItems: SettingItem[] = [
+    {
+      id: 'subscription',
+      title: copy.subscription,
+      description: settingsBilling?.planName ?? placeholderText,
+      Icon: SettingIcon1,
+    },
+    {
+      id: 'account',
+      title: copy.accountPassword,
+      description: settingsBilling?.userEmail ?? placeholderText,
+      Icon: SettingIcon2,
+    },
+    {
+      id: 'language',
+      title: copy.languageSelect,
+      description:
+        language === 'zh-TW'
+          ? '繁體中文'
+          : language === 'zh-CN'
+            ? '简体中文'
+            : language === 'en'
+              ? 'English'
+              : 'Bahasa Melayu',
+      Icon: SettingIcon3,
+    },
+    {
+      id: 'add-song',
+      title: copy.addSong,
+      description: copy.addSongDescription,
+      Icon: SettingIcon4,
+    },
+    {
+      id: 'report',
+      title: copy.reportProblem,
+      description: copy.reportProblemDescription,
+      Icon: SettingIcon5,
+    },
+    {
+      id: 'placeholder',
+      title: '',
+      description: '',
+      isPlaceholder: true,
+    },
+  ];
 
-    if (item.id === 'account') {
-      return {
-        ...item,
-        description: settingsBilling?.userEmail ?? placeholderText,
-      };
-    }
+  const subscriptionItems: SubscriptionItem[] = [
+    {
+      id: 'plan-content',
+      title: copy.planContent,
+      description: settingsBilling?.subscriptionPeriod ?? placeholderText,
+      Icon: SettingPlanPersonIcon,
+    },
+    {
+      id: 'card-management',
+      title: copy.cardManagement,
+      description: '',
+      Icon: SettingPlanCardIcon,
+    },
+  ];
 
-    return item;
-  });
+  // const settingItems = SETTINGS_ITEMS.map((item) => {
+  //   if (item.id === 'subscription') {
+  //     return {
+  //       ...item,
+  //       description: settingsBilling?.planName ?? placeholderText,
+  //     };
+  //   }
+
+  //   if (item.id === 'account') {
+  //     return {
+  //       ...item,
+  //       description: settingsBilling?.userEmail ?? placeholderText,
+  //     };
+  //   }
+
+  //   return item;
+  // });
 
   const rawBilling = useBillingSummaryStore((state) => state.rawBilling);
 
@@ -475,16 +542,16 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
   // const placeholderText = isBillingLoading ? '...' : '-';
 
-  const subscriptionItems = SUBSCRIPTION_ITEMS.map((item) => {
-    if (item.id === 'plan-content') {
-      return {
-        ...item,
-        description: settingsBilling?.subscriptionPeriod ?? placeholderText,
-      };
-    }
+  // const subscriptionItems = SUBSCRIPTION_ITEMS.map((item) => {
+  //   if (item.id === 'plan-content') {
+  //     return {
+  //       ...item,
+  //       description: settingsBilling?.subscriptionPeriod ?? placeholderText,
+  //     };
+  //   }
 
-    return item;
-  });
+  //   return item;
+  // });
 
   const handlePasswordKeyboardInput = (value: string) => {
     if (!activeCustomKeyboardInput) {
@@ -659,7 +726,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
     }
 
     if (code.length < 5) {
-      setEmailChangeErrorMessage('驗證碼錯誤');
+      setEmailChangeErrorMessage(copy.verificationCodeError);
       return;
     }
 
@@ -686,7 +753,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
       setCurrentPage('account');
     } catch (error) {
       console.log('[SettingsPanel] verify email code failed:', error);
-      setEmailChangeErrorMessage('驗證碼錯誤');
+      setEmailChangeErrorMessage(copy.verificationCodeError);
 
       /**
        * 驗證失敗後建議清空驗證碼，避免使用者還以為目前 code 會再次自動送出。
@@ -724,21 +791,21 @@ export function SettingsPanel({ visible, onClose }: Props) {
     <View style={styles.overlay}>
       <View style={styles.panel}>
         <Text style={styles.title}>
-          {currentPage === 'subscription'
-            ? '訂閱方案'
-            : currentPage === 'account'
-              ? '帳號密碼'
-              : currentPage === 'planContent'
-                ? '方案內容'
-                : currentPage === 'cardManagement'
-                  ? '卡片管理'
-                  : currentPage === 'passwordChange'
+        {currentPage === 'subscription'
+        ? copy.subscription
+        : currentPage === 'account'
+          ? copy.accountPassword
+          : currentPage === 'planContent'
+            ? copy.planContent
+            : currentPage === 'cardManagement'
+              ? copy.cardManagement
+              : currentPage === 'passwordChange'
+                ? ''
+                : currentPage === 'deleteAccount'
+                  ? ''
+                  : currentPage === 'emailChange'
                     ? ''
-                    : currentPage === 'deleteAccount'
-                      ? ''
-                      : currentPage === 'emailChange'
-                        ? ''
-                        : '設定'}
+                    : copy.settings}
         </Text>
 
         {currentPage === 'subscription' ? (
@@ -791,7 +858,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
         ) : currentPage === 'planContent' ? (
           <View style={styles.planContentPage}>
             {isBillingLoading ? (
-              <Text style={styles.planStatusText}>載入訂閱資料中...</Text>
+              <Text style={styles.planStatusText}>{copy.loadingSubscription}</Text>
             ) : billingErrorMessage ? (
               <Text style={styles.planErrorText}>{billingErrorMessage}</Text>
             ) : (
@@ -810,7 +877,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
           </View>
         ) : currentPage === 'cardManagement' ? (
           <View style={styles.cardManagementPage}>
-            <Text style={styles.cardManagementDescription}>您的卡片資料已驗證並安全儲存。</Text>
+            <Text style={styles.cardManagementDescription}>{copy.cardVerifiedDescription}</Text>
 
             <View style={styles.paymentCardGrid}>
               {paymentCardItems.map((card) => (
@@ -884,7 +951,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
         ) : currentPage === 'passwordChange' ? (
           <View style={styles.passwordChangePage}>
             <Text style={styles.passwordChangeTitle}>
-              {passwordStep === 'current' ? '密碼修改' : '設定密碼'}
+            {passwordStep === 'current' ? copy.passwordChange : copy.setPassword}
             </Text>
 
             <Text style={styles.passwordRuleText}>
@@ -895,7 +962,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
             {passwordStep === 'current' ? (
               <View style={styles.passwordCurrentBlock}>
                 <View style={styles.passwordInputGroup}>
-                  <Text style={styles.passwordInputLabel}>原先密碼</Text>
+                <Text style={styles.passwordInputLabel}>{copy.currentPassword}</Text>
 
                   <View
                     style={[
@@ -911,7 +978,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         setPasswordErrorMessage('');
                       }}
                       secureTextEntry={!isCurrentPasswordVisible}
-                      placeholder="至少8位英數字"
+                      placeholder={copy.passwordPlaceholder}
                       placeholderTextColor="rgba(255, 255, 255, 0.42)"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -956,7 +1023,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     disabled={currentPassword.length === 0 || isCurrentPasswordChecking}
                     onPress={async () => {
                       if (currentPassword.length < 8) {
-                        setPasswordErrorMessage('密碼錯誤');
+                        setPasswordErrorMessage(copy.passwordError);
                         return;
                       }
 
@@ -978,7 +1045,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         setPasswordErrorMessage('');
                       } catch (error) {
                         console.log('[SettingsPanel] current password check failed:', error);
-                        setPasswordErrorMessage('密碼錯誤');
+                        setPasswordErrorMessage(copy.passwordError);
                       } finally {
                         setIsCurrentPasswordChecking(false);
                       }
@@ -987,7 +1054,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     {isCurrentPasswordChecking ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.passwordConfirmButtonText}>確認</Text>
+                      <Text style={styles.passwordConfirmButtonText}>{copy.confirm}</Text>
                     )}
                   </Pressable>
 
@@ -1003,7 +1070,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         isCurrentPasswordChecking && styles.forgotPasswordTextDisabled,
                       ]}
                     >
-                      忘記密碼了?
+                      {copy.forgotPassword}
                     </Text>
                   </Pressable>
                 </View>
@@ -1011,7 +1078,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
             ) : (
               <View style={styles.passwordNewBlock}>
                 <View style={styles.passwordInputGroup}>
-                  <Text style={styles.passwordInputLabel}>新密碼</Text>
+                <Text style={styles.passwordInputLabel}>{copy.newPassword}</Text>
 
                   <View
                     style={[
@@ -1040,7 +1107,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         }
                       }}
                       secureTextEntry={!isNewPasswordVisible}
-                      placeholder="至少8位英數字"
+                      placeholder={copy.passwordPlaceholder}
                       placeholderTextColor="rgba(255, 255, 255, 0.42)"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -1077,7 +1144,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
                 {isConfirmPasswordInputVisible ? (
                   <View style={styles.passwordInputGroup}>
-                    <Text style={styles.passwordInputLabel}>再次輸入密碼</Text>
+                    <Text style={styles.passwordInputLabel}>{copy.confirmPassword}</Text>
 
                     <View
                       style={[
@@ -1093,7 +1160,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                           setPasswordErrorMessage('');
                         }}
                         secureTextEntry={!isConfirmPasswordVisible}
-                        placeholder="至少8位英數字"
+                        placeholder={copy.passwordPlaceholder}
                         placeholderTextColor="rgba(255, 255, 255, 0.42)"
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -1144,7 +1211,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                      */
                     if (!isConfirmPasswordInputVisible) {
                       if (!isValidPassword(newPassword)) {
-                        setPasswordErrorMessage('至少8位英數字，並包含大小寫英文與數字');
+                        setPasswordErrorMessage(copy.passwordFormatError);
                         return;
                       }
 
@@ -1165,12 +1232,12 @@ export function SettingsPanel({ visible, onClose }: Props) {
                      * 確認密碼欄位已經出現後，這個「完成」才負責送出。
                      */
                     if (confirmPassword.length === 0) {
-                      setPasswordErrorMessage('請再次輸入密碼');
+                      setPasswordErrorMessage(copy.passwordRequiredAgain);
                       return;
                     }
 
                     if (newPassword !== confirmPassword) {
-                      setPasswordErrorMessage('兩次密碼輸入不一致');
+                      setPasswordErrorMessage(copy.passwordMismatch);
                       return;
                     }
 
@@ -1192,10 +1259,11 @@ export function SettingsPanel({ visible, onClose }: Props) {
                        */
                       await new Promise((resolve) => setTimeout(resolve, 800));
 
-                      handlePressBack();
+                      // handlePressBack();
+                      leavePasswordChangePage();
                     } catch (error) {
                       console.log('[SettingsPanel] password change failed:', error);
-                      setPasswordErrorMessage('密碼修改失敗，請稍後再試');
+                      setPasswordErrorMessage(copy.passwordChangeFailed);
                     } finally {
                       setIsPasswordSubmitting(false);
                     }
@@ -1204,7 +1272,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                   {isPasswordSubmitting ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.passwordConfirmButtonText}>完成</Text>
+                    <Text style={styles.passwordConfirmButtonText}>{copy.complete}</Text>
                   )}
                 </Pressable>
               </View>
@@ -1212,15 +1280,13 @@ export function SettingsPanel({ visible, onClose }: Props) {
           </View>
         ) : currentPage === 'deleteAccount' ? (
           <View style={styles.deleteAccountPage}>
-            <Text style={styles.deleteAccountTitle}>永久刪除帳號</Text>
+            <Text style={styles.deleteAccountTitle}>{copy.permanentDeleteAccount}</Text>
 
-            <Text style={styles.deleteAccountDescription}>
-              刪除後帳號將無法復原。目前的訂閱將不再續扣，但不會退款。
-            </Text>
+            <Text style={styles.deleteAccountDescription}>{copy.deleteAccountDescription}</Text>
 
             <Text style={styles.deleteAccountInstruction}>
-              若您仍希望刪除帳號，請輸入 <Text style={styles.deleteAccountKeyword}>Delete</Text>{' '}
-              確認
+            {copy.deleteAccountInstructionPrefix}
+            {copy.deleteAccountInstructionSuffix}
             </Text>
 
             <View style={styles.deleteAccountFormRow}>
@@ -1238,7 +1304,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     setDeleteAccountText(value);
                     setDeleteAccountErrorMessage('');
                   }}
-                  placeholder="請輸入Delete"
+                  placeholder={copy.deleteAccountPlaceholder}
                   placeholderTextColor="rgba(255, 255, 255, 0.42)"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -1270,12 +1336,12 @@ export function SettingsPanel({ visible, onClose }: Props) {
                 disabled={isDeleteAccountSubmitting}
                 onPress={async () => {
                   if (deleteAccountText.trim().length === 0) {
-                    setDeleteAccountErrorMessage('必填');
+                    setDeleteAccountErrorMessage(copy.required);
                     return;
                   }
 
                   if (deleteAccountText !== 'Delete') {
-                    setDeleteAccountErrorMessage('輸入錯誤');
+                    setDeleteAccountErrorMessage(copy.inputError);
                     return;
                   }
 
@@ -1305,7 +1371,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     });
                   } catch (error) {
                     console.log('[SettingsPanel] delete account failed:', error);
-                    setDeleteAccountErrorMessage('刪除失敗，請稍後再試');
+                    setDeleteAccountErrorMessage(copy.deleteAccountFailed);
                   } finally {
                     setIsDeleteAccountSubmitting(false);
                   }
@@ -1314,7 +1380,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                 {isDeleteAccountSubmitting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.deleteAccountButtonText}>刪除</Text>
+                  <Text style={styles.deleteAccountButtonText}>{copy.delete}</Text>
                 )}
               </Pressable>
             </View>
@@ -1325,20 +1391,20 @@ export function SettingsPanel({ visible, onClose }: Props) {
           </View>
         ) : currentPage === 'emailChange' ? (
           <View style={styles.emailChangePage}>
-            <Text style={styles.emailChangeTitle}>帳號修改</Text>
+            <Text style={styles.emailChangeTitle}>{copy.accountEditTitle}</Text>
 
             {!isEmailVerificationSent ? (
               <Text style={styles.emailChangeDescription}>
-                修改帳號(電子郵件)後先前
-                <Text style={styles.emailChangeHighlight}>訂閱項目</Text>
-                將會移到新帳號中
+                {copy.emailTransferDescriptionPrefix}
+                  <Text style={styles.emailChangeHighlight}>{copy.emailTransferHighlight}</Text>
+                {copy.emailTransferDescriptionSuffix}
               </Text>
             ) : (
-              <Text style={styles.emailChangeSentText}>已發送電子郵件，請前往信箱查看。</Text>
+              <Text style={styles.emailChangeSentText}>{copy.emailSentNotice}</Text>
             )}
 
             <View style={styles.emailChangeContent}>
-              <Text style={styles.emailChangeLabel}>電子郵件</Text>
+            <Text style={styles.emailChangeLabel}>{copy.emailLabel}</Text>
 
               <View style={styles.emailChangeRow}>
                 <View
@@ -1357,7 +1423,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                       setEmailChangeText(value);
                       setEmailChangeErrorMessage('');
                     }}
-                    placeholder="請輸入您的新電子郵件"
+                    placeholder={copy.emailPlaceholder}
                     placeholderTextColor="rgba(255, 255, 255, 0.42)"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -1394,12 +1460,12 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     disabled={isEmailSubmitting}
                     onPress={async () => {
                       if (emailChangeText.trim().length === 0) {
-                        setEmailChangeErrorMessage('必填');
+                        setEmailChangeErrorMessage(copy.required);
                         return;
                       }
 
                       if (!isValidEmail(emailChangeText)) {
-                        setEmailChangeErrorMessage('電子郵件格式錯誤');
+                        setEmailChangeErrorMessage(copy.emailFormatError);
                         return;
                       }
 
@@ -1420,7 +1486,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         });
                       } catch (error) {
                         console.log('[SettingsPanel] send email verification failed:', error);
-                        setEmailChangeErrorMessage('發送失敗，請稍後再試');
+                        setEmailChangeErrorMessage(copy.sendEmailFailed);
                       } finally {
                         setIsEmailSubmitting(false);
                       }
@@ -1429,11 +1495,11 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     {isEmailSubmitting ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.emailChangeButtonText}>完成</Text>
+                      <Text style={styles.emailChangeButtonText}>{copy.complete}</Text>
                     )}
                   </Pressable>
                 ) : emailResendSeconds > 0 ? (
-                  <Text style={styles.emailResendText}>{emailResendSeconds}S 後可重發驗證碼</Text>
+                  <Text style={styles.emailResendText}>{copy.resendCountdown(emailResendSeconds)}</Text>
                 ) : (
                   <Pressable
                     style={({ pressed }) => [
@@ -1459,7 +1525,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         });
                       } catch (error) {
                         console.log('[SettingsPanel] resend email verification failed:', error);
-                        setEmailChangeErrorMessage('重發失敗，請稍後再試');
+                        setEmailChangeErrorMessage(copy.resendEmailFailed);
                       } finally {
                         setIsEmailSubmitting(false);
                       }
@@ -1468,7 +1534,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     {isEmailSubmitting ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.emailResendButtonText}>重發驗證碼</Text>
+                      <Text style={styles.emailResendButtonText}>{copy.resendCode}</Text>
                     )}
                   </Pressable>
                 )}
@@ -1481,12 +1547,12 @@ export function SettingsPanel({ visible, onClose }: Props) {
               {isEmailVerificationSent ? (
                 <View style={styles.emailCodeBlock}>
                   <View style={styles.emailCodeLabelRow}>
-                    <Text style={styles.emailCodeLabel}>驗證碼</Text>
+                  <Text style={styles.emailCodeLabel}>{copy.verificationCodeLabel}</Text>
 
                     {emailChangeErrorMessage ? (
                       <Text style={styles.emailCodeErrorText}>{emailChangeErrorMessage}</Text>
                     ) : (
-                      <Text style={styles.emailCodeHintText}>請輸入驗證碼</Text>
+                      <Text style={styles.emailCodeHintText}>{copy.verificationCodeHint}</Text>
                     )}
                   </View>
 
@@ -1611,7 +1677,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
               >
                 <View style={styles.accountActionContent}>
                   <SettingAccExitIcon width={24} height={24} />
-                  <Text style={styles.accountActionText}>登出帳號</Text>
+                  <Text style={styles.accountActionText}>{copy.logout}</Text>
                 </View>
               </Pressable>
 
@@ -1624,7 +1690,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
               >
                 <View style={styles.accountActionContent}>
                   <SettingAccDeleteIcon width={24} height={24} />
-                  <Text style={styles.deleteAccountText}>刪除帳號</Text>
+                  <Text style={styles.deleteAccountText}>{copy.deleteAccount}</Text>
                 </View>
               </Pressable>
             </View>
@@ -1701,7 +1767,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
           //   onPress={onClose}
           onPress={handlePressBack}
         >
-          <Text style={styles.backButtonText}>返回</Text>
+          <Text style={styles.backButtonText}>{copy.back}</Text>
         </Pressable>
       </View>
 
@@ -1716,7 +1782,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
             <View style={styles.logoutConfirmDarkOverlay} />
 
             <View style={styles.logoutConfirmContent}>
-              <Text style={styles.logoutConfirmTitle}>是否要登出帳號?</Text>
+            <Text style={styles.logoutConfirmTitle}>{copy.logoutConfirmTitle}</Text>
 
               <View style={styles.logoutConfirmActions}>
                 <Pressable
@@ -1728,7 +1794,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     setIsLogoutConfirmVisible(false);
                   }}
                 >
-                  <Text style={styles.logoutCancelText}>取消</Text>
+                  <Text style={styles.logoutCancelText}>{copy.cancel}</Text>
                 </Pressable>
 
                 <Pressable
@@ -1738,7 +1804,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                   ]}
                   onPress={handleConfirmLogout}
                 >
-                  <Text style={styles.logoutConfirmButtonText}>登出</Text>
+                  <Text style={styles.logoutConfirmButtonText}>{copy.logout}</Text>
                 </Pressable>
               </View>
             </View>
@@ -1757,9 +1823,9 @@ export function SettingsPanel({ visible, onClose }: Props) {
             <View style={styles.passwordLeaveConfirmDarkOverlay} />
 
             <View style={styles.passwordLeaveConfirmContent}>
-              <Text style={styles.passwordLeaveConfirmTitle}>尚未修改完成，要離開此頁面?</Text>
+            <Text style={styles.passwordLeaveConfirmTitle}>{copy.leavePasswordTitle}</Text>
 
-              <Text style={styles.passwordLeaveConfirmDescription}>離開後將不會保留填寫紀錄</Text>
+            <Text style={styles.passwordLeaveConfirmDescription}>{copy.leavePasswordDescription}</Text>
 
               <View style={styles.passwordLeaveConfirmActions}>
                 <Pressable
@@ -1769,7 +1835,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                   ]}
                   onPress={leavePasswordChangePage}
                 >
-                  <Text style={styles.passwordLeaveButtonText}>離開</Text>
+                  <Text style={styles.passwordLeaveButtonText}>{copy.leave}</Text>
                 </Pressable>
 
                 <Pressable
@@ -1781,7 +1847,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     setIsPasswordLeaveConfirmVisible(false);
                   }}
                 >
-                  <Text style={styles.passwordContinueButtonText}>繼續</Text>
+                  <Text style={styles.passwordContinueButtonText}>{copy.continue}</Text>
                 </Pressable>
               </View>
             </View>
