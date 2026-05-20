@@ -27,6 +27,8 @@ type BillingSummaryStore = {
 
   setDefaultPaymentMethod: (paymentMethodId: string) => Promise<void>;
   deletePaymentMethod: (paymentMethodId: string) => Promise<void>;
+
+  reset: () => void;
 };
 
 function formatDate(value?: string | null) {
@@ -323,5 +325,14 @@ export const useBillingSummaryStore = create<BillingSummaryStore>((set, get) => 
         errorMessage: error instanceof Error ? error.message : 'Failed to delete payment method.',
       });
     }
+  },
+
+  reset: () => {
+    set({
+      settingsBilling: null,
+      rawBilling: null,
+      isLoading: false,
+      errorMessage: '',
+    });
   },
 }));

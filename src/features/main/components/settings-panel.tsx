@@ -23,6 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { LanguageSelectModal } from '@/src/features/main/components/language-select-modal';
 
+import { clearAuthSession } from '@/src/services/auth/auth-token-store';
+
 // import { authClient } from '@/src/services/auth/auth-client';
 // import { getAccessToken } from '@/src/services/auth/auth-token-store';
 
@@ -521,20 +523,27 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
     setIsLogoutConfirmVisible(false);
 
-    /**
-     * 如果你有 auth store / token store，正式版應該在這裡清除登入資料。
-     * 例如：
-     * await clearAuthTokens();
-     * useAuthStore.getState().logout();
-     */
+    try {
+      /**
+       * 清除 auth token
+       */
+      await clearAuthSession();
 
-    onClose();
+      /**
+       * 清除 billing summary cache
+       */
+      useBillingSummaryStore.getState().reset();
 
-    InteractionManager.runAfterInteractions(() => {
-      setTimeout(() => {
-        router.replace('/login');
-      }, 0);
-    });
+      onClose();
+
+      InteractionManager.runAfterInteractions(() => {
+        setTimeout(() => {
+          router.replace('/login');
+        }, 0);
+      });
+    } catch (error) {
+      console.log('[SettingsPanel] logout failed:', error);
+    }
   };
 
   // const placeholderText = isBillingLoading ? '...' : '-';

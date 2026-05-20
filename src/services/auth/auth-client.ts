@@ -100,6 +100,7 @@ export const authClient = {
       method: 'POST',
       path: ENDPOINTS.auth.sendForgotCode,
       body,
+      timeoutMs: 15000,
     });
   },
 
@@ -108,6 +109,7 @@ export const authClient = {
       method: 'POST',
       path: ENDPOINTS.auth.verifyResetCode,
       body,
+      timeoutMs: 15000,
     });
   },
 
@@ -116,6 +118,7 @@ export const authClient = {
       method: 'POST',
       path: ENDPOINTS.auth.resetPassword,
       body,
+      timeoutMs: 15000,
     });
   },
 

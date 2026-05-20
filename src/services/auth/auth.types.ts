@@ -87,6 +87,10 @@ export type AuthSession = {
   defaultPaymentMethodId: string | null;
 };
 
+type AuthMessageResponse = {
+  message: string;
+};
+
 export type BillingPaymentMethod = {
   id: string;
   type: string | null;

@@ -1,15 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Keyboard } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  ForgotPasswordCopy,
-  ForgotPasswordStep,
-} from '@/src/features/auth/i18n/forgot-password-copy';
-import {
-  isValidEmail,
-  isValidPassword,
-  normalizeVerificationCode,
-} from '@/src/features/auth/utils/auth-validation';
+import type { ForgotPasswordCopy } from '@/src/features/auth/i18n/forgot-password-copy';
+import { authClient } from '@/src/services/auth/auth-client';
+
+type ForgotPasswordStep = 'email' | 'code' | 'resetPassword' | 'success';
+
+type ResetPasswordPhase = 'newPassword' | 'confirmPassword';
 
 type UseForgotPasswordFlowParams = {
   forgotCopy: ForgotPasswordCopy;
@@ -17,7 +13,15 @@ type UseForgotPasswordFlowParams = {
   pushDebugLog?: (message: string) => void;
 };
 
-type ResetPasswordPhase = 'newPassword' | 'confirmPassword';
+const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z0-9!@#|><_.]{8,}$/;
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function normalizeVerificationCode(value: string) {
+  return value.replace(/[^0-9]/g, '').slice(0, 5);
+}
 
 export function useForgotPasswordFlow({
   forgotCopy,
@@ -26,66 +30,139 @@ export function useForgotPasswordFlow({
 }: UseForgotPasswordFlowParams) {
   const [forgotPasswordStep, setForgotPasswordStep] = useState<ForgotPasswordStep>('email');
 
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [verificationCodeError, setVerificationCodeError] = useState('');
+  const [resetPasswordPhase, setResetPasswordPhase] = useState<ResetPasswordPhase>('newPassword');
 
-  const [resendSeconds, setResendSeconds] = useState(0);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+
+  const [verificationCode, setVerificationCode] = useState('');
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+  const [verificationCodeError, setVerificationCodeError] = useState('');
   const [newPasswordError, setNewPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
-  const [resetPasswordPhase, setResetPasswordPhase] = useState<ResetPasswordPhase>('newPassword');
+  const [resendSeconds, setResendSeconds] = useState(0);
 
   const [isForgotSubmitting, setIsForgotSubmitting] = useState(false);
+
   const [isLeaveConfirmVisible, setIsLeaveConfirmVisible] = useState(false);
+
+  const successTimeoutRef = useRef<number | null>(null);
 
   const isEmailValid = isValidEmail(forgotPasswordEmail);
 
-  const resetForgotPasswordFlow = useCallback(() => {
-    setForgotPasswordStep('email');
-    setForgotPasswordEmail('');
-    setVerificationCode('');
-    setVerificationCodeError('');
-    setResendSeconds(0);
-    setNewPassword('');
-    setConfirmNewPassword('');
-    setNewPasswordError('');
-    setConfirmPasswordError('');
-    setResetPasswordPhase('newPassword');
-    setIsForgotSubmitting(false);
+  const isValidPassword = useCallback((value: string) => {
+    return PASSWORD_PATTERN.test(value);
   }, []);
 
-  const getForgotPasswordHasProgress = useCallback(() => {
-    return (
-      forgotPasswordStep !== 'email' ||
-      forgotPasswordEmail.trim().length > 0 ||
-      verificationCode.length > 0 ||
-      newPassword.length > 0 ||
-      confirmNewPassword.length > 0
-    );
-  }, [forgotPasswordStep, forgotPasswordEmail, verificationCode, newPassword, confirmNewPassword]);
+  const resetForgotPasswordFlow = useCallback(() => {
+    setForgotPasswordStep('email');
 
-  const requestBackToLoginCanvas = useCallback(() => {
-    if (getForgotPasswordHasProgress()) {
-      setIsLeaveConfirmVisible(true);
+    setResetPasswordPhase('newPassword');
+
+    setForgotPasswordEmail('');
+
+    setVerificationCode('');
+
+    setNewPassword('');
+    setConfirmNewPassword('');
+
+    setVerificationCodeError('');
+    setNewPasswordError('');
+    setConfirmPasswordError('');
+
+    setResendSeconds(0);
+
+    setIsForgotSubmitting(false);
+
+    setIsLeaveConfirmVisible(false);
+  }, []);
+
+  /**
+   * cleanup success timeout
+   */
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current !== null) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  /**
+   * resend countdown
+   */
+  useEffect(() => {
+    if (resendSeconds <= 0) {
       return;
     }
 
-    onBackToLogin();
-  }, [getForgotPasswordHasProgress, onBackToLogin]);
+    const timer = setTimeout(() => {
+      setResendSeconds((current) => current - 1);
+    }, 1000);
 
-  const confirmLeaveForgotPassword = useCallback(() => {
-    setIsLeaveConfirmVisible(false);
-    resetForgotPasswordFlow();
-    onBackToLogin();
-  }, [onBackToLogin, resetForgotPasswordFlow]);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [resendSeconds]);
 
-  const cancelLeaveForgotPassword = useCallback(() => {
-    setIsLeaveConfirmVisible(false);
-  }, []);
+  /**
+   * auto verify code
+   */
+  useEffect(() => {
+    if (forgotPasswordStep !== 'code' || verificationCode.length !== 5 || isForgotSubmitting) {
+      return;
+    }
+
+    const verifyCode = async () => {
+      const currentCode = verificationCode;
+
+      setIsForgotSubmitting(true);
+
+      pushDebugLog?.(`[ForgotPassword] verify code request code=${currentCode}`);
+
+      try {
+        await authClient.verifyResetCode({
+          email: forgotPasswordEmail.trim(),
+          code: currentCode,
+        });
+
+        /**
+         * race condition protect
+         */
+        if (currentCode !== verificationCode) {
+          return;
+        }
+
+        setVerificationCodeError('');
+
+        setResetPasswordPhase('newPassword');
+
+        setForgotPasswordStep('resetPassword');
+
+        pushDebugLog?.('[ForgotPassword] verify code success');
+      } catch (error) {
+        console.log('[ForgotPassword] verify code failed:', error);
+
+        setVerificationCode('');
+
+        setVerificationCodeError(error instanceof Error ? error.message : forgotCopy.codeError);
+      } finally {
+        setIsForgotSubmitting(false);
+      }
+    };
+
+    verifyCode();
+  }, [
+    forgotCopy.codeError,
+    forgotPasswordEmail,
+    forgotPasswordStep,
+    isForgotSubmitting,
+    pushDebugLog,
+    verificationCode,
+  ]);
 
   const handleSendForgotPasswordCode = useCallback(async () => {
     const normalizedEmail = forgotPasswordEmail.trim();
@@ -95,84 +172,109 @@ export function useForgotPasswordFlow({
     }
 
     setIsForgotSubmitting(true);
+
     pushDebugLog?.('[ForgotPassword] send code pressed');
 
     try {
-      // TODO: 之後改成 authClient.sendForgotCode({ email: normalizedEmail })
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await authClient.sendForgotCode({
+        email: normalizedEmail,
+      });
 
       setForgotPasswordStep('code');
+
       setVerificationCode('');
+
       setVerificationCodeError('');
+
       setResendSeconds(90);
 
-      pushDebugLog?.('[ForgotPassword] mock code sent');
+      pushDebugLog?.('[ForgotPassword] code sent success');
+    } catch (error) {
+      console.log('[ForgotPassword] send forgot code failed:', error);
+
+      setVerificationCodeError(error instanceof Error ? error.message : forgotCopy.verifyFailed);
     } finally {
       setIsForgotSubmitting(false);
     }
-  }, [forgotPasswordEmail, isForgotSubmitting, pushDebugLog]);
+  }, [forgotCopy.verifyFailed, forgotPasswordEmail, isForgotSubmitting, pushDebugLog]);
 
-  const handleVerificationCodeChange = useCallback((value: string) => {
-    const normalizedCode = normalizeVerificationCode(value);
-
-    setVerificationCodeError('');
-    setVerificationCode(normalizedCode);
-  }, []);
-
-  const handleResetPasswordSubmit = useCallback(async () => {
-    setNewPasswordError('');
-    setConfirmPasswordError('');
-
-    if (resetPasswordPhase === 'newPassword') {
-      if (!isValidPassword(newPassword)) {
-        setNewPasswordError(forgotCopy.requiredError);
+  const handleVerificationCodeChange = useCallback(
+    (value: string) => {
+      if (isForgotSubmitting) {
         return;
       }
 
+      const normalizedCode = normalizeVerificationCode(value);
+
+      setVerificationCodeError('');
+
+      setVerificationCode(normalizedCode);
+    },
+    [isForgotSubmitting],
+  );
+
+  const handleResetPasswordSubmit = useCallback(async () => {
+    /**
+     * Step 1
+     * new password
+     */
+    if (resetPasswordPhase === 'newPassword') {
+      if (!isValidPassword(newPassword)) {
+        setNewPasswordError('密碼至少8位，包含大小寫英文與數字');
+        return;
+      }
+
+      setNewPasswordError('');
+
       setResetPasswordPhase('confirmPassword');
+
       return;
     }
 
-    if (!isValidPassword(newPassword)) {
-      setNewPasswordError(forgotCopy.requiredError);
-      return;
-    }
-
+    /**
+     * Step 2
+     * confirm password
+     */
     if (newPassword !== confirmNewPassword) {
-      setConfirmPasswordError(forgotCopy.passwordMismatchError);
+      setConfirmPasswordError('兩次密碼輸入不一致');
+
       return;
     }
+
+    setConfirmPasswordError('');
 
     setIsForgotSubmitting(true);
-    pushDebugLog?.('[ForgotPassword] reset password pressed');
+
+    pushDebugLog?.('[ForgotPassword] reset password submit');
 
     try {
-      // TODO: 之後改成 authClient.resetPassword({
-      //   email: forgotPasswordEmail.trim(),
-      //   code: verificationCode,
-      //   password: newPassword,
-      // })
-
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      await authClient.resetPassword({
+        email: forgotPasswordEmail.trim(),
+        code: verificationCode,
+        password: newPassword,
+      });
 
       setForgotPasswordStep('success');
+
       pushDebugLog?.('[ForgotPassword] reset password success');
 
-      setTimeout(() => {
+      successTimeoutRef.current = setTimeout(() => {
         resetForgotPasswordFlow();
+
         onBackToLogin();
       }, 5000);
-    } catch {
-      setConfirmPasswordError(forgotCopy.resetFailed);
+    } catch (error) {
+      console.log('[ForgotPassword] reset password failed:', error);
+
+      setConfirmPasswordError(error instanceof Error ? error.message : forgotCopy.resetFailed);
     } finally {
       setIsForgotSubmitting(false);
     }
   }, [
     confirmNewPassword,
-    forgotCopy.passwordMismatchError,
-    forgotCopy.requiredError,
     forgotCopy.resetFailed,
     forgotPasswordEmail,
+    isValidPassword,
     newPassword,
     onBackToLogin,
     pushDebugLog,
@@ -181,102 +283,76 @@ export function useForgotPasswordFlow({
     verificationCode,
   ]);
 
-  useEffect(() => {
-    if (resendSeconds <= 0) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setResendSeconds((current) => Math.max(current - 1, 0));
-    }, 1000);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [resendSeconds]);
-
-  useEffect(() => {
-    if (forgotPasswordStep !== 'code') {
-      return;
-    }
-
-    if (verificationCode.length !== 5) {
-      return;
-    }
-
-    Keyboard.dismiss();
-
-    const verifyCode = async () => {
-      setIsForgotSubmitting(true);
-      pushDebugLog?.(`[ForgotPassword] mock verify code=${verificationCode}`);
-
-      try {
-        // TODO: 之後改成 authClient.verifyResetCode({
-        //   email: forgotPasswordEmail.trim(),
-        //   code: verificationCode,
-        // })
-
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Mock 規則：12345 代表驗證成功
-        if (verificationCode !== '12345') {
-          setVerificationCodeError(forgotCopy.codeError);
-          pushDebugLog?.('[ForgotPassword] code invalid');
-          return;
-        }
-
-        setVerificationCodeError('');
-        setResetPasswordPhase('newPassword');
-        setForgotPasswordStep('resetPassword');
-        pushDebugLog?.('[ForgotPassword] code valid');
-      } catch {
-        setVerificationCodeError(forgotCopy.verifyFailed);
-      } finally {
-        setIsForgotSubmitting(false);
-      }
-    };
-
-    verifyCode();
-  }, [
-    forgotCopy.codeError,
-    forgotCopy.verifyFailed,
-    forgotPasswordEmail,
-    forgotPasswordStep,
-    pushDebugLog,
-    verificationCode,
-  ]);
-
   return {
     forgotPasswordStep,
+
+    resetPasswordPhase,
+
     forgotPasswordEmail,
     setForgotPasswordEmail,
 
     verificationCode,
-    verificationCodeError,
-
-    resendSeconds,
-
-    resetPasswordPhase,
 
     newPassword,
     setNewPassword,
+
     confirmNewPassword,
     setConfirmNewPassword,
+
+    verificationCodeError,
+    setVerificationCodeError,
+
     newPasswordError,
     setNewPasswordError,
+
     confirmPasswordError,
     setConfirmPasswordError,
 
+    resendSeconds,
+
     isForgotSubmitting,
-    isEmailValid,
+
     isLeaveConfirmVisible,
+    setIsLeaveConfirmVisible,
+
+    isEmailValid,
+
+    isValidPassword,
 
     handleSendForgotPasswordCode,
+
     handleVerificationCodeChange,
+
     handleResetPasswordSubmit,
 
-    requestBackToLoginCanvas,
-    confirmLeaveForgotPassword,
-    cancelLeaveForgotPassword,
+    resetForgotPasswordFlow,
+
+    requestBackToLoginCanvas: () => {
+      const hasEditing =
+        forgotPasswordEmail.length > 0 ||
+        verificationCode.length > 0 ||
+        newPassword.length > 0 ||
+        confirmNewPassword.length > 0;
+
+      if (hasEditing) {
+        setIsLeaveConfirmVisible(true);
+        return;
+      }
+
+      resetForgotPasswordFlow();
+      onBackToLogin();
+    },
+
+    confirmLeaveForgotPassword: () => {
+      setIsLeaveConfirmVisible(false);
+
+      resetForgotPasswordFlow();
+
+      onBackToLogin();
+    },
+
+    cancelLeaveForgotPassword: () => {
+      setIsLeaveConfirmVisible(false);
+    },
   };
 }
