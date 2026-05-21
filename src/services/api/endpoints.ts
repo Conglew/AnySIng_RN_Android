@@ -46,4 +46,11 @@ export const ENDPOINTS = {
     detail: (singerId: string) => `/artists/${singerId}`,
     songs: (singerId: string) => `/artists/${singerId}/songs`,
   },
+
+  payments: {
+    getStripePrice: (productId: string) => `/payments/stripe/price/${productId}`,
+    validatePromotionCode: '/payments/stripe/validate-promotion-code',
+    createSubscriptionSession: '/payments/stripe/create-subscription-session',
+    subscriptionStatus: '/payments/subscription/status',
+  },
 } as const;

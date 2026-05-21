@@ -111,7 +111,7 @@ export function useRegisterFlow({
 
       await authClient.sendSignupCode({
         email: normalizedEmail,
-      }); 
+      });
 
       setRegisterStep('code');
       setResendSeconds(RESEND_SECONDS);
@@ -150,7 +150,7 @@ export function useRegisterFlow({
         await authClient.verifySignupCode({
           email: registerEmail.trim(),
           code: onlyNumbers,
-        });        
+        });
 
         setRegisterStep('resetPassword');
       } catch (error) {
@@ -162,9 +162,7 @@ export function useRegisterFlow({
         setIsRegisterSubmitting(false);
       }
     },
-    [pushDebugLog,
-      registerCopy.verifyFailed,
-      registerEmail,],
+    [pushDebugLog, registerCopy.verifyFailed, registerEmail],
   );
 
   const validatePassword = useCallback((password: string) => {
@@ -222,7 +220,6 @@ export function useRegisterFlow({
         code: verificationCode,
         password: newPassword,
       });
-      
 
       setRegisterStep('success');
     } catch (error) {

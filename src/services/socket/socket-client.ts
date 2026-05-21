@@ -32,6 +32,19 @@ type ServerToClientEvents = {
   authed: (payload: { userId: string }) => void;
   'auth:error': (payload: { message: string }) => void;
   'auth:forceLogout': (payload: unknown) => void;
+
+  'billing.subscription_activated': (payload: {
+    userId: string;
+    type: 'billing.subscription_activated';
+    stripeSubscriptionId: string;
+    currentSubscription: string;
+    status: string;
+    plan: string;
+    priceId: string | null;
+    startedAt: string;
+    expiresAt: string;
+    at: number;
+  }) => void;
 };
 
 type ClientToServerEvents = {

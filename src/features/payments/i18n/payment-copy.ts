@@ -43,18 +43,18 @@ export const PAYMENT_COPY: Record<LanguageValue, PaymentCopy> = {
     monthlyPlan: {
       title: '月繳計畫',
       price: 'RM199',
-      originalPrice: 'RM249',
+      originalPrice: 'RM20',
       period: '月',
       benefits: ['訂閱皆包含完整功能', '一個帳號限綁定一部設備', '後續隨時可取消續訂'],
     },
     yearlyPlan: {
       title: '年繳計畫',
       price: 'RM1,980',
-      originalPrice: 'RM2,988',
+      originalPrice: 'RM180',
       period: '年',
       benefits: ['訂閱皆包含完整功能', '一個帳號限綁定一部設備', '後續隨時可取消續訂'],
       discountLabel: '立即省下',
-      discountValue: '17%',
+      discountValue: '33%',
     },
     confirm: {
       title: '確認付款資訊',
@@ -81,18 +81,18 @@ export const PAYMENT_COPY: Record<LanguageValue, PaymentCopy> = {
     monthlyPlan: {
       title: '月缴计划',
       price: 'RM199',
-      originalPrice: 'RM249',
+      originalPrice: 'RM20',
       period: '月',
       benefits: ['订阅皆包含完整功能', '一个账号限绑定一部设备', '后续随时可取消续订'],
     },
     yearlyPlan: {
       title: '年缴计划',
       price: 'RM1,980',
-      originalPrice: 'RM2,988',
+      originalPrice: 'RM180',
       period: '年',
       benefits: ['订阅皆包含完整功能', '一个账号限绑定一部设备', '后续随时可取消续订'],
       discountLabel: '立即省下',
-      discountValue: '17%',
+      discountValue: '33%',
     },
     confirm: {
       title: '确认付款资讯',
@@ -119,7 +119,7 @@ export const PAYMENT_COPY: Record<LanguageValue, PaymentCopy> = {
     monthlyPlan: {
       title: 'Monthly Plan',
       price: 'RM199',
-      originalPrice: 'RM249',
+      originalPrice: 'RM20',
       period: 'month',
       benefits: [
         'Includes full subscription features',
@@ -130,7 +130,7 @@ export const PAYMENT_COPY: Record<LanguageValue, PaymentCopy> = {
     yearlyPlan: {
       title: 'Yearly Plan',
       price: 'RM1,980',
-      originalPrice: 'RM2,988',
+      originalPrice: 'RM180',
       period: 'year',
       benefits: [
         'Includes full subscription features',
@@ -138,7 +138,7 @@ export const PAYMENT_COPY: Record<LanguageValue, PaymentCopy> = {
         'Cancel renewal anytime',
       ],
       discountLabel: 'Save now',
-      discountValue: '17%',
+      discountValue: '33%',
     },
     confirm: {
       title: 'Confirm Payment',
@@ -165,7 +165,7 @@ export const PAYMENT_COPY: Record<LanguageValue, PaymentCopy> = {
     monthlyPlan: {
       title: 'Pelan Bulanan',
       price: 'RM199',
-      originalPrice: 'RM249',
+      originalPrice: 'RM20',
       period: 'bulan',
       benefits: [
         'Termasuk semua fungsi langganan',
@@ -176,7 +176,7 @@ export const PAYMENT_COPY: Record<LanguageValue, PaymentCopy> = {
     yearlyPlan: {
       title: 'Pelan Tahunan',
       price: 'RM1,980',
-      originalPrice: 'RM2,988',
+      originalPrice: 'RM180',
       period: 'tahun',
       benefits: [
         'Termasuk semua fungsi langganan',
@@ -184,7 +184,7 @@ export const PAYMENT_COPY: Record<LanguageValue, PaymentCopy> = {
         'Boleh batalkan pembaharuan bila-bila masa',
       ],
       discountLabel: 'Jimat sekarang',
-      discountValue: '17%',
+      discountValue: '33%',
     },
     confirm: {
       title: 'Sahkan Pembayaran',

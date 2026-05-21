@@ -1,5 +1,15 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+
+import { getSocket } from '@/src/services/socket/socket-client';
+
 import { Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { usePaymentPricingStore } from '@/src/features/payments/store/payment-pricing.store';
+
+import { getAccessToken } from '@/src/services/auth/auth-token-store';
+import { paymentClient } from '@/src/features/payments/store/payment.client';
+import { usePaymentCouponStore } from '@/src/features/payments/store/payment-coupon.store';
+
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -17,9 +27,13 @@ type Props = {
 
 type KeyboardTarget = 'coupon' | null;
 
-const VALID_COUPON_CODE = 'Abc2025';
+// const VALID_COUPON_CODE = 'Abc2025';
 
 const MOCK_PAYMENT_URL = 'https://example.com/payment/checkout?orderId=mock_order_001';
+
+function formatCurrencyFromMinor(amount: number, currency = 'MYR') {
+  return `RM${Math.max(0, Math.floor(amount / 100))}`;
+}
 
 export function PaymentConfirmCanvas({
   copy,
@@ -35,44 +49,268 @@ export function PaymentConfirmCanvas({
   const [hasTriedCoupon, setHasTriedCoupon] = useState(false);
   const [isCouponFocused, setIsCouponFocused] = useState(false);
 
+  const router = useRouter();
+
   const [paymentQrCodeUrl, setPaymentQrCodeUrl] = useState<string | null>(null);
   const [isCreatingPaymentQrCode, setIsCreatingPaymentQrCode] = useState(false);
 
   const selectedPlan = selectedPlanType === 'yearly' ? copy.yearlyPlan : copy.monthlyPlan;
 
-  const isCouponValid = couponCode.trim() === VALID_COUPON_CODE;
+  const monthlyPricing = usePaymentPricingStore((state) => state.monthly);
+
+  const yearlyPricing = usePaymentPricingStore((state) => state.yearly);
+
+  const setLoading = usePaymentCouponStore((state) => state.setLoading);
+  const setCouponResult = usePaymentCouponStore((state) => state.setCouponResult);
+  const setErrorMessage = usePaymentCouponStore((state) => state.setErrorMessage);
+  const clearCoupon = usePaymentCouponStore((state) => state.clearCoupon);
+
+  const isCouponValid = usePaymentCouponStore((state) => state.isValid);
+  const couponErrorMessage = usePaymentCouponStore((state) => state.errorMessage);
+
+  const percentOff = usePaymentCouponStore((state) => state.percentOff);
+  const amountOff = usePaymentCouponStore((state) => state.amountOff);
+
+  const dynamicSelectedPlanPrice =
+    selectedPlanType === 'yearly' ? yearlyPricing?.price : monthlyPricing?.price;
+
+  const dynamicSelectedPlanAmount =
+    selectedPlanType === 'yearly' ? yearlyPricing?.amount : monthlyPricing?.amount;
+
+  const dynamicSelectedPlanCurrency =
+    selectedPlanType === 'yearly' ? yearlyPricing?.currency : monthlyPricing?.currency;
+
+  // const isCouponValid = couponCode.trim() === VALID_COUPON_CODE;
+
+  // const finalPrice = useMemo(() => {
+  //   if (selectedPlanType === 'yearly' && isCouponValid) {
+  //     return '$1979';
+  //   }
+
+  //   return dynamicSelectedPlanPrice ?? selectedPlan.price;
+  // }, [dynamicSelectedPlanPrice, isCouponValid, selectedPlan.price, selectedPlanType]);
 
   const finalPrice = useMemo(() => {
-    if (selectedPlanType === 'yearly' && isCouponValid) {
-      return '$1979';
+    if (
+      selectedPlanType === 'yearly' &&
+      isCouponValid &&
+      typeof dynamicSelectedPlanAmount === 'number'
+    ) {
+      let finalAmount = dynamicSelectedPlanAmount;
+
+      if (typeof percentOff === 'number') {
+        finalAmount = Math.round((dynamicSelectedPlanAmount * (100 - percentOff)) / 100);
+      } else if (typeof amountOff === 'number') {
+        finalAmount = dynamicSelectedPlanAmount - amountOff;
+      }
+
+      return formatCurrencyFromMinor(finalAmount, dynamicSelectedPlanCurrency ?? 'MYR');
     }
 
-    return selectedPlan.price;
-  }, [isCouponValid, selectedPlan.price, selectedPlanType]);
+    return dynamicSelectedPlanPrice ?? selectedPlan.price;
+  }, [
+    amountOff,
+    dynamicSelectedPlanAmount,
+    dynamicSelectedPlanCurrency,
+    dynamicSelectedPlanPrice,
+    isCouponValid,
+    percentOff,
+    selectedPlan.price,
+    selectedPlanType,
+  ]);
 
-  const finalPricePrefix = useMemo(() => {
-    if (selectedPlanType === 'yearly' && isCouponValid) {
-      return '-';
-    }
+  // const finalPricePrefix = useMemo(() => {
+  //   if (selectedPlanType === 'yearly' && isCouponValid) {
+  //     return '-';
+  //   }
 
-    return '';
-  }, [isCouponValid, selectedPlanType]);
+  //   return '';
+  // }, [isCouponValid, selectedPlanType]);
 
-  const handlePaymentPress = () => {
-    setKeyboardTarget(null);
-    setIsCouponFocused(false);
-    couponInputRef.current?.blur();
+  const finalPricePrefix = '';
 
-    setIsCreatingPaymentQrCode(true);
+  // const handlePaymentPress = () => {
+  //   setKeyboardTarget(null);
+  //   setIsCouponFocused(false);
+  //   couponInputRef.current?.blur();
 
-    setTimeout(() => {
-      setPaymentQrCodeUrl(MOCK_PAYMENT_URL);
+  //   setIsCreatingPaymentQrCode(true);
+
+  //   setTimeout(() => {
+  //     setPaymentQrCodeUrl(MOCK_PAYMENT_URL);
+  //     setIsCreatingPaymentQrCode(false);
+  //   }, 300);
+  // };
+
+  const handlePaymentPress = async () => {
+    try {
+      setKeyboardTarget(null);
+      setIsCouponFocused(false);
+
+      couponInputRef.current?.blur();
+
+      setIsCreatingPaymentQrCode(true);
+
+      const token = await getAccessToken();
+
+      if (!token) {
+        return;
+      }
+
+      const selectedPricing = selectedPlanType === 'yearly' ? yearlyPricing : monthlyPricing;
+
+      if (!selectedPricing?.priceId) {
+        return;
+      }
+
+      const response = await paymentClient.createSubscriptionSession({
+        token,
+
+        priceId: selectedPricing.priceId,
+
+        promotionCodeId: usePaymentCouponStore.getState().promotionCodeId,
+      });
+
+      console.log('[Payment] create subscription session:', response);
+
+      setPaymentQrCodeUrl(response.url);
+    } catch (error) {
+      console.log('[Payment] create qr code failed:', error);
+    } finally {
       setIsCreatingPaymentQrCode(false);
-    }, 300);
+    }
+  };
+
+  useEffect(() => {
+    if (!paymentQrCodeUrl) {
+      return;
+    }
+  
+    const socket = getSocket();
+    if (!socket) {
+      console.log('[Payment] socket is not ready, fallback polling only');
+    }
+
+
+    let isActive = true;
+    let checkCount = 0;
+  
+    const handleSubscriptionActivated = async (payload: unknown) => {
+      console.log('[Payment] subscription activated:', payload);
+  
+      if (!isActive) {
+        return;
+      }
+  
+      setPaymentQrCodeUrl(null);
+      onPaymentSuccess();
+      router.replace('/(tabs)/home');
+    };
+  
+    socket?.on(
+      'billing.subscription_activated' as never,
+      handleSubscriptionActivated as never,
+    );
+  
+    const checkSubscriptionStatus = async () => {
+      try {
+        checkCount += 1;
+  
+        const token = await getAccessToken();
+  
+        if (!token) {
+          return;
+        }
+  
+        const result = await paymentClient.getSubscriptionStatus({ token });
+  
+        console.log('[Payment] fallback subscription status:', result);
+  
+        if (!isActive) {
+          return;
+        }
+  
+        if (result.active) {
+          setPaymentQrCodeUrl(null);
+          onPaymentSuccess();
+          router.replace('/(tabs)/home');
+        }
+      } catch (error) {
+        console.log('[Payment] fallback status check failed:', error);
+      }
+    };
+  
+    const intervalId = setInterval(() => {
+      if (checkCount >= 12) {
+        clearInterval(intervalId);
+        return;
+      }
+  
+      checkSubscriptionStatus();
+    }, 5000);
+  
+    return () => {
+      isActive = false;
+      
+      socket?.off(
+        'billing.subscription_activated' as never,
+        handleSubscriptionActivated as never,
+      );
+
+      clearInterval(intervalId);
+    };
+  }, [onPaymentSuccess, paymentQrCodeUrl, router]);
+
+
+  const validatePromotionCode = async () => {
+    try {
+      setLoading(true);
+
+      const token = await getAccessToken();
+
+      if (!token) {
+        return;
+      }
+
+      const productId =
+        selectedPlanType === 'yearly' ? yearlyPricing?.productId : monthlyPricing?.productId;
+
+      if (!productId) {
+        return;
+      }
+
+      const response = await paymentClient.validatePromotionCode({
+        token,
+
+        code: couponCode,
+
+        productId,
+      });
+
+      console.log('[Payment] validate promotion code:', response);
+
+      setCouponResult({
+        promotionCodeId: response.promotionCode.id,
+
+        percentOff: response.coupon.percentOff,
+
+        amountOff: response.coupon.amountOff,
+      });
+    } catch (error) {
+      console.log('[Payment] validate coupon failed:', error);
+
+      setErrorMessage('Invalid promotion code');
+
+      clearCoupon();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const hasCouponValue = couponCode.trim().length > 0;
-  const shouldShowCouponError = hasTriedCoupon && hasCouponValue && !isCouponValid;
+  // const shouldShowCouponError = hasTriedCoupon && hasCouponValue && !isCouponValid;
+  const shouldShowCouponError = hasCouponValue && couponErrorMessage !== null;
+
   const shouldShowCouponSuccess = hasCouponValue && isCouponValid;
   const shouldShowFocusedEmpty = isCouponFocused && !hasCouponValue;
 
@@ -109,7 +347,7 @@ export function PaymentConfirmCanvas({
 
             <View style={styles.pricePreviewGroup}>
               <Text style={styles.originalPricePreview}>{selectedPlan.originalPrice}</Text>
-              <Text style={styles.currentPricePreview}>{selectedPlan.price}</Text>
+              <Text style={styles.currentPricePreview}>{dynamicSelectedPlanPrice ?? '...'}</Text>
             </View>
           </View>
 
@@ -213,7 +451,7 @@ export function PaymentConfirmCanvas({
           onPress={handlePaymentPress}
         >
           <Text style={styles.payButtonText}>
-            {isCreatingPaymentQrCode ? '建立 QRCode 中...' : copy.confirm.payButton}
+            {isCreatingPaymentQrCode ? 'Loading...' : copy.confirm.payButton}
           </Text>
         </Pressable>
       </View>
@@ -252,9 +490,22 @@ export function PaymentConfirmCanvas({
         transparent={true}
         animationType="fade"
         statusBarTranslucent={true}
+        onRequestClose={() => {
+          setPaymentQrCodeUrl(null);
+        }}
       >
-        <View style={styles.qrCodeFullScreenOverlay}>
-          <View style={styles.qrCodeModalContent}>
+        <Pressable
+          style={styles.qrCodeFullScreenOverlay}
+          onPress={() => {
+            setPaymentQrCodeUrl(null);
+          }}
+        >
+          <Pressable
+            style={styles.qrCodeModalContent}
+            onPress={(event) => {
+              event.stopPropagation();
+            }}
+          >
             <View style={styles.qrCodeBox}>
               <QRCode
                 value={paymentQrCodeUrl ?? ''}
@@ -265,20 +516,8 @@ export function PaymentConfirmCanvas({
             </View>
 
             <Text style={styles.qrCodeHintText}>請掃描 QRCode 完成付款</Text>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.mockSuccessButton,
-                pressed && styles.mockSuccessButtonPressed,
-              ]}
-              onPress={() => {
-                onPaymentSuccess();
-              }}
-            >
-              <Text style={styles.mockSuccessButtonText}>模擬付款成功</Text>
-            </Pressable>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       <CustomEmailKeyboard
@@ -306,6 +545,10 @@ export function PaymentConfirmCanvas({
           setIsCouponFocused(false);
           setHasTriedCoupon(true);
           couponInputRef.current?.blur();
+
+          if (couponCode.trim().length > 0 && selectedPlanType === 'yearly') {
+            validatePromotionCode();
+          }
         }}
         offsetY={0}
       />

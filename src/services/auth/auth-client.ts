@@ -59,7 +59,10 @@ export const authClient = {
       timeoutMs: 15000,
     });
 
-    return toAuthSession(response);
+    return {
+      ...toAuthSession(response),
+      token,
+    };
   },
 
   billingSummary(token: string) {

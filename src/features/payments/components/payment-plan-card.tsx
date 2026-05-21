@@ -6,10 +6,20 @@ import { PaymentPlanType } from '@/src/features/payments/types/payment-plan.type
 type Props = {
   type: PaymentPlanType;
   copy: PaymentPlanCopy;
+
+  dynamicPrice?: string;
+  dynamicOriginalPrice?: string;
+
   onPress: () => void;
 };
 
-export function PaymentPlanCard({ type, copy, onPress }: Props) {
+export function PaymentPlanCard({
+  type,
+  copy,
+  dynamicPrice,
+  dynamicOriginalPrice,
+  onPress,
+}: Props) {
   return (
     <Pressable
       style={({ pressed }) => [styles.planCardPressable, pressed && styles.planCardPressed]}
@@ -32,22 +42,36 @@ export function PaymentPlanCard({ type, copy, onPress }: Props) {
         </View>
 
         <View style={styles.priceRow}>
-          <Text style={styles.priceText}>{copy.price}</Text>
+          <Text style={styles.priceText}>{dynamicPrice ?? ''}</Text>
 
-          <Text style={styles.originalPriceText}>{copy.originalPrice}</Text>
+          {dynamicPrice ? (
+            <Text style={styles.originalPriceText}>
+              {dynamicOriginalPrice ?? copy.originalPrice}
+            </Text>
+          ) : null}
 
-          <Text style={styles.periodText}>/{copy.period}</Text>
+          {dynamicPrice ? <Text style={styles.periodText}>/{copy.period}</Text> : null}
+          {/* <Text style={styles.periodText}>/{copy.period}</Text> */}
         </View>
 
-        <View style={styles.planBenefitGroup}>
+        {dynamicPrice ? (
+          <View style={styles.planBenefitGroup}>
+            {copy.benefits.map((item) => (
+              <Text key={item} style={styles.planBenefitText}>
+                ・{item}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        {/* <View style={styles.planBenefitGroup}>
           {copy.benefits.map((item) => (
             <Text key={item} style={styles.planBenefitText}>
               ・{item}
             </Text>
           ))}
-        </View>
+        </View> */}
 
-        {copy.discountLabel && copy.discountValue ? (
+        {copy.discountLabel && copy.discountValue && dynamicPrice ? (
           <View style={styles.discountBlock}>
             <Text style={styles.discountLabel}>{copy.discountLabel}</Text>
             <Text style={styles.discountText}>{copy.discountValue}</Text>

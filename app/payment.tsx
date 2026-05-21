@@ -3,6 +3,8 @@ import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { usePaymentPricingStore } from '@/src/features/payments/store/payment-pricing.store';
+
 import { PaymentBenefitCard } from '@/src/features/payments/components/payment-benefit-card';
 import { PaymentConfirmCanvas } from '@/src/features/payments/components/payment-confirm-canvas';
 import { PaymentPlanCard } from '@/src/features/payments/components/payment-plan-card';
@@ -17,6 +19,12 @@ export default function PaymentScreen() {
 
   const paymentCopy = PAYMENT_COPY[CURRENT_LANGUAGE];
 
+  const monthlyPricing = usePaymentPricingStore((state) => state.monthly);
+
+  const yearlyPricing = usePaymentPricingStore((state) => state.yearly);
+
+  const fetchPricing = usePaymentPricingStore((state) => state.fetchPricing);
+
   useEffect(() => {
     if (viewMode !== 'success') {
       return;
@@ -30,6 +38,10 @@ export default function PaymentScreen() {
       clearTimeout(timer);
     };
   }, [viewMode]);
+
+  useEffect(() => {
+    fetchPricing();
+  }, []);
 
   const handlePlanPress = (planType: PaymentPlanType) => {
     setSelectedPlanType(planType);
@@ -79,6 +91,7 @@ export default function PaymentScreen() {
                 <PaymentPlanCard
                   type="monthly"
                   copy={paymentCopy.monthlyPlan}
+                  dynamicPrice={monthlyPricing?.price}
                   onPress={() => {
                     handlePlanPress('monthly');
                   }}
@@ -87,6 +100,7 @@ export default function PaymentScreen() {
                 <PaymentPlanCard
                   type="yearly"
                   copy={paymentCopy.yearlyPlan}
+                  dynamicPrice={yearlyPricing?.price}
                   onPress={() => {
                     handlePlanPress('yearly');
                   }}
