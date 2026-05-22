@@ -13,13 +13,11 @@ type CreateSubscriptionSessionResponse = {
 };
 
 type SubscriptionStatusResponse = {
-  active: boolean; 
+  active: boolean;
   status: string;
   planId: string | null;
   currentPeriodEnd: string | null;
 };
-  
-
 
 export const paymentClient = {
   async validatePromotionCode({
@@ -70,5 +68,5 @@ export const paymentClient = {
       token,
       timeoutMs: 15000,
     });
-  }
+  },
 };

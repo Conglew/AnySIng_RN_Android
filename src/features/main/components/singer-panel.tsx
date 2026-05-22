@@ -33,6 +33,9 @@ import { useSingerSongsInfiniteQuery } from '@/src/features/singer/hook/singer-u
 import { useSingersInfiniteQuery } from '@/src/features/singer/hook/singer-use-singers-infinite-query';
 import { SingerDto } from '@/src/services/singer/singer.types';
 
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+import { SINGER_PANEL_COPY, SingerPanelCopy } from '@/src/features/main/i18n/singer-panel-copy';
+
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -65,20 +68,20 @@ function truncateText(value: string, maxLength: number) {
   return `${chars.slice(0, maxLength).join('')}...`;
 }
 
-function getInsertButtonText(status?: SongDownloadStatus) {
+function getInsertButtonText(status: SongDownloadStatus | undefined, copy: SingerPanelCopy) {
   if (!status) {
-    return '插播';
+    return copy.insert;
   }
 
   if (status.phase === 'preparing') {
-    return '準備中';
+    return copy.preparing;
   }
 
   if (status.phase === 'downloading') {
-    return `下載中 ${status.progress ?? 0}%`;
+    return copy.downloading(status.progress ?? 0);
   }
 
-  return '插播';
+  return copy.insert;
 }
 
 function formatSongArtistText(song: SongDto, fallbackArtistName: string) {
@@ -219,6 +222,9 @@ function getSongSearchMode(keyboardMode: CustomKeyboardMode): SongSearchMode {
 
 export function SingerPanel({ visible, onClose }: Props) {
   const songListRef = useRef<FlatList<SongDto>>(null);
+
+  const language = useAppLanguageStore((state) => state.language);
+  const copy = SINGER_PANEL_COPY[language];
 
   const [selectedSinger, setSelectedSinger] = useState<SingerDto | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -656,12 +662,12 @@ export function SingerPanel({ visible, onClose }: Props) {
 
           {isSingerListMode ? (
             <View style={styles.singerView}>
-              <Text style={styles.title}>歌手</Text>
+              <Text style={styles.title}>{copy.title}</Text>
 
               {isCurrentSingerLoading ? (
                 <View style={styles.centerContent}>
                   <ActivityIndicator />
-                  <Text style={styles.loadingText}>載入歌手中</Text>
+                  <Text style={styles.loadingText}>{copy.loadingSingers}</Text>
                 </View>
               ) : (
                 <FlatList
@@ -704,14 +710,14 @@ export function SingerPanel({ visible, onClose }: Props) {
                   }}
                   ListEmptyComponent={
                     <View style={styles.centerContent}>
-                      <Text style={styles.emptyText}>目前沒有歌手資料</Text>
+                      <Text style={styles.emptyText}>{copy.emptySingers}</Text>
                     </View>
                   }
                   ListFooterComponent={
                     !isSearchMode && isLoadingMoreSingers ? (
                       <View style={styles.footerLoading}>
                         <ActivityIndicator />
-                        <Text style={styles.loadingText}>載入更多歌手</Text>
+                        <Text style={styles.loadingText}>{copy.loadingMoreSingers}</Text>
                       </View>
                     ) : null
                   }
@@ -722,7 +728,7 @@ export function SingerPanel({ visible, onClose }: Props) {
                 <Text style={styles.pageText}>{singerPageText}</Text>
 
                 <Pressable style={styles.backButton} onPress={handlePressBack}>
-                  <Text style={styles.backButtonText}>返回</Text>
+                  <Text style={styles.backButtonText}>{copy.back}</Text>
                 </Pressable>
               </View>
             </View>
@@ -733,7 +739,7 @@ export function SingerPanel({ visible, onClose }: Props) {
               {isCurrentSongLoading ? (
                 <View style={styles.centerContent}>
                   <ActivityIndicator />
-                  <Text style={styles.loadingText}>載入歌曲中</Text>
+                  <Text style={styles.loadingText}>{copy.loadingSongs}</Text>
                 </View>
               ) : (
                 <FlatList
@@ -793,21 +799,21 @@ export function SingerPanel({ visible, onClose }: Props) {
                         }}
                       >
                         <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                          {getInsertButtonText(songActionStatusMap[item._id])}
+                          {getInsertButtonText(songActionStatusMap[item._id], copy)}
                         </Text>
                       </Pressable>
                     </Pressable>
                   )}
                   ListEmptyComponent={
                     <View style={styles.centerContent}>
-                      <Text style={styles.emptyText}>此歌手目前沒有歌曲</Text>
+                      <Text style={styles.emptyText}>{copy.emptySongs}</Text>
                     </View>
                   }
                   ListFooterComponent={
                     !isSearchMode && isLoadingMoreSongs ? (
                       <View style={styles.footerLoading}>
                         <ActivityIndicator />
-                        <Text style={styles.loadingText}>載入更多歌曲</Text>
+                        <Text style={styles.loadingText}>{copy.loadingMoreSongs}</Text>
                       </View>
                     ) : null
                   }
@@ -818,7 +824,7 @@ export function SingerPanel({ visible, onClose }: Props) {
                 {/* <Text style={styles.pageText}>{songPageText}</Text> */}
 
                 <Pressable style={styles.backButton} onPress={handlePressBack}>
-                  <Text style={styles.backButtonText}>返回</Text>
+                  <Text style={styles.backButtonText}>{copy.back}</Text>
                 </Pressable>
               </View>
             </View>

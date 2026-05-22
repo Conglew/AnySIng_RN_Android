@@ -30,6 +30,9 @@ import { CustomKeyboard } from '@/src/features/main/components/custom-keyboard';
 import { useNewSongsCache } from '@/src/features/song/hook/use-new-songs-cache';
 import { SongDto } from '@/src/services/song/song.types';
 
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+import { NEW_PANEL_COPY, NewSongsPanelCopy } from '@/src/features/main/i18n/new-songs-panel-copy';
+
 import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
 
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
@@ -157,20 +160,20 @@ function truncateText(value: string, maxLength: number) {
 //   return Math.max(0, Math.min(progress, 100));
 // }
 
-function getInsertButtonText(status?: SongDownloadStatus) {
+function getInsertButtonText(status: SongDownloadStatus | undefined, copy: NewSongsPanelCopy) {
   if (!status) {
-    return '插播';
+    return copy.insert;
   }
 
   if (status.phase === 'preparing') {
-    return '準備中';
+    return copy.preparing;
   }
 
   if (status.phase === 'downloading') {
-    return `下載中 ${status.progress ?? 0}%`;
+    return copy.downloading(status.progress ?? 0);
   }
 
-  return '插播';
+  return copy.insert;
 }
 
 // function createPlaybackQueueItem({
@@ -209,6 +212,10 @@ export function NewSongsPanel({ visible, onClose }: Props) {
   // const [songs, setSongs] = useState<SongDto[]>([]);
   // const [page, setPage] = useState(1);
   // const [total, setTotal] = useState(0);
+
+  const language = useAppLanguageStore((state) => state.language);
+  const setLanguage = useAppLanguageStore((state) => state.setLanguage);
+  const copy = NEW_PANEL_COPY[language];
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageTab>(LANGUAGE_TABS[0]);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -612,7 +619,7 @@ export function NewSongsPanel({ visible, onClose }: Props) {
                 />
               </View>
 
-              <Text style={styles.title}>新歌</Text>
+              <Text style={styles.title}>{copy.title}</Text>
             </View>
 
             <View style={styles.languageTabs}>
@@ -646,7 +653,7 @@ export function NewSongsPanel({ visible, onClose }: Props) {
             {isInitialLoading ? (
               <View style={styles.centerContent}>
                 <ActivityIndicator />
-                <Text style={styles.loadingText}>載入新歌中</Text>
+                <Text style={styles.loadingText}>{copy.loading}</Text>
               </View>
             ) : (
               <FlatList
@@ -712,7 +719,7 @@ export function NewSongsPanel({ visible, onClose }: Props) {
                       }}
                     >
                       <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                        {getInsertButtonText(songActionStatusMap[item._id])}
+                        {getInsertButtonText(songActionStatusMap[item._id], copy)}
                       </Text>
                     </Pressable>
                   </Pressable>
@@ -740,7 +747,7 @@ export function NewSongsPanel({ visible, onClose }: Props) {
             </Text>
 
             <Pressable style={styles.backButton} onPress={onClose}>
-              <Text style={styles.backButtonText}>返回</Text>
+              <Text style={styles.backButtonText}>{copy.back}</Text>
             </Pressable>
           </View>
         </View>

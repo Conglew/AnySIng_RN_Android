@@ -24,6 +24,12 @@ import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-for
 
 import { SongDto } from '@/src/services/song/song.types';
 
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+import {
+  RANKING_PANEL_COPY,
+  RankingSongsPanelCopy,
+} from '@/src/features/main/i18n/ranking-songs-panel-copy';
+
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -134,24 +140,28 @@ function truncateText(value: string, maxLength: number) {
   return `${chars.slice(0, maxLength).join('')}...`;
 }
 
-function getInsertButtonText(status?: SongDownloadStatus) {
+function getInsertButtonText(status: SongDownloadStatus | undefined, copy: RankingSongsPanelCopy) {
   if (!status) {
-    return '插播';
+    return copy.insert;
   }
 
   if (status.phase === 'preparing') {
-    return '準備中';
+    return copy.preparing;
   }
 
   if (status.phase === 'downloading') {
-    return `下載中 ${status.progress ?? 0}%`;
+    return copy.downloading(status.progress ?? 0);
   }
 
-  return '插播';
+  return copy.insert;
 }
 
 export function RankingSongsPanel({ visible, onClose }: Props) {
   const songListRef = useRef<FlatList<SongDto>>(null);
+
+  const language = useAppLanguageStore((state) => state.language);
+  const setLanguage = useAppLanguageStore((state) => state.setLanguage);
+  const copy = RANKING_PANEL_COPY[language];
 
   const [keyboardMode, setKeyboardMode] = useState<CustomKeyboardMode>('pinyin');
   const songSearchMode = getRankingSongSearchMode(keyboardMode);
@@ -544,7 +554,9 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                 />
               </View>
 
-              <Text style={styles.title}>排行</Text>
+              <Text style={styles.title} numberOfLines={1} ellipsizeMode="clip">
+                {copy.title}
+              </Text>
             </View>
 
             <View style={styles.languageTabs}>
@@ -580,7 +592,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
             {isInitialLoading ? (
               <View style={styles.centerContent}>
                 <ActivityIndicator />
-                <Text style={styles.loadingText}>載入排行榜中</Text>
+                <Text style={styles.loadingText}>{copy.loading}</Text>
               </View>
             ) : (
               <FlatList
@@ -666,7 +678,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                       }}
                     >
                       <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                        {getInsertButtonText(songActionStatusMap[item._id])}
+                        {getInsertButtonText(songActionStatusMap[item._id], copy)}
                       </Text>
                     </Pressable>
                   </Pressable>
@@ -694,7 +706,7 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
             </Text>
 
             <Pressable style={styles.backButton} onPress={onClose}>
-              <Text style={styles.backButtonText}>返回</Text>
+              <Text style={styles.backButtonText}>{copy.back}</Text>
             </Pressable>
           </View>
         </View>
@@ -753,6 +765,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     zIndex: 30,
     elevation: 30,
+    overflow: 'visible',
   },
 
   titleAnchor: {
@@ -761,6 +774,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
     elevation: 1,
+    flexShrink: 0,
+    overflow: 'visible',
   },
 
   titleBackgroundImageWrapper: {
@@ -784,6 +799,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     zIndex: 2,
     elevation: 2,
+    width: 80,
+    flexWrap: 'nowrap',
   },
 
   languageTabs: {
@@ -791,7 +808,7 @@ const styles = StyleSheet.create({
     height: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 50,
+    gap: 48,
     marginLeft: 20,
     elevation: 50,
   },

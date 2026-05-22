@@ -28,6 +28,12 @@ import { useCategorySongsInfiniteQuery } from '@/src/features/category/hooks/cat
 import { CategoryDto } from '@/src/services/category/category.types';
 import { SongDto } from '@/src/services/song/song.types';
 
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+import {
+  CATEGORY_PANEL_COPY,
+  CategoryPanelCopy,
+} from '@/src/features/main/i18n/catagory-panel-copy';
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -35,31 +41,54 @@ type Props = {
 
 const PAGE_SIZE = 20;
 
-function formatArtists(artists: SongDto['artists']) {
+function formatArtists(artists: SongDto['artists'], unknownArtist: string) {
   if (!Array.isArray(artists) || artists.length === 0) {
-    return '未知歌手';
+    return unknownArtist;
   }
 
-  return artists
-    .map((artist) => String(artist))
-    .filter(Boolean)
-    .join('、');
+  const artistNames = artists
+    .map((artist) => {
+      if (typeof artist === 'string') {
+        return artist;
+      }
+
+      if (artist && typeof artist === 'object') {
+        const record = artist as Record<string, unknown>;
+
+        if (typeof record.name === 'string') {
+          return record.name;
+        }
+
+        if (typeof record.artistName === 'string') {
+          return record.artistName;
+        }
+
+        if (typeof record.singerName === 'string') {
+          return record.singerName;
+        }
+      }
+
+      return '';
+    })
+    .filter(Boolean);
+
+  return artistNames.length > 0 ? artistNames.join('、') : unknownArtist;
 }
 
-function getInsertButtonText(status?: SongDownloadStatus) {
+function getInsertButtonText(status: SongDownloadStatus | undefined, copy: CategoryPanelCopy) {
   if (!status) {
-    return '插播';
+    return copy.insert;
   }
 
   if (status.phase === 'preparing') {
-    return '準備中';
+    return copy.preparing;
   }
 
   if (status.phase === 'downloading') {
-    return `下載中 ${status.progress ?? 0}%`;
+    return copy.downloading(status.progress ?? 0);
   }
 
-  return '插播';
+  return copy.insert;
 }
 
 function truncateText(value: string, maxLength: number) {
@@ -93,6 +122,9 @@ const CATEGORY_IMAGES: Record<string, ReturnType<typeof require>> = {
 
 export function CategoryPanel({ visible, onClose }: Props) {
   const songListRef = useRef<FlatList<SongDto>>(null);
+
+  const language = useAppLanguageStore((state) => state.language);
+  const copy = CATEGORY_PANEL_COPY[language];
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryDto | null>(null);
 
@@ -294,11 +326,18 @@ export function CategoryPanel({ visible, onClose }: Props) {
     setSelectedCategory(null);
   }, [visible]);
 
+  const isCategoryListMode = !selectedCategory;
+
+  const getCategoryDisplayName = useCallback(
+    (categoryName: string) => {
+      return copy.categoryNames[categoryName] ?? categoryName;
+    },
+    [copy.categoryNames],
+  );
+
   if (!visible) {
     return null;
   }
-
-  const isCategoryListMode = !selectedCategory;
 
   return (
     <View style={styles.panelLayer}>
@@ -309,12 +348,12 @@ export function CategoryPanel({ visible, onClose }: Props) {
 
         {isCategoryListMode ? (
           <View style={styles.categoryView}>
-            <Text style={styles.title}>分類</Text>
+            <Text style={styles.title}>{copy.title}</Text>
 
             {isLoadingCategories ? (
               <View style={styles.centerContent}>
                 <ActivityIndicator />
-                <Text style={styles.loadingText}>載入分類中</Text>
+                <Text style={styles.loadingText}>{copy.loadingCategories}</Text>
               </View>
             ) : (
               // <ScrollView
@@ -380,7 +419,7 @@ export function CategoryPanel({ visible, onClose }: Props) {
               >
                 {categories.length === 0 ? (
                   <View style={styles.centerContent}>
-                    <Text style={styles.emptyText}>目前沒有分類資料</Text>
+                    <Text style={styles.emptyText}>{copy.emptyCategories}</Text>
                   </View>
                 ) : (
                   categories.map((item) => {
@@ -418,7 +457,7 @@ export function CategoryPanel({ visible, onClose }: Props) {
                 {isLoadingMoreCategories ? (
                   <View style={styles.footerLoading}>
                     <ActivityIndicator />
-                    <Text style={styles.loadingText}>載入更多分類</Text>
+                    <Text style={styles.loadingText}>{copy.loadingMoreCategories}</Text>
                   </View>
                 ) : null}
               </ScrollView>
@@ -473,7 +512,7 @@ export function CategoryPanel({ visible, onClose }: Props) {
                     </Text>
 
                     <Text style={styles.artistText} numberOfLines={1}>
-                      {truncateText(formatArtists(item.artists), 10)}
+                      {truncateText(formatArtists(item.artists, copy.unknownArtist), 10)}
                     </Text>
 
                     <Pressable
@@ -500,7 +539,7 @@ export function CategoryPanel({ visible, onClose }: Props) {
                       }}
                     >
                       <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                        {getInsertButtonText(songActionStatusMap[item._id])}
+                        {getInsertButtonText(songActionStatusMap[item._id], copy)}
                       </Text>
                     </Pressable>
                   </Pressable>

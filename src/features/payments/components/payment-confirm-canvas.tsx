@@ -185,51 +185,47 @@ export function PaymentConfirmCanvas({
     if (!paymentQrCodeUrl) {
       return;
     }
-  
+
     const socket = getSocket();
     if (!socket) {
       console.log('[Payment] socket is not ready, fallback polling only');
     }
 
-
     let isActive = true;
     let checkCount = 0;
-  
+
     const handleSubscriptionActivated = async (payload: unknown) => {
       console.log('[Payment] subscription activated:', payload);
-  
+
       if (!isActive) {
         return;
       }
-  
+
       setPaymentQrCodeUrl(null);
       onPaymentSuccess();
       router.replace('/(tabs)/home');
     };
-  
-    socket?.on(
-      'billing.subscription_activated' as never,
-      handleSubscriptionActivated as never,
-    );
-  
+
+    socket?.on('billing.subscription_activated' as never, handleSubscriptionActivated as never);
+
     const checkSubscriptionStatus = async () => {
       try {
         checkCount += 1;
-  
+
         const token = await getAccessToken();
-  
+
         if (!token) {
           return;
         }
-  
+
         const result = await paymentClient.getSubscriptionStatus({ token });
-  
+
         console.log('[Payment] fallback subscription status:', result);
-  
+
         if (!isActive) {
           return;
         }
-  
+
         if (result.active) {
           setPaymentQrCodeUrl(null);
           onPaymentSuccess();
@@ -239,28 +235,24 @@ export function PaymentConfirmCanvas({
         console.log('[Payment] fallback status check failed:', error);
       }
     };
-  
+
     const intervalId = setInterval(() => {
       if (checkCount >= 12) {
         clearInterval(intervalId);
         return;
       }
-  
+
       checkSubscriptionStatus();
     }, 5000);
-  
+
     return () => {
       isActive = false;
-      
-      socket?.off(
-        'billing.subscription_activated' as never,
-        handleSubscriptionActivated as never,
-      );
+
+      socket?.off('billing.subscription_activated' as never, handleSubscriptionActivated as never);
 
       clearInterval(intervalId);
     };
   }, [onPaymentSuccess, paymentQrCodeUrl, router]);
-
 
   const validatePromotionCode = async () => {
     try {
@@ -309,6 +301,9 @@ export function PaymentConfirmCanvas({
 
   const hasCouponValue = couponCode.trim().length > 0;
   // const shouldShowCouponError = hasTriedCoupon && hasCouponValue && !isCouponValid;
+
+  const canUseCoupon = selectedPlanType === 'yearly';
+
   const shouldShowCouponError = hasCouponValue && couponErrorMessage !== null;
 
   const shouldShowCouponSuccess = hasCouponValue && isCouponValid;
@@ -351,83 +346,88 @@ export function PaymentConfirmCanvas({
             </View>
           </View>
 
-          <View style={styles.couponRow}>
-            <Text style={styles.couponLabel}>{copy.confirm.couponLabel}</Text>
+          {canUseCoupon ? (
+            <View style={styles.couponRow}>
+              <Text style={styles.couponLabel}>{copy.confirm.couponLabel}</Text>
 
-            <View
-              style={[
-                styles.couponInputWrapper,
-                shouldShowFocusedEmpty ? styles.couponInputFocused : null,
-                shouldShowCouponError ? styles.couponInputError : null,
-                shouldShowCouponSuccess ? styles.couponInputSuccess : null,
-              ]}
-            >
-              {!hasCouponValue ? (
-                <Text style={styles.couponPlaceholderText}>{copy.confirm.couponPlaceholder}</Text>
-              ) : null}
-
-              <TextInput
-                ref={couponInputRef}
-                value={couponCode}
-                onChangeText={() => {
-                  // 使用自訂鍵盤，所以這裡不處理原生輸入。
-                }}
-                onPressIn={() => {
-                  setKeyboardTarget('coupon');
-                  setIsCouponFocused(true);
-                  couponInputRef.current?.focus();
-                }}
-                placeholder=""
-                autoCapitalize="none"
-                autoCorrect={false}
-                showSoftInputOnFocus={false}
-                caretHidden={false}
-                cursorColor="#FF7A00"
-                selectionColor={couponCursorColor}
+              <View
                 style={[
-                  styles.couponInput,
-                  (shouldShowCouponError || shouldShowCouponSuccess) && styles.couponInputWithIcon,
+                  styles.couponInputWrapper,
+                  shouldShowFocusedEmpty ? styles.couponInputFocused : null,
+                  shouldShowCouponError ? styles.couponInputError : null,
+                  shouldShowCouponSuccess ? styles.couponInputSuccess : null,
                 ]}
-              />
+              >
+                {!hasCouponValue ? (
+                  <Text style={styles.couponPlaceholderText}>{copy.confirm.couponPlaceholder}</Text>
+                ) : null}
+
+                <TextInput
+                  ref={couponInputRef}
+                  value={couponCode}
+                  onChangeText={() => {
+                    // 使用自訂鍵盤，所以這裡不處理原生輸入。
+                  }}
+                  onPressIn={() => {
+                    setKeyboardTarget('coupon');
+                    setIsCouponFocused(true);
+                    couponInputRef.current?.focus();
+                  }}
+                  placeholder=""
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  showSoftInputOnFocus={false}
+                  caretHidden={false}
+                  cursorColor="#FF7A00"
+                  selectionColor={couponCursorColor}
+                  style={[
+                    styles.couponInput,
+                    (shouldShowCouponError || shouldShowCouponSuccess) &&
+                      styles.couponInputWithIcon,
+                  ]}
+                />
+
+                {shouldShowCouponError ? (
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={20}
+                    color="#FF4D4F"
+                    style={styles.couponStatusIcon}
+                  />
+                ) : null}
+
+                {shouldShowCouponSuccess ? (
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={20}
+                    color="#15C99A"
+                    style={styles.couponStatusIcon}
+                  />
+                ) : null}
+              </View>
 
               {shouldShowCouponError ? (
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={20}
-                  color="#FF4D4F"
-                  style={styles.couponStatusIcon}
-                />
+                <Text style={styles.invalidCouponText}>{copy.confirm.invalidCouponText}</Text>
               ) : null}
 
               {shouldShowCouponSuccess ? (
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={20}
-                  color="#15C99A"
-                  style={styles.couponStatusIcon}
-                />
+                <Text style={styles.validCouponText}>{copy.confirm.validCouponText}</Text>
+              ) : null}
+
+              {shouldShowCouponSuccess ? (
+                <Text style={styles.discountedPriceText}>
+                  {finalPricePrefix}
+                  {finalPrice}
+                </Text>
+              ) : null}
+
+              {hasTriedCoupon && couponCode.length > 0 && !isCouponValid ? (
+                <Text style={styles.invalidCouponText}>{copy.confirm.invalidCouponText}</Text>
               ) : null}
             </View>
-
-            {shouldShowCouponError ? (
-              <Text style={styles.invalidCouponText}>{copy.confirm.invalidCouponText}</Text>
-            ) : null}
-
-            {shouldShowCouponSuccess ? (
-              <Text style={styles.validCouponText}>{copy.confirm.validCouponText}</Text>
-            ) : null}
-
-            {shouldShowCouponSuccess ? (
-              <Text style={styles.discountedPriceText}>
-                {finalPricePrefix}
-                {finalPrice}
-              </Text>
-            ) : null}
-
-            {hasTriedCoupon && couponCode.length > 0 && !isCouponValid ? (
-              <Text style={styles.invalidCouponText}>{copy.confirm.invalidCouponText}</Text>
-            ) : null}
-          </View>
+          ) : (
+            <View style={styles.couponRow}></View>
+          )}
         </View>
 
         {/* <View style={styles.divider} /> */}

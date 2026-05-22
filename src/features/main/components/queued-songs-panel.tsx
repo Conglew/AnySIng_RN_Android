@@ -11,6 +11,12 @@ import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-for
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
 
+import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+import {
+  QUEUED_SONG_PANEL_COPY,
+  QueuedSongPanelCopy,
+} from '@/src/features/main/i18n/queued-song-panel-copy';
+
 import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
 
 type PanelTab = 'queued' | 'downloading';
@@ -34,6 +40,7 @@ type QueuedSongRowProps = {
   artistText?: string;
   isCurrent: boolean;
   isInterjecting: boolean;
+  copy: QueuedSongPanelCopy;
   onInterject: (queueId: string, songId: string) => void;
 };
 
@@ -44,10 +51,11 @@ const QueuedSongRow = memo(function QueuedSongRow({
   artistText,
   isCurrent,
   isInterjecting,
+  copy,
   onInterject,
 }: QueuedSongRowProps) {
   const songTitle = truncateText(formatDisplaySongTitle(title), 14);
-  const displayArtistText = truncateText(artistText ?? '未知歌手', 17);
+  const displayArtistText = truncateText(artistText ?? copy.unknownArtist, 17);
 
   return (
     <View style={[styles.songRow, isCurrent && styles.currentSongRow]}>
@@ -79,7 +87,9 @@ const QueuedSongRow = memo(function QueuedSongRow({
           disabled={isInterjecting}
           onPress={() => onInterject(queueId, songId)}
         >
-          <Text style={styles.interjectButtonText}>{isInterjecting ? '處理中' : '插播'}</Text>
+          <Text style={styles.interjectButtonText}>
+            {isInterjecting ? copy.processing : copy.insert}
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -88,11 +98,13 @@ const QueuedSongRow = memo(function QueuedSongRow({
 
 type DownloadingSongRowProps = {
   songId: string;
+  copy: QueuedSongPanelCopy;
   onCancel: (songId: string) => void;
 };
 
 const DownloadingSongRow = memo(function DownloadingSongRow({
   songId,
+  copy,
   onCancel,
 }: DownloadingSongRowProps) {
   const status = useSongDownloadStatusStore((state) => state.statusMap[songId]);
@@ -110,17 +122,18 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
             if (typeof artist === 'string') {
               return artist;
             }
-
+  
             return artist?.name;
           })
           .filter(Boolean)
           .join(' / ')
-      : '未知歌手',
+      : copy.unknownArtist,
     17,
   );
-
+  
   const progress = Math.max(0, Math.min(status.progress, 100));
-  const statusText = status.phase === 'preparing' ? '準備下載中' : `下載中 ${progress}%`;
+  const statusText =
+    status.phase === 'preparing' ? copy.preparingDownload : copy.downloading(progress);
   const speedText = status.speedText ?? '-- MB/s';
 
   return (
@@ -152,6 +165,9 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
 });
 
 export function QueuedSongsPanel() {
+  const language = useAppLanguageStore((state) => state.language);
+  const copy = QUEUED_SONG_PANEL_COPY[language];
+
   const isVisible = useQueuedSongsPanelStore((state) => state.isVisible);
   const closePanel = useQueuedSongsPanelStore((state) => state.closePanel);
 
@@ -169,73 +185,6 @@ export function QueuedSongsPanel() {
 
   const displayQueue = currentItem ? [currentItem, ...queue] : queue;
 
-  // const downloadingItems = useMemo(() => {
-  //   return Object.entries(downloadStatusMap)
-  //     .map(([songId, status]) => ({
-  //       songId,
-  //       status,
-  //     }))
-  //     .filter((item) => Boolean(item.status))
-  //     .sort((a, b) => {
-  //       const aCreatedAt = a.status?.createdAt ?? 0;
-  //       const bCreatedAt = b.status?.createdAt ?? 0;
-
-  //       return aCreatedAt - bCreatedAt;
-  //     });
-  // }, [downloadStatusMap]);
-
-  // const handleInterjectQueueItem = useCallback(
-  //   async (queueId: string, songId: string) => {
-  //     if (!queueId || !songId) {
-  //       console.log('[QueuedSongsPanel] interject ignored: missing ids', {
-  //         queueId,
-  //         songId,
-  //       });
-  //       return;
-  //     }
-
-  //     if (currentItem?.queueId === queueId) {
-  //       return;
-  //     }
-
-  //     if (interjectingQueueIdMap[queueId]) {
-  //       return;
-  //     }
-
-  //     setInterjectingQueueIdMap((previous) => ({
-  //       ...previous,
-  //       [queueId]: true,
-  //     }));
-
-  //     try {
-  //       const token = await getAccessToken();
-
-  //       if (!token) {
-  //         throw new Error('Missing access token.');
-  //       }
-
-  //       await playlistClient.interjectSongNext({
-  //         token,
-  //         songId,
-  //       });
-
-  //       moveToNext(queueId);
-  //     } catch (error) {
-  //       console.log('[QueuedSongsPanel] interject failed:', {
-  //         queueId,
-  //         songId,
-  //         error,
-  //       });
-  //     } finally {
-  //       setInterjectingQueueIdMap((previous) => {
-  //         const next = { ...previous };
-  //         delete next[queueId];
-  //         return next;
-  //       });
-  //     }
-  //   },
-  //   [currentItem?.queueId, interjectingQueueIdMap, moveToNext],
-  // );
 
   const handleInterjectQueueItem = useCallback(
     async (queueId: string, songId: string) => {
@@ -321,77 +270,6 @@ export function QueuedSongsPanel() {
     <View style={styles.overlay}>
       <Pressable style={styles.backdrop} onPress={closePanel} />
 
-      {/* <View style={styles.panel}>
-        <Text style={styles.title}>已點歌曲</Text>
-
-        <ScrollView
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
-        >
-          {displayQueue.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>目前尚未點歌</Text>
-            </View>
-          ) : (
-            displayQueue.map((item) => {
-              const songTitle = truncateText(formatDisplaySongTitle(item.title), 14);
-              const artistText = truncateText(item.artistText ?? '未知歌手', 17);
-              const isCurrent = item.queueId === currentItem?.queueId;
-
-              return (
-                <View
-                  key={item.queueId}
-                  style={[styles.songRow, isCurrent && styles.currentSongRow]}
-                >
-                  <View style={styles.songIconBox}>
-                    {isCurrent ? (
-                      <Image
-                        source={require('@/assets/images/songPrefab/playing/playing.webp')}
-                        style={{
-                          width: 48,
-                          height: 48,
-                        }}
-                        contentFit="contain"
-                      />
-                    ) : (
-                      <SongReadyIcon width={48} height={48} />
-                    )}
-                  </View>
-
-                  <View style={styles.songTextGroup}>
-                    <Text style={styles.songTitle} numberOfLines={1}>
-                      {songTitle}
-                    </Text>
-
-                    <Text style={styles.artistText} numberOfLines={1}>
-                      {artistText}
-                    </Text>
-                  </View>
-
-                  {isCurrent ? (
-                    <Text style={styles.statusText} />
-                  ) : (
-                    <Pressable
-                      disabled={Boolean(interjectingQueueIdMap[item.queueId])}
-                      onPress={() => {
-                        handleInterjectQueueItem(item.queueId, item.songId);
-                      }}
-                    >
-                      <Text style={styles.statusText}>
-                        {interjectingQueueIdMap[item.queueId] ? '處理中' : '插播'}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              );
-            })
-          )}
-        </ScrollView>
-      </View> */}
-
       <View style={styles.panel}>
         <View style={styles.tabHeader}>
           <Pressable
@@ -399,7 +277,7 @@ export function QueuedSongsPanel() {
             onPress={() => setActiveTab('queued')}
           >
             <Text style={[styles.tabText, activeTab === 'queued' && styles.tabTextActive]}>
-              已點歌曲
+              {copy.queuedTab}
             </Text>
           </Pressable>
 
@@ -408,14 +286,9 @@ export function QueuedSongsPanel() {
             onPress={() => setActiveTab('downloading')}
           >
             <Text style={[styles.tabText, activeTab === 'downloading' && styles.tabTextActive]}>
-              正在下載
+              {copy.downloadingTab}
             </Text>
 
-            {/* {downloadingItems.length > 0 ? (
-              <View style={styles.downloadCountBadge}>
-                <Text style={styles.downloadCountText}>{downloadingItems.length}</Text>
-              </View>
-            ) : null} */}
             {downloadingSongIds.length > 0 ? (
               <View style={styles.downloadCountBadge}>
                 <Text style={styles.downloadCountText}>{downloadingSongIds.length}</Text>
@@ -425,71 +298,7 @@ export function QueuedSongsPanel() {
         </View>
 
         {activeTab === 'queued' ? (
-          // <ScrollView
-          //   style={styles.list}
-          //   contentContainerStyle={styles.listContent}
-          //   showsVerticalScrollIndicator={false}
-          //   nestedScrollEnabled
-          //   keyboardShouldPersistTaps="handled"
-          // >
-          //   {displayQueue.length === 0 ? (
-          //     <View style={styles.emptyBox}>
-          //       <Text style={styles.emptyText}>目前尚未點歌</Text>
-          //     </View>
-          //   ) : (
-          //     displayQueue.map((item) => {
-          //       const songTitle = truncateText(formatDisplaySongTitle(item.title), 14);
-          //       const artistText = truncateText(item.artistText ?? '未知歌手', 17);
-          //       const isCurrent = item.queueId === currentItem?.queueId;
-          //       const isInterjecting = Boolean(interjectingQueueIdMap[item.queueId]);
-
-          //       return (
-          //         <View
-          //           key={item.queueId}
-          //           style={[styles.songRow, isCurrent && styles.currentSongRow]}
-          //         >
-          //           <View style={styles.songIconBox}>
-          //             {isCurrent ? (
-          //               <Image
-          //                 source={require('@/assets/images/songPrefab/playing/playing.webp')}
-          //                 style={styles.playingIcon}
-          //                 contentFit="contain"
-          //               />
-          //             ) : (
-          //               <SongReadyIcon width={48} height={48} />
-          //             )}
-          //           </View>
-
-          //           <View style={styles.songTextGroup}>
-          //             <Text style={styles.songTitle} numberOfLines={1}>
-          //               {songTitle}
-          //             </Text>
-
-          //             <Text style={styles.artistText} numberOfLines={1}>
-          //               {artistText}
-          //             </Text>
-          //           </View>
-
-          //           {!isCurrent ? (
-          //             <Pressable
-          //               style={[
-          //                 styles.interjectButton,
-          //                 isInterjecting && styles.interjectButtonDisabled,
-          //               ]}
-          //               disabled={isInterjecting}
-          //               onPress={() => handleInterjectQueueItem(item.queueId, item.songId)}
-          //             >
-          //               <Text style={styles.interjectButtonText}>
-          //                 {isInterjecting ? '處理中' : '插播'}
-          //               </Text>
-          //             </Pressable>
-          //           ) : null}
-          //         </View>
-          //       );
-          //     })
-          //   )}
-          // </ScrollView>
-
+      
           <FlatList
             style={styles.list}
             contentContainerStyle={styles.listContent}
@@ -503,7 +312,7 @@ export function QueuedSongsPanel() {
             removeClippedSubviews
             ListEmptyComponent={
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyText}>目前尚未點歌</Text>
+                <Text style={styles.emptyText}>{copy.emptyQueued}</Text>
               </View>
             }
             renderItem={({ item }) => (
@@ -514,116 +323,13 @@ export function QueuedSongsPanel() {
                 artistText={item.artistText}
                 isCurrent={item.queueId === currentItem?.queueId}
                 isInterjecting={Boolean(interjectingQueueIdMap[item.queueId])}
+                copy={copy}
                 onInterject={handleInterjectQueueItem}
               />
             )}
           />
         ) : (
-          // <ScrollView
-          //   style={styles.list}
-          //   contentContainerStyle={styles.listContent}
-          //   showsVerticalScrollIndicator={false}
-          //   nestedScrollEnabled
-          //   keyboardShouldPersistTaps="handled"
-          // >
-          //   {downloadingItems.length === 0 ? (
-          //     <View style={styles.emptyBox}>
-          //       <Text style={styles.emptyText}>目前尚未下載的歌曲</Text>
-          //     </View>
-          //   ) : (
-          //     downloadingItems.map(({ songId, status }) => {
-          //       if (!status) {
-          //         return null;
-          //       }
-
-          //       const songTitle = truncateText(formatDisplaySongTitle(status.song.title), 14);
-          //       const artistText = truncateText(
-          //         Array.isArray(status.song.artists)
-          //           ? status.song.artists
-          //               .map((artist) => {
-          //                 if (typeof artist === 'string') {
-          //                   return artist;
-          //                 }
-
-          //                 return artist?.name;
-          //               })
-          //               .filter(Boolean)
-          //               .join(' / ')
-          //           : '未知歌手',
-          //         17,
-          //       );
-          //       const progress = Math.max(0, Math.min(status.progress, 100));
-          //       const statusText =
-          //         status.phase === 'preparing' ? '準備下載中' : `下載中 ${progress}%`;
-
-          //       const speedText = status.speedText ?? '-- MB/s';
-          //       // return (
-          //       //   <View key={songId} style={styles.downloadRow}>
-          //       //     <View style={styles.songIconBox}>
-          //       //       <SongReadyIcon width={48} height={48} />
-          //       //     </View>
-
-          //       //     <View style={styles.downloadTextGroup}>
-          //       //       <Text style={styles.songTitle} numberOfLines={1}>
-          //       //         {songTitle}
-          //       //       </Text>
-
-          //       //       <Text style={styles.artistText} numberOfLines={1}>
-          //       //         {artistText}
-          //       //       </Text>
-
-          //       //       <Text style={styles.downloadStatusText}>{statusText}</Text>
-
-          //       //       <View style={styles.progressTrack}>
-          //       //         <View style={[styles.progressFill, { width: `${progress}%` }]} />
-          //       //       </View>
-          //       //     </View>
-          //       //   </View>
-          //       // );
-
-          //       return (
-          //         <View key={songId} style={styles.downloadRow}>
-          //           <View style={styles.songIconBox}>
-          //             <SongReadyIcon width={48} height={48} />
-          //           </View>
-
-          //           <View style={styles.downloadSongInfo}>
-          //             <Text style={styles.songTitle} numberOfLines={1}>
-          //               {songTitle}
-          //             </Text>
-
-          //             <Text style={styles.artistText} numberOfLines={1}>
-          //               {artistText}
-          //             </Text>
-          //           </View>
-
-          //           <View style={styles.downloadStatusGroup}>
-          //             <Text style={styles.downloadStatusText}>{statusText}</Text>
-
-          //             <Text style={styles.downloadSpeedText}>{speedText}</Text>
-          //           </View>
-
-          //           <Pressable
-          //             style={styles.cancelDownloadButton}
-          //             onPress={() => {
-          //               console.log('[QueuedSongsPanel] press cancel download:', songId);
-
-          //               cancelSongDownload(songId).catch((error) => {
-          //                 console.log('[QueuedSongsPanel] cancel download failed:', {
-          //                   songId,
-          //                   error,
-          //                 });
-          //               });
-          //             }}
-          //             hitSlop={10}
-          //           >
-          //             <Text style={styles.cancelDownloadButtonText}>×</Text>
-          //           </Pressable>
-          //         </View>
-          //       );
-          //     })
-          //   )}
-          // </ScrollView>
+          
 
           <FlatList
             style={styles.list}
@@ -638,11 +344,11 @@ export function QueuedSongsPanel() {
             removeClippedSubviews
             ListEmptyComponent={
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyText}>目前尚未下載的歌曲</Text>
+                <Text style={styles.emptyText}>{copy.emptyDownloading}</Text>
               </View>
             }
             renderItem={({ item: songId }) => (
-              <DownloadingSongRow songId={songId} onCancel={handleCancelDownload} />
+              <DownloadingSongRow songId={songId} copy={copy} onCancel={handleCancelDownload} />
             )}
           />
         )}
