@@ -139,7 +139,7 @@ export const SETTINGS_COPY: Record<LanguageValue, SettingsCopy> = {
 
     permanentDeleteAccount: '永久刪除帳號',
     deleteAccountDescription: '刪除後帳號將無法復原。目前的訂閱將不再續扣，但不會退款。',
-    deleteAccountInstructionPrefix: '若您仍希望刪除帳號，請輸入',
+    deleteAccountInstructionPrefix: '若您仍希望刪除帳號，請輸入 "Delete"',
     deleteAccountInstructionSuffix: '確認',
     deleteAccountPlaceholder: '請輸入Delete',
     required: '必填',
@@ -223,7 +223,7 @@ export const SETTINGS_COPY: Record<LanguageValue, SettingsCopy> = {
 
     permanentDeleteAccount: '永久删除账号',
     deleteAccountDescription: '删除后账号将无法复原。目前的订阅将不再续扣，但不会退款。',
-    deleteAccountInstructionPrefix: '若您仍希望删除账号，请输入',
+    deleteAccountInstructionPrefix: '若您仍希望删除账号，请输入 "Delete"',
     deleteAccountInstructionSuffix: '确认',
     deleteAccountPlaceholder: '请输入Delete',
     required: '必填',
@@ -308,7 +308,7 @@ export const SETTINGS_COPY: Record<LanguageValue, SettingsCopy> = {
     permanentDeleteAccount: 'Permanently Delete Account',
     deleteAccountDescription:
       'Your account cannot be restored after deletion. Your current subscription will stop renewing, but payments will not be refunded.',
-    deleteAccountInstructionPrefix: 'To delete your account, enter',
+    deleteAccountInstructionPrefix: 'To delete your account, enter "Delete"',
     deleteAccountInstructionSuffix: 'to confirm',
     deleteAccountPlaceholder: 'Enter Delete',
     required: 'Required',
@@ -394,7 +394,7 @@ export const SETTINGS_COPY: Record<LanguageValue, SettingsCopy> = {
     permanentDeleteAccount: 'Padam Akaun Secara Kekal',
     deleteAccountDescription:
       'Akaun tidak boleh dipulihkan selepas dipadam. Langganan semasa tidak akan diperbaharui, tetapi bayaran tidak akan dikembalikan.',
-    deleteAccountInstructionPrefix: 'Untuk memadam akaun, masukkan',
+    deleteAccountInstructionPrefix: 'Untuk memadam akaun, masukkan "Delete" ',
     deleteAccountInstructionSuffix: 'untuk pengesahan',
     deleteAccountPlaceholder: 'Masukkan Delete',
     required: 'Wajib diisi',

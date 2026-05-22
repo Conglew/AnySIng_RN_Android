@@ -791,19 +791,19 @@ export function SettingsPanel({ visible, onClose }: Props) {
             code,
           },
         });
-      
+
         setEmailChangeStep('newEmail');
         setEmailChangeText('');
         setIsEmailVerificationSent(false);
         setEmailVerificationCode(['', '', '', '', '']);
         setEmailResendSeconds(0);
         setEmailChangeErrorMessage('');
-      
+
         requestAnimationFrame(() => {
           emailChangeInputRef.current?.focus();
           setActiveCustomKeyboardInput('emailChange');
         });
-      
+
         return;
       }
 
@@ -1489,21 +1489,61 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     return;
                   }
 
+                  const currentEmail = settingsBilling?.userEmail ?? '';
+
+                  if (!currentEmail) {
+                    setDeleteAccountErrorMessage(copy.deleteAccountFailed);
+                    return;
+                  }
+
                   setIsDeleteAccountSubmitting(true);
                   setDeleteAccountErrorMessage('');
 
+                  // try {
+                  //   console.log('[SettingsPanel] delete account submit');
+
+                  //   /**
+                  //    * 這裡之後替換成正式刪除帳號 API。
+                  //    * 例如：
+                  //    * await authClient.deleteAccount();
+                  //    *
+                  //    * API 成功後也應該清除本地 token / auth store。
+                  //    */
+
+                  //   await new Promise((resolve) => setTimeout(resolve, 900));
+
+                  //   resetDeleteAccountState();
+                  //   onClose();
+
+                  //   InteractionManager.runAfterInteractions(() => {
+                  //     setTimeout(() => {
+                  //       router.replace('/login');
+                  //     }, 0);
+                  //   });
+                  // } catch (error) {
+                  //   console.log('[SettingsPanel] delete account failed:', error);
+                  //   setDeleteAccountErrorMessage(copy.deleteAccountFailed);
+                  // } finally {
+                  //   setIsDeleteAccountSubmitting(false);
+                  // }
+
                   try {
-                    console.log('[SettingsPanel] delete account submit');
+                    const token = await getAccessToken();
 
-                    /**
-                     * 這裡之後替換成正式刪除帳號 API。
-                     * 例如：
-                     * await authClient.deleteAccount();
-                     *
-                     * API 成功後也應該清除本地 token / auth store。
-                     */
+                    if (!token) {
+                      throw new Error('Missing access token.');
+                    }
 
-                    await new Promise((resolve) => setTimeout(resolve, 900));
+                    await authClient.deleteAccount({
+                      token,
+                      body: {
+                        confirmEmail: currentEmail,
+                      },
+                    });
+
+                    await clearAuthSession();
+
+                    useBillingSummaryStore.getState().reset();
 
                     resetDeleteAccountState();
                     onClose();
@@ -1515,7 +1555,9 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     });
                   } catch (error) {
                     console.log('[SettingsPanel] delete account failed:', error);
-                    setDeleteAccountErrorMessage(copy.deleteAccountFailed);
+
+                    const message = error instanceof Error ? error.message : String(error);
+                    setDeleteAccountErrorMessage(message || copy.deleteAccountFailed);
                   } finally {
                     setIsDeleteAccountSubmitting(false);
                   }
