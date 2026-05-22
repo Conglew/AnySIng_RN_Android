@@ -23,10 +23,16 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { LanguageSelectModal } from '@/src/features/main/components/language-select-modal';
 
-import { clearAuthSession } from '@/src/services/auth/auth-token-store';
-
 // import { authClient } from '@/src/services/auth/auth-client';
 // import { getAccessToken } from '@/src/services/auth/auth-token-store';
+
+import { authClient } from '@/src/services/auth/auth-client';
+import {
+  clearAuthSession,
+  getAccessToken,
+  setAccessToken,
+  setUserEmail,
+} from '@/src/services/auth/auth-token-store';
 
 import { useBillingSummaryStore } from '@/src/features/main/store/billing-summary.store';
 
@@ -177,11 +183,19 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const [isNewPasswordVisible, setIsNewPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
+  const [emailChangeStep, setEmailChangeStep] = useState<'verifyCurrentEmail' | 'newEmail'>(
+    'verifyCurrentEmail',
+  );
+  const [emailVerifyPassword, setEmailVerifyPassword] = useState('');
+  const [isEmailVerifyPasswordVisible, setIsEmailVerifyPasswordVisible] = useState(false);
+  const emailVerifyPasswordInputRef = useRef<TextInput>(null);
+
   const [activeCustomKeyboardInput, setActiveCustomKeyboardInput] = useState<
     | 'currentPassword'
     | 'newPassword'
     | 'confirmPassword'
     | 'deleteAccount'
+    | 'emailVerifyPassword'
     | 'emailChange'
     | `emailCode-${number}`
     | null
@@ -253,6 +267,14 @@ export function SettingsPanel({ visible, onClose }: Props) {
     setIsCurrentPasswordVisible(false);
     setIsNewPasswordVisible(false);
     setIsConfirmPasswordVisible(false);
+
+    setEmailChangeText('');
+    setEmailChangeErrorMessage('');
+    setEmailVerificationCode(['', '', '', '', '']);
+    setIsEmailVerificationSent(false);
+    setIsEmailSubmitting(false);
+    setEmailResendSeconds(0);
+
     setActiveCustomKeyboardInput(null);
   }, [visible]);
 
@@ -297,6 +319,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
   const qrModalUrl = qrModalType === 'report' ? REPORT_PROBLEM_URL : SONG_REQUEST_URL;
 
   const placeholderText = isBillingLoading ? '...' : '-';
+  const currentAccountEmail = settingsBilling?.userEmail ?? '';
 
   const planContentRows = [
     {
@@ -460,6 +483,8 @@ export function SettingsPanel({ visible, onClose }: Props) {
   };
 
   const resetEmailChangeState = () => {
+    setEmailChangeStep('verifyCurrentEmail');
+
     setEmailChangeText('');
     setEmailChangeErrorMessage('');
     setEmailVerificationCode(['', '', '', '', '']);
@@ -566,6 +591,12 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
     setPasswordErrorMessage('');
 
+    if (activeCustomKeyboardInput === 'emailVerifyPassword') {
+      setEmailVerifyPassword((current) => `${current}${value}`);
+      setEmailChangeErrorMessage('');
+      return;
+    }
+
     if (activeCustomKeyboardInput === 'currentPassword') {
       setCurrentPassword((current) => `${current}${value}`);
       return;
@@ -657,6 +688,12 @@ export function SettingsPanel({ visible, onClose }: Props) {
 
     setPasswordErrorMessage('');
 
+    if (activeCustomKeyboardInput === 'emailVerifyPassword') {
+      setEmailVerifyPassword((current) => current.slice(0, -1));
+      setEmailChangeErrorMessage('');
+      return;
+    }
+
     if (activeCustomKeyboardInput === 'currentPassword') {
       setCurrentPassword((current) => current.slice(0, -1));
       return;
@@ -723,10 +760,6 @@ export function SettingsPanel({ visible, onClose }: Props) {
   };
 
   const submitEmailVerificationCode = async (code: string) => {
-    /**
-     * 避免短時間內重複觸發。
-     * 例如：使用者快速點擊、鍵盤連續輸入、state rerender。
-     */
     if (isEmailSubmitting) {
       return;
     }
@@ -745,25 +778,62 @@ export function SettingsPanel({ visible, onClose }: Props) {
     });
 
     try {
-      /**
-       * 這裡之後替換成正式驗證 Email 修改 API。
-       * 例如：
-       * await authClient.verifyChangeEmailCode({
-       *   email: emailChangeText.trim(),
-       *   code,
-       * });
-       */
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const token = await getAccessToken();
+
+      if (!token) {
+        throw new Error('Missing access token.');
+      }
+
+      if (emailChangeStep === 'verifyCurrentEmail') {
+        await authClient.verifyCurrentEmailCode({
+          token,
+          body: {
+            code,
+          },
+        });
+      
+        setEmailChangeStep('newEmail');
+        setEmailChangeText('');
+        setIsEmailVerificationSent(false);
+        setEmailVerificationCode(['', '', '', '', '']);
+        setEmailResendSeconds(0);
+        setEmailChangeErrorMessage('');
+      
+        requestAnimationFrame(() => {
+          emailChangeInputRef.current?.focus();
+          setActiveCustomKeyboardInput('emailChange');
+        });
+      
+        return;
+      }
+
+      const response = await authClient.changeEmail({
+        token,
+        body: {
+          newEmail: emailChangeText.trim(),
+          code,
+        },
+      });
+
+      await setAccessToken(response.token);
+      await setUserEmail(response.userEmail);
+
+      await fetchBillingSummaryOnce();
+
+      console.log('[SettingsPanel] email changed:', {
+        userId: response.userId,
+        userEmail: response.userEmail,
+        sessionVersion: response.sessionVersion,
+      });
 
       resetEmailChangeState();
       setCurrentPage('account');
     } catch (error) {
       console.log('[SettingsPanel] verify email code failed:', error);
-      setEmailChangeErrorMessage(copy.verificationCodeError);
 
-      /**
-       * 驗證失敗後建議清空驗證碼，避免使用者還以為目前 code 會再次自動送出。
-       */
+      const message = error instanceof Error ? error.message : String(error);
+      setEmailChangeErrorMessage(message || copy.verificationCodeError);
+
       setEmailVerificationCode(['', '', '', '', '']);
 
       requestAnimationFrame(() => {
@@ -781,6 +851,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
     confirmPasswordInputRef.current?.blur();
     deleteAccountInputRef.current?.blur();
     emailChangeInputRef.current?.blur();
+    emailVerifyPasswordInputRef.current?.blur();
 
     emailCodeInputRefs.current.forEach((inputRef) => {
       inputRef?.blur();
@@ -1039,21 +1110,46 @@ export function SettingsPanel({ visible, onClose }: Props) {
                       setPasswordErrorMessage('');
                       setActiveCustomKeyboardInput(null);
 
+                      // try {
+                      //   /**
+                      //    * 這裡之後替換成正式驗證原密碼 API。
+                      //    * 例如：
+                      //    * await authClient.verifyCurrentPassword({
+                      //    *   currentPassword,
+                      //    * });
+                      //    */
+                      //   await new Promise((resolve) => setTimeout(resolve, 800));
+
+                      //   setPasswordStep('newPassword');
+                      //   setPasswordErrorMessage('');
+                      // } catch (error) {
+                      //   console.log('[SettingsPanel] current password check failed:', error);
+                      //   setPasswordErrorMessage(copy.passwordError);
+                      // } finally {
+                      //   setIsCurrentPasswordChecking(false);
+                      // }
+
                       try {
-                        /**
-                         * 這裡之後替換成正式驗證原密碼 API。
-                         * 例如：
-                         * await authClient.verifyCurrentPassword({
-                         *   currentPassword,
-                         * });
-                         */
-                        await new Promise((resolve) => setTimeout(resolve, 800));
+                        const token = await getAccessToken();
+
+                        if (!token) {
+                          throw new Error('Missing access token.');
+                        }
+
+                        await authClient.verifyCurrentPassword({
+                          token,
+                          body: {
+                            currentPassword,
+                          },
+                        });
 
                         setPasswordStep('newPassword');
                         setPasswordErrorMessage('');
                       } catch (error) {
                         console.log('[SettingsPanel] current password check failed:', error);
-                        setPasswordErrorMessage(copy.passwordError);
+
+                        const message = error instanceof Error ? error.message : String(error);
+                        setPasswordErrorMessage(message || copy.passwordError);
                       } finally {
                         setIsCurrentPasswordChecking(false);
                       }
@@ -1256,26 +1352,60 @@ export function SettingsPanel({ visible, onClose }: Props) {
                     setIsPasswordSubmitting(true);
                     setActiveCustomKeyboardInput(null);
 
+                    // try {
+                    //   console.log('[SettingsPanel] password change submit:', {
+                    //     newPasswordLength: newPassword.length,
+                    //   });
+
+                    //   /**
+                    //    * 這裡之後替換成正式 API。
+                    //    * 例如：
+                    //    * await authClient.changePassword({
+                    //    *   oldPassword: currentPassword,
+                    //    *   newPassword,
+                    //    * });
+                    //    */
+                    //   await new Promise((resolve) => setTimeout(resolve, 800));
+
+                    //   // handlePressBack();
+                    //   leavePasswordChangePage();
+                    // } catch (error) {
+                    //   console.log('[SettingsPanel] password change failed:', error);
+                    //   setPasswordErrorMessage(copy.passwordChangeFailed);
+                    // } finally {
+                    //   setIsPasswordSubmitting(false);
+                    // }
+
                     try {
-                      console.log('[SettingsPanel] password change submit:', {
-                        newPasswordLength: newPassword.length,
+                      const token = await getAccessToken();
+
+                      if (!token) {
+                        throw new Error('Missing access token.');
+                      }
+
+                      const response = await authClient.changePassword({
+                        token,
+                        body: {
+                          currentPassword,
+                          newPassword,
+                        },
                       });
 
-                      /**
-                       * 這裡之後替換成正式 API。
-                       * 例如：
-                       * await authClient.changePassword({
-                       *   oldPassword: currentPassword,
-                       *   newPassword,
-                       * });
-                       */
-                      await new Promise((resolve) => setTimeout(resolve, 800));
+                      await setAccessToken(response.token);
+                      await setUserEmail(response.userEmail);
 
-                      // handlePressBack();
+                      console.log('[SettingsPanel] password changed:', {
+                        userId: response.userId,
+                        userEmail: response.userEmail,
+                        sessionVersion: response.sessionVersion,
+                      });
+
                       leavePasswordChangePage();
                     } catch (error) {
                       console.log('[SettingsPanel] password change failed:', error);
-                      setPasswordErrorMessage(copy.passwordChangeFailed);
+
+                      const message = error instanceof Error ? error.message : String(error);
+                      setPasswordErrorMessage(message || copy.passwordChangeFailed);
                     } finally {
                       setIsPasswordSubmitting(false);
                     }
@@ -1418,221 +1548,484 @@ export function SettingsPanel({ visible, onClose }: Props) {
             )}
 
             <View style={styles.emailChangeContent}>
-              <Text style={styles.emailChangeLabel}>{copy.emailLabel}</Text>
+              {emailChangeStep === 'verifyCurrentEmail' ? (
+                <>
+                  <Text style={styles.emailChangeLabel}>{copy.emailLabel}</Text>
 
-              <View style={styles.emailChangeRow}>
-                <View
-                  style={[
-                    styles.emailChangeInputWrapper,
-                    emailChangeErrorMessage &&
-                      !isEmailVerificationSent &&
-                      styles.emailChangeInputWrapperError,
-                    isValidEmail(emailChangeText) && styles.emailChangeInputWrapperValid,
-                  ]}
-                >
-                  <TextInput
-                    ref={emailChangeInputRef}
-                    value={emailChangeText}
-                    onChangeText={(value) => {
-                      setEmailChangeText(value);
-                      setEmailChangeErrorMessage('');
-                    }}
-                    placeholder={copy.emailPlaceholder}
-                    placeholderTextColor="rgba(255, 255, 255, 0.42)"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    showSoftInputOnFocus={false}
-                    caretHidden={false}
-                    selectionColor="#FF7A00"
-                    cursorColor="#FF7A00"
-                    editable={!isEmailSubmitting && !isEmailVerificationSent}
-                    onFocus={() => {
-                      if (!isEmailVerificationSent) {
-                        setActiveCustomKeyboardInput('emailChange');
-                      }
-                    }}
-                    onPressIn={() => {
-                      if (!isEmailVerificationSent) {
-                        setActiveCustomKeyboardInput('emailChange');
-                      }
-                    }}
-                    style={styles.emailChangeInput}
-                  />
+                  <View style={styles.emailChangeRow}>
+                    <View
+                      style={[
+                        styles.emailChangeInputWrapper,
+                        styles.emailChangeInputWrapperDisabled,
+                      ]}
+                    >
+                      <TextInput
+                        value={currentAccountEmail}
+                        editable={false}
+                        selectTextOnFocus={false}
+                        placeholder={copy.emailPlaceholder}
+                        placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                        style={[styles.emailChangeInput, styles.emailChangeInputDisabled]}
+                      />
 
-                  {isValidEmail(emailChangeText) ? (
-                    <Ionicons name="checkmark-circle-outline" size={22} color="#00C853" />
-                  ) : emailChangeText.length > 0 ? (
-                    <Ionicons name="alert-circle-outline" size={22} color="#FF3B5C" />
-                  ) : null}
-                </View>
+                      {currentAccountEmail ? (
+                        <Ionicons
+                          name="lock-closed-outline"
+                          size={22}
+                          color="rgba(255, 255, 255, 0.56)"
+                        />
+                      ) : null}
+                    </View>
 
-                {!isEmailVerificationSent ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.emailChangeButton,
-                      pressed && !isEmailSubmitting && styles.passwordConfirmButtonPressed,
-                      isEmailSubmitting && styles.passwordConfirmButtonDisabled,
-                    ]}
-                    disabled={isEmailSubmitting}
-                    onPress={async () => {
-                      if (emailChangeText.trim().length === 0) {
-                        setEmailChangeErrorMessage(copy.required);
-                        return;
-                      }
+                    {!isEmailVerificationSent ? (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.emailChangeButton,
+                          pressed && !isEmailSubmitting && styles.passwordConfirmButtonPressed,
+                          (isEmailSubmitting || !currentAccountEmail) &&
+                            styles.passwordConfirmButtonDisabled,
+                        ]}
+                        disabled={isEmailSubmitting || !currentAccountEmail}
+                        onPress={async () => {
+                          setIsEmailSubmitting(true);
+                          setEmailChangeErrorMessage('');
+                          setActiveCustomKeyboardInput(null);
 
-                      if (!isValidEmail(emailChangeText)) {
-                        setEmailChangeErrorMessage(copy.emailFormatError);
-                        return;
-                      }
+                          try {
+                            const token = await getAccessToken();
 
-                      setIsEmailSubmitting(true);
-                      setEmailChangeErrorMessage('');
-                      setActiveCustomKeyboardInput(null);
-                      emailChangeInputRef.current?.blur();
+                            if (!token) {
+                              throw new Error('Missing access token.');
+                            }
 
-                      try {
-                        await new Promise((resolve) => setTimeout(resolve, 800));
+                            await authClient.sendCurrentEmailCode({
+                              token,
+                            });
 
-                        setIsEmailVerificationSent(true);
-                        setEmailResendSeconds(90);
+                            setIsEmailVerificationSent(true);
+                            setEmailResendSeconds(90);
+                            setEmailVerificationCode(['', '', '', '', '']);
 
-                        requestAnimationFrame(() => {
-                          emailCodeInputRefs.current[0]?.focus();
-                          setActiveCustomKeyboardInput('emailCode-0');
-                        });
-                      } catch (error) {
-                        console.log('[SettingsPanel] send email verification failed:', error);
-                        setEmailChangeErrorMessage(copy.sendEmailFailed);
-                      } finally {
-                        setIsEmailSubmitting(false);
-                      }
-                    }}
-                  >
-                    {isEmailSubmitting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
+                            requestAnimationFrame(() => {
+                              emailCodeInputRefs.current[0]?.focus();
+                              setActiveCustomKeyboardInput('emailCode-0');
+                            });
+                          } catch (error) {
+                            console.log('[SettingsPanel] send current email code failed:', error);
+
+                            const message = error instanceof Error ? error.message : String(error);
+                            setEmailChangeErrorMessage(message || copy.sendEmailFailed);
+                          } finally {
+                            setIsEmailSubmitting(false);
+                          }
+                        }}
+                      >
+                        {isEmailSubmitting ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.emailChangeButtonText}>{copy.complete}</Text>
+                        )}
+                      </Pressable>
+                    ) : emailResendSeconds > 0 ? (
+                      <Text style={styles.emailResendText}>
+                        {copy.resendCountdown(emailResendSeconds)}
+                      </Text>
                     ) : (
-                      <Text style={styles.emailChangeButtonText}>{copy.complete}</Text>
-                    )}
-                  </Pressable>
-                ) : emailResendSeconds > 0 ? (
-                  <Text style={styles.emailResendText}>
-                    {copy.resendCountdown(emailResendSeconds)}
-                  </Text>
-                ) : (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.emailResendButton,
-                      pressed && !isEmailSubmitting && styles.passwordConfirmButtonPressed,
-                      isEmailSubmitting && styles.passwordConfirmButtonDisabled,
-                    ]}
-                    disabled={isEmailSubmitting}
-                    onPress={async () => {
-                      setIsEmailSubmitting(true);
-                      setEmailChangeErrorMessage('');
-                      setEmailVerificationCode(['', '', '', '', '']);
-                      setActiveCustomKeyboardInput(null);
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.emailResendButton,
+                          pressed && !isEmailSubmitting && styles.passwordConfirmButtonPressed,
+                          isEmailSubmitting && styles.passwordConfirmButtonDisabled,
+                        ]}
+                        disabled={isEmailSubmitting}
+                        onPress={async () => {
+                          setIsEmailSubmitting(true);
+                          setEmailChangeErrorMessage('');
+                          setEmailVerificationCode(['', '', '', '', '']);
+                          setActiveCustomKeyboardInput(null);
 
-                      try {
-                        await new Promise((resolve) => setTimeout(resolve, 800));
+                          try {
+                            const token = await getAccessToken();
 
-                        setEmailResendSeconds(90);
+                            if (!token) {
+                              throw new Error('Missing access token.');
+                            }
 
-                        requestAnimationFrame(() => {
-                          emailCodeInputRefs.current[0]?.focus();
-                          setActiveCustomKeyboardInput('emailCode-0');
-                        });
-                      } catch (error) {
-                        console.log('[SettingsPanel] resend email verification failed:', error);
-                        setEmailChangeErrorMessage(copy.resendEmailFailed);
-                      } finally {
-                        setIsEmailSubmitting(false);
-                      }
-                    }}
-                  >
-                    {isEmailSubmitting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.emailResendButtonText}>{copy.resendCode}</Text>
-                    )}
-                  </Pressable>
-                )}
-              </View>
+                            await authClient.sendCurrentEmailCode({
+                              token,
+                            });
 
-              {emailChangeErrorMessage && !isEmailVerificationSent ? (
-                <Text style={styles.emailChangeErrorText}>{emailChangeErrorMessage}</Text>
-              ) : null}
+                            setEmailResendSeconds(90);
 
-              {isEmailVerificationSent ? (
-                <View style={styles.emailCodeBlock}>
-                  <View style={styles.emailCodeLabelRow}>
-                    <Text style={styles.emailCodeLabel}>{copy.verificationCodeLabel}</Text>
+                            requestAnimationFrame(() => {
+                              emailCodeInputRefs.current[0]?.focus();
+                              setActiveCustomKeyboardInput('emailCode-0');
+                            });
+                          } catch (error) {
+                            console.log('[SettingsPanel] resend current email code failed:', error);
 
-                    {emailChangeErrorMessage ? (
-                      <Text style={styles.emailCodeErrorText}>{emailChangeErrorMessage}</Text>
-                    ) : (
-                      <Text style={styles.emailCodeHintText}>{copy.verificationCodeHint}</Text>
+                            const message = error instanceof Error ? error.message : String(error);
+                            setEmailChangeErrorMessage(message || copy.resendEmailFailed);
+                          } finally {
+                            setIsEmailSubmitting(false);
+                          }
+                        }}
+                      >
+                        {isEmailSubmitting ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.emailResendButtonText}>{copy.resendCode}</Text>
+                        )}
+                      </Pressable>
                     )}
                   </View>
 
-                  <View style={styles.emailCodeRow}>
-                    {emailVerificationCode.map((digit, index) => (
+                  {emailChangeErrorMessage && !isEmailVerificationSent ? (
+                    <Text style={styles.emailChangeErrorText}>{emailChangeErrorMessage}</Text>
+                  ) : null}
+
+                  {isEmailVerificationSent ? (
+                    <View style={styles.emailCodeBlock}>
+                      <View style={styles.emailCodeLabelRow}>
+                        <Text style={styles.emailCodeLabel}>{copy.verificationCodeLabel}</Text>
+
+                        {emailChangeErrorMessage ? (
+                          <Text style={styles.emailCodeErrorText}>{emailChangeErrorMessage}</Text>
+                        ) : (
+                          <Text style={styles.emailCodeHintText}>{copy.verificationCodeHint}</Text>
+                        )}
+                      </View>
+
+                      <View style={styles.emailCodeRow}>
+                        {emailVerificationCode.map((digit, index) => (
+                          <TextInput
+                            key={index}
+                            ref={(ref) => {
+                              emailCodeInputRefs.current[index] = ref;
+                            }}
+                            value={digit}
+                            onChangeText={(value) => {
+                              const nextDigit = value.slice(-1);
+
+                              if (nextDigit && !/^\d$/.test(nextDigit)) {
+                                return;
+                              }
+
+                              setEmailVerificationCode((current) => {
+                                const next = [...current];
+                                next[index] = nextDigit;
+
+                                if (nextDigit && index < 4) {
+                                  requestAnimationFrame(() => {
+                                    emailCodeInputRefs.current[index + 1]?.focus();
+                                    setActiveCustomKeyboardInput(`emailCode-${index + 1}`);
+                                  });
+                                }
+
+                                if (nextDigit && index === 4) {
+                                  const code = next.join('');
+
+                                  requestAnimationFrame(() => {
+                                    submitEmailVerificationCode(code);
+                                  });
+                                }
+
+                                return next;
+                              });
+
+                              setEmailChangeErrorMessage('');
+                            }}
+                            showSoftInputOnFocus={false}
+                            caretHidden={false}
+                            selectionColor="#FF7A00"
+                            cursorColor="#FF7A00"
+                            editable={!isEmailSubmitting}
+                            onFocus={() => {
+                              setActiveCustomKeyboardInput(`emailCode-${index}`);
+                            }}
+                            onPressIn={() => {
+                              setActiveCustomKeyboardInput(`emailCode-${index}`);
+                            }}
+                            style={[
+                              styles.emailCodeInput,
+                              emailChangeErrorMessage && styles.emailCodeInputError,
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emailChangeLabel}>{copy.emailLabel}</Text>
+
+                  <View style={styles.emailChangeRow}>
+                    <View
+                      style={[
+                        styles.emailChangeInputWrapper,
+                        emailChangeErrorMessage &&
+                          !isEmailVerificationSent &&
+                          styles.emailChangeInputWrapperError,
+                        isValidEmail(emailChangeText) && styles.emailChangeInputWrapperValid,
+                      ]}
+                    >
                       <TextInput
-                        key={index}
-                        ref={(ref) => {
-                          emailCodeInputRefs.current[index] = ref;
-                        }}
-                        value={digit}
+                        ref={emailChangeInputRef}
+                        value={emailChangeText}
                         onChangeText={(value) => {
-                          const nextDigit = value.slice(-1);
-
-                          if (nextDigit && !/^\d$/.test(nextDigit)) {
-                            return;
-                          }
-
-                          setEmailVerificationCode((current) => {
-                            const next = [...current];
-                            next[index] = nextDigit;
-
-                            if (nextDigit && index < 4) {
-                              requestAnimationFrame(() => {
-                                emailCodeInputRefs.current[index + 1]?.focus();
-                                setActiveCustomKeyboardInput(`emailCode-${index + 1}`);
-                              });
-                            }
-
-                            if (nextDigit && index === 4) {
-                              const code = next.join('');
-
-                              requestAnimationFrame(() => {
-                                submitEmailVerificationCode(code);
-                              });
-                            }
-
-                            return next;
-                          });
-
+                          setEmailChangeText(value);
                           setEmailChangeErrorMessage('');
                         }}
+                        placeholder={copy.emailPlaceholder}
+                        placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                        autoCapitalize="none"
+                        autoCorrect={false}
                         showSoftInputOnFocus={false}
                         caretHidden={false}
                         selectionColor="#FF7A00"
                         cursorColor="#FF7A00"
-                        editable={!isEmailSubmitting}
+                        editable={!isEmailSubmitting && !isEmailVerificationSent}
                         onFocus={() => {
-                          setActiveCustomKeyboardInput(`emailCode-${index}`);
+                          if (!isEmailVerificationSent) {
+                            setActiveCustomKeyboardInput('emailChange');
+                          }
                         }}
                         onPressIn={() => {
-                          setActiveCustomKeyboardInput(`emailCode-${index}`);
+                          if (!isEmailVerificationSent) {
+                            setActiveCustomKeyboardInput('emailChange');
+                          }
                         }}
-                        style={[
-                          styles.emailCodeInput,
-                          emailChangeErrorMessage && styles.emailCodeInputError,
-                        ]}
+                        style={styles.emailChangeInput}
                       />
-                    ))}
+
+                      {isValidEmail(emailChangeText) ? (
+                        <Ionicons name="checkmark-circle-outline" size={22} color="#00C853" />
+                      ) : emailChangeText.length > 0 ? (
+                        <Ionicons name="alert-circle-outline" size={22} color="#FF3B5C" />
+                      ) : null}
+                    </View>
+
+                    {!isEmailVerificationSent ? (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.emailChangeButton,
+                          pressed && !isEmailSubmitting && styles.passwordConfirmButtonPressed,
+                          isEmailSubmitting && styles.passwordConfirmButtonDisabled,
+                        ]}
+                        disabled={isEmailSubmitting}
+                        onPress={async () => {
+                          if (emailChangeText.trim().length === 0) {
+                            setEmailChangeErrorMessage(copy.required);
+                            return;
+                          }
+
+                          if (!isValidEmail(emailChangeText)) {
+                            setEmailChangeErrorMessage(copy.emailFormatError);
+                            return;
+                          }
+
+                          const normalizedNewEmail = emailChangeText.trim().toLowerCase();
+                          const normalizedCurrentEmail = currentAccountEmail.trim().toLowerCase();
+
+                          if (normalizedNewEmail === normalizedCurrentEmail) {
+                            setEmailChangeErrorMessage('新電子郵件不可與目前帳號相同');
+                            return;
+                          }
+
+                          setIsEmailSubmitting(true);
+                          setEmailChangeErrorMessage('');
+                          setActiveCustomKeyboardInput(null);
+                          emailChangeInputRef.current?.blur();
+
+                          try {
+                            const token = await getAccessToken();
+
+                            if (!token) {
+                              throw new Error('Missing access token.');
+                            }
+
+                            await authClient.sendChangeEmailCode({
+                              token,
+                              body: {
+                                newEmail: emailChangeText.trim(),
+                              },
+                            });
+
+                            setIsEmailVerificationSent(true);
+                            setEmailResendSeconds(90);
+                            setEmailVerificationCode(['', '', '', '', '']);
+
+                            requestAnimationFrame(() => {
+                              emailCodeInputRefs.current[0]?.focus();
+                              setActiveCustomKeyboardInput('emailCode-0');
+                            });
+                          } catch (error) {
+                            console.log(
+                              '[SettingsPanel] send new email verification failed:',
+                              error,
+                            );
+
+                            const message = error instanceof Error ? error.message : String(error);
+                            setEmailChangeErrorMessage(message || copy.sendEmailFailed);
+                          } finally {
+                            setIsEmailSubmitting(false);
+                          }
+                        }}
+                      >
+                        {isEmailSubmitting ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.emailChangeButtonText}>{copy.complete}</Text>
+                        )}
+                      </Pressable>
+                    ) : emailResendSeconds > 0 ? (
+                      <Text style={styles.emailResendText}>
+                        {copy.resendCountdown(emailResendSeconds)}
+                      </Text>
+                    ) : (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.emailResendButton,
+                          pressed && !isEmailSubmitting && styles.passwordConfirmButtonPressed,
+                          isEmailSubmitting && styles.passwordConfirmButtonDisabled,
+                        ]}
+                        disabled={isEmailSubmitting}
+                        onPress={async () => {
+                          if (emailChangeText.trim().length === 0) {
+                            setEmailChangeErrorMessage(copy.required);
+                            return;
+                          }
+
+                          if (!isValidEmail(emailChangeText)) {
+                            setEmailChangeErrorMessage(copy.emailFormatError);
+                            return;
+                          }
+
+                          setIsEmailSubmitting(true);
+                          setEmailChangeErrorMessage('');
+                          setEmailVerificationCode(['', '', '', '', '']);
+                          setActiveCustomKeyboardInput(null);
+
+                          try {
+                            const token = await getAccessToken();
+
+                            if (!token) {
+                              throw new Error('Missing access token.');
+                            }
+
+                            await authClient.sendChangeEmailCode({
+                              token,
+                              body: {
+                                newEmail: emailChangeText.trim(),
+                              },
+                            });
+
+                            setEmailResendSeconds(90);
+
+                            requestAnimationFrame(() => {
+                              emailCodeInputRefs.current[0]?.focus();
+                              setActiveCustomKeyboardInput('emailCode-0');
+                            });
+                          } catch (error) {
+                            console.log(
+                              '[SettingsPanel] resend new email verification failed:',
+                              error,
+                            );
+
+                            const message = error instanceof Error ? error.message : String(error);
+                            setEmailChangeErrorMessage(message || copy.resendEmailFailed);
+                          } finally {
+                            setIsEmailSubmitting(false);
+                          }
+                        }}
+                      >
+                        {isEmailSubmitting ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.emailResendButtonText}>{copy.resendCode}</Text>
+                        )}
+                      </Pressable>
+                    )}
                   </View>
-                </View>
-              ) : null}
+
+                  {emailChangeErrorMessage && !isEmailVerificationSent ? (
+                    <Text style={styles.emailChangeErrorText}>{emailChangeErrorMessage}</Text>
+                  ) : null}
+
+                  {isEmailVerificationSent ? (
+                    <View style={styles.emailCodeBlock}>
+                      <View style={styles.emailCodeLabelRow}>
+                        <Text style={styles.emailCodeLabel}>{copy.verificationCodeLabel}</Text>
+
+                        {emailChangeErrorMessage ? (
+                          <Text style={styles.emailCodeErrorText}>{emailChangeErrorMessage}</Text>
+                        ) : (
+                          <Text style={styles.emailCodeHintText}>{copy.verificationCodeHint}</Text>
+                        )}
+                      </View>
+
+                      <View style={styles.emailCodeRow}>
+                        {emailVerificationCode.map((digit, index) => (
+                          <TextInput
+                            key={index}
+                            ref={(ref) => {
+                              emailCodeInputRefs.current[index] = ref;
+                            }}
+                            value={digit}
+                            onChangeText={(value) => {
+                              const nextDigit = value.slice(-1);
+
+                              if (nextDigit && !/^\d$/.test(nextDigit)) {
+                                return;
+                              }
+
+                              setEmailVerificationCode((current) => {
+                                const next = [...current];
+                                next[index] = nextDigit;
+
+                                if (nextDigit && index < 4) {
+                                  requestAnimationFrame(() => {
+                                    emailCodeInputRefs.current[index + 1]?.focus();
+                                    setActiveCustomKeyboardInput(`emailCode-${index + 1}`);
+                                  });
+                                }
+
+                                if (nextDigit && index === 4) {
+                                  const code = next.join('');
+
+                                  requestAnimationFrame(() => {
+                                    submitEmailVerificationCode(code);
+                                  });
+                                }
+
+                                return next;
+                              });
+
+                              setEmailChangeErrorMessage('');
+                            }}
+                            showSoftInputOnFocus={false}
+                            caretHidden={false}
+                            selectionColor="#FF7A00"
+                            cursorColor="#FF7A00"
+                            editable={!isEmailSubmitting}
+                            onFocus={() => {
+                              setActiveCustomKeyboardInput(`emailCode-${index}`);
+                            }}
+                            onPressIn={() => {
+                              setActiveCustomKeyboardInput(`emailCode-${index}`);
+                            }}
+                            style={[
+                              styles.emailCodeInput,
+                              emailChangeErrorMessage && styles.emailCodeInputError,
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+                </>
+              )}
             </View>
           </View>
         ) : currentPage === 'account' ? (
@@ -3023,7 +3416,7 @@ const styles = StyleSheet.create({
   },
 
   emailChangeErrorText: {
-    width: 685,
+    width: 475,
     marginTop: 14,
     paddingLeft: 26,
     color: '#FF3B5C',
@@ -3122,5 +3515,14 @@ const styles = StyleSheet.create({
     color: '#3DA8FF',
     fontSize: 16,
     fontWeight: '800',
+  },
+
+  emailChangeInputWrapperDisabled: {
+    borderColor: '#393E43',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+
+  emailChangeInputDisabled: {
+    color: 'rgba(255, 255, 255, 0.56)',
   },
 });

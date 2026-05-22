@@ -11,6 +11,14 @@ export async function saveAuthSession(session: AuthSession) {
   await SecureStore.setItemAsync(USER_EMAIL_KEY, session.userEmail);
 }
 
+export async function setAccessToken(token: string) {
+  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
+}
+
+export async function setUserEmail(userEmail: string) {
+  await SecureStore.setItemAsync(USER_EMAIL_KEY, userEmail);
+}
+
 export async function getAccessToken() {
   return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
 }

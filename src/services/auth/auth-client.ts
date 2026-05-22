@@ -21,6 +21,12 @@ import {
   VerifySignupCodeResponse,
   SetDefaultPaymentMethodResponse,
   DeletePaymentMethodResponse,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  SendChangeEmailCodeRequest,
+  SendChangeEmailCodeResponse,
+  ChangeEmailRequest,
+  ChangeEmailResponse,
 } from './auth.types';
 
 function toAuthSession(response: AuthLoginResponse): AuthSession {
@@ -120,6 +126,95 @@ export const authClient = {
     return apiRequest<ResetPasswordResponse, ResetPasswordRequest>({
       method: 'POST',
       path: ENDPOINTS.auth.resetPassword,
+      body,
+      timeoutMs: 15000,
+    });
+  },
+
+  verifyCurrentPassword({
+    token,
+    body,
+  }: {
+    token: string;
+    body: {
+      currentPassword: string;
+    };
+  }) {
+    return apiRequest<
+      {
+        message: string;
+      },
+      {
+        currentPassword: string;
+      }
+    >({
+      method: 'POST',
+      path: ENDPOINTS.auth.verifyCurrentPassword,
+      token,
+      body,
+      timeoutMs: 15000,
+    });
+  },
+
+  changePassword({ token, body }: { token: string; body: ChangePasswordRequest }) {
+    return apiRequest<ChangePasswordResponse, ChangePasswordRequest>({
+      method: 'PATCH',
+      path: ENDPOINTS.auth.changePassword,
+      token,
+      body,
+      timeoutMs: 15000,
+    });
+  },
+
+  sendChangeEmailCode({ token, body }: { token: string; body: SendChangeEmailCodeRequest }) {
+    return apiRequest<SendChangeEmailCodeResponse, SendChangeEmailCodeRequest>({
+      method: 'POST',
+      path: ENDPOINTS.auth.sendChangeEmailCode,
+      token,
+      body,
+      timeoutMs: 15000,
+    });
+  },
+
+  changeEmail({ token, body }: { token: string; body: ChangeEmailRequest }) {
+    return apiRequest<ChangeEmailResponse, ChangeEmailRequest>({
+      method: 'PATCH',
+      path: ENDPOINTS.auth.changeEmail,
+      token,
+      body,
+      timeoutMs: 15000,
+    });
+  },
+
+  sendCurrentEmailCode({ token }: { token: string }) {
+    return apiRequest<{ message: string }, undefined>({
+      method: 'POST',
+      path: ENDPOINTS.auth.sendCurrentEmailCode,
+      token,
+      timeoutMs: 15000,
+    });
+  },
+
+  verifyCurrentEmailCode({
+    token,
+    body,
+  }: {
+    token: string;
+    body: {
+      code: string;
+    };
+  }) {
+    return apiRequest<
+      {
+        message: string;
+      },
+      {
+        code: string;
+      }
+    >({
+      method: 'POST',
+      path: ENDPOINTS.auth.verifyCurrentEmailCode,
+      token,
       body,
       timeoutMs: 15000,
     });

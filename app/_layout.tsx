@@ -2,7 +2,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
@@ -13,6 +13,20 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { songCacheService } from '@/src/features/player/services/song-cache.service';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+import { useSocketConnection } from '@/src/services/socket/use-socket-connection';
+
+function SocketConnectionGate() {
+  const pathname = usePathname();
+
+  const shouldConnectSocket = pathname !== '/' && pathname !== '/login';
+
+  useSocketConnection({
+    enabled: shouldConnectSocket,
+  });
+
+  return null;
+}
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -88,6 +102,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
+        <SocketConnectionGate />
         <RootLayoutNav />
       </QueryClientProvider>
     </GestureHandlerRootView>

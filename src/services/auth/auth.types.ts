@@ -157,3 +157,37 @@ export type DeletePaymentMethodResponse = {
   message: string;
   paymentMethodId: string;
 };
+
+export type ChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type ChangePasswordResponse = {
+  message: string;
+  token: string;
+  userId: string;
+  userEmail: string;
+  sessionVersion: number;
+};
+
+export type SendChangeEmailCodeRequest = {
+  newEmail: string;
+};
+
+export type SendChangeEmailCodeResponse = {
+  message: string;
+};
+
+export type ChangeEmailRequest = {
+  newEmail: string;
+  code: string;
+};
+
+export type ChangeEmailResponse = {
+  message: string;
+  token: string;
+  userId: string;
+  userEmail: string;
+  sessionVersion: number;
+};

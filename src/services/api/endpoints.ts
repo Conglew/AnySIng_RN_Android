@@ -8,6 +8,14 @@ export const ENDPOINTS = {
     verifyResetCode: '/auth/verify-reset-code',
     resetPassword: '/auth/reset-password',
     deleteAccount: '/auth/users/me',
+
+    verifyCurrentPassword: '/auth/users/me/password/verify',
+    changePassword: '/auth/users/me/password',
+    sendChangeEmailCode: '/auth/users/me/email/code',
+    changeEmail: '/auth/users/me/email',
+
+    sendCurrentEmailCode: '/auth/users/me/email/current/code',
+    verifyCurrentEmailCode: '/auth/users/me/email/current/verify',
   },
 
   user: {

@@ -44,8 +44,8 @@ export default function TabsLayout() {
 
   const hasClearedPendingPlaylistRef = useRef(false);
   // const [isInitialPlaylistCleared, setIsInitialPlaylistCleared] = useState(false);
-  const { isSocketInitialized } = useSocketConnection();
-
+  // const { isSocketInitialized } = useSocketConnection();
+  const isSocketInitialized = true;
   const { clearPendingPlaylist } = usePlaybackQueueActions();
 
   /**

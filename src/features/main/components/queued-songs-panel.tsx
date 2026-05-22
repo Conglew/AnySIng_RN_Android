@@ -122,7 +122,7 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
             if (typeof artist === 'string') {
               return artist;
             }
-  
+
             return artist?.name;
           })
           .filter(Boolean)
@@ -130,7 +130,7 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
       : copy.unknownArtist,
     17,
   );
-  
+
   const progress = Math.max(0, Math.min(status.progress, 100));
   const statusText =
     status.phase === 'preparing' ? copy.preparingDownload : copy.downloading(progress);
@@ -184,7 +184,6 @@ export function QueuedSongsPanel() {
   const [interjectingQueueIdMap, setInterjectingQueueIdMap] = useState<Record<string, boolean>>({});
 
   const displayQueue = currentItem ? [currentItem, ...queue] : queue;
-
 
   const handleInterjectQueueItem = useCallback(
     async (queueId: string, songId: string) => {
@@ -298,7 +297,6 @@ export function QueuedSongsPanel() {
         </View>
 
         {activeTab === 'queued' ? (
-      
           <FlatList
             style={styles.list}
             contentContainerStyle={styles.listContent}
@@ -329,8 +327,6 @@ export function QueuedSongsPanel() {
             )}
           />
         ) : (
-          
-
           <FlatList
             style={styles.list}
             contentContainerStyle={styles.listContent}
