@@ -1,5 +1,13 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  GestureResponderEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 
 import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
@@ -33,7 +41,8 @@ type Props = {
   onClose: () => void;
 };
 
-const PAGE_SIZE = 500;
+const PAGE_SIZE = 1000;
+const CACHED_SONG_ROW_HEIGHT = 70;
 
 // function formatArtists(artists: CachedSongAsset['song'] extends infer T ? any : never) {
 //   if (!Array.isArray(artists) || artists.length === 0) {
@@ -123,8 +132,6 @@ const CachedSongRow = memo(function CachedSongRow({
   onEnqueueSongAfterDownload,
 }: CachedSongRowProps) {
   const song = item.song;
-  const title = song?.title ? formatDisplaySongTitle(song.title) : item.songId;
-  const artistText = formatArtists(song?.artists, copy.unknownArtist);
 
   const songActionStatus = useSongDownloadStatusStore((state) => state.statusMap[item.songId]);
 
@@ -133,21 +140,86 @@ const CachedSongRow = memo(function CachedSongRow({
   const isSongActionLoading = Boolean(songActionStatus);
   const isFavorite = favoriteState ?? Boolean(song?.isCollected);
 
+  const displayTitle = useMemo(() => {
+    const title = song?.title ? formatDisplaySongTitle(song.title) : item.songId;
+
+    return truncateText(title, 18);
+  }, [item.songId, song?.title]);
+
+  const displayArtistText = useMemo(() => {
+    const artistText = formatArtists(song?.artists, copy.unknownArtist);
+
+    return truncateText(artistText, 16);
+  }, [copy.unknownArtist, song?.artists]);
+
+  const insertButtonText = useMemo(() => {
+    return getInsertButtonText(songActionStatus, copy);
+  }, [songActionStatus, copy]);
+
+  const handleRemove = useCallback(() => {
+    onRemoveCachedSong(item.songId);
+  }, [item.songId, onRemoveCachedSong]);
+
+  const handlePressRow = useCallback(() => {
+    if (!song) {
+      return;
+    }
+
+    if (isEditing) {
+      return;
+    }
+
+    onEnqueueSongAfterDownload(song);
+  }, [isEditing, onEnqueueSongAfterDownload, song]);
+
+  const isFavoriteActionLoading = useSongFavoriteStatusStore((state) =>
+    Boolean(state.actionStatusMap[item.songId]),
+  );
+
+  const handlePressFavorite = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+
+      if (!song) {
+        return;
+      }
+
+      if (isFavoriteActionLoading) {
+        return;
+      }
+
+      onToggleFavorite(song);
+    },
+    [isFavoriteActionLoading, onToggleFavorite, song],
+  );
+
+  const handlePressInsert = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+
+      if (!song) {
+        return;
+      }
+
+      if (isSongActionLoading) {
+        return;
+      }
+
+      onInsertSongNext(song);
+    },
+    [isSongActionLoading, onInsertSongNext, song],
+  );
+
+  const renderRightActions = useCallback(() => {
+    return (
+      <Pressable style={styles.swipeRemoveButton} disabled={isRemoving} onPress={handleRemove}>
+        <Text style={styles.swipeRemoveText}>{isRemoving ? copy.removing : copy.remove}</Text>
+      </Pressable>
+    );
+  }, [copy.remove, copy.removing, handleRemove, isRemoving]);
+
   return (
-    <Swipeable
-      enabled={isEditing}
-      renderRightActions={() => (
-        <Pressable
-          style={styles.swipeRemoveButton}
-          disabled={isRemoving}
-          onPress={() => {
-            onRemoveCachedSong(item.songId);
-          }}
-        >
-          <Text style={styles.swipeRemoveText}>{isRemoving ? copy.removing : copy.remove}</Text>
-        </Pressable>
-      )}
-    >
+    <Swipeable enabled={isEditing} renderRightActions={renderRightActions}>
       <Pressable
         style={({ pressed }) => [
           styles.songRow,
@@ -155,42 +227,24 @@ const CachedSongRow = memo(function CachedSongRow({
           isSongActionLoading && styles.songRowResolving,
         ]}
         disabled={!song}
-        onPress={() => {
-          if (!song) {
-            return;
-          }
-
-          if (isEditing) {
-            return;
-          }
-
-          onEnqueueSongAfterDownload(song);
-        }}
+        onPress={handlePressRow}
       >
         <View style={styles.songIconBox}>
           <SongReadyIcon width={32} height={32} />
         </View>
 
         <Text style={styles.songTitle} numberOfLines={1}>
-          {truncateText(title, 18)}
+          {displayTitle}
         </Text>
 
         <Text style={styles.artistText} numberOfLines={1}>
-          {truncateText(artistText, 16)}
+          {displayArtistText}
         </Text>
 
         <Pressable
           style={styles.favoriteButton}
-          disabled={!song}
-          onPress={(event) => {
-            event.stopPropagation();
-
-            if (!song) {
-              return;
-            }
-
-            onToggleFavorite(song);
-          }}
+          disabled={!song || isFavoriteActionLoading}
+          onPress={handlePressFavorite}
         >
           {isFavorite ? (
             <SongLikedIcon width={42} height={42} />
@@ -202,19 +256,10 @@ const CachedSongRow = memo(function CachedSongRow({
         <Pressable
           style={styles.insertButton}
           disabled={!song || isSongActionLoading}
-          onPress={(event) => {
-            event.stopPropagation();
-
-            if (!song) {
-              return;
-            }
-
-            onInsertSongNext(song);
-            console.log('isInsertSongNext');
-          }}
+          onPress={handlePressInsert}
         >
           <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-            {getInsertButtonText(songActionStatus, copy)}
+            {insertButtonText}
           </Text>
         </Pressable>
       </Pressable>
@@ -276,140 +321,147 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
     }
   }, []);
 
-  const handleRemoveCachedSong = useCallback(
-    async (songId: string) => {
-      if (!songId) {
-        return;
+  const handleRemoveCachedSong = useCallback(async (songId: string) => {
+    if (!songId) {
+      return;
+    }
+
+    let shouldRemove = false;
+
+    setRemovingSongIdMap((previous) => {
+      if (previous[songId]) {
+        return previous;
       }
 
-      if (removingSongIdMap[songId]) {
-        return;
-      }
+      shouldRemove = true;
 
-      setRemovingSongIdMap((previous) => ({
+      return {
         ...previous,
         [songId]: true,
-      }));
+      };
+    });
 
-      try {
-        setErrorMessage('');
+    if (!shouldRemove) {
+      return;
+    }
 
-        await songCacheService.removeCachedSong(songId);
+    try {
+      setErrorMessage('');
 
-        setCachedSongs((previous) => previous.filter((item) => item.songId !== songId));
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error));
-      } finally {
-        setRemovingSongIdMap((previous) => {
-          const next = { ...previous };
-          delete next[songId];
-          return next;
-        });
-      }
-    },
-    [removingSongIdMap],
-  );
+      await songCacheService.removeCachedSong(songId);
 
-  const handleToggleFavorite = useCallback(
-    async (song: NonNullable<CachedSongAsset['song']>) => {
-      const songId = song._id;
-  
-      if (!songId) {
-        console.log('[CachedSongsPanel] favorite ignored: missing songId', song);
-        return;
-      }
-  
-      const favoriteStore = useSongFavoriteStatusStore.getState();
-  
-      if (favoriteStore.actionStatusMap[songId]) {
-        return;
-      }
-  
-      favoriteStore.setFavoriteActionLoading(songId, true);
-  
-      let favoriteAction: 'add' | 'remove' | null = null;
-  
-      try {
-        setFavoriteErrorMessage('');
-  
-        const token = await getAccessToken();
-  
-        if (!token) {
-          throw new Error('Missing access token.');
+      setCachedSongs((previous) => previous.filter((item) => item.songId !== songId));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRemovingSongIdMap((previous) => {
+        if (!previous[songId]) {
+          return previous;
         }
-  
-        const currentFavoriteState = useSongFavoriteStatusStore.getState().favoriteStateMap[songId];
-        const currentIsCollected = currentFavoriteState ?? Boolean(song.isCollected);
-        const nextIsCollected = !currentIsCollected;
-  
-        console.log('[CachedSongsPanel] favorite decision:', {
+
+        const next = { ...previous };
+        delete next[songId];
+        return next;
+      });
+    }
+  }, []);
+
+  const handleToggleFavorite = useCallback(async (song: NonNullable<CachedSongAsset['song']>) => {
+    const songId = song._id;
+
+    if (!songId) {
+      console.log('[CachedSongsPanel] favorite ignored: missing songId', song);
+      return;
+    }
+
+    const favoriteStore = useSongFavoriteStatusStore.getState();
+
+    if (favoriteStore.actionStatusMap[songId]) {
+      return;
+    }
+
+    favoriteStore.setFavoriteActionLoading(songId, true);
+
+    let favoriteAction: 'add' | 'remove' | null = null;
+
+    try {
+      setFavoriteErrorMessage('');
+
+      const token = await getAccessToken();
+
+      if (!token) {
+        throw new Error('Missing access token.');
+      }
+
+      const currentFavoriteState = useSongFavoriteStatusStore.getState().favoriteStateMap[songId];
+      const currentIsCollected = currentFavoriteState ?? Boolean(song.isCollected);
+      const nextIsCollected = !currentIsCollected;
+
+      console.log('[CachedSongsPanel] favorite decision:', {
+        songId,
+        title: song.title,
+        storeFavoriteState: currentFavoriteState,
+        songIsCollected: song.isCollected,
+        currentIsCollected,
+        nextIsCollected,
+      });
+
+      if (currentIsCollected) {
+        favoriteAction = 'remove';
+
+        const response = await playlistClient.removeSongFromPlaylist({
+          token,
+          type: 'collect',
+          songId,
+        });
+
+        console.log('[CachedSongsPanel] removed favorite:', {
           songId,
           title: song.title,
-          storeFavoriteState: currentFavoriteState,
-          songIsCollected: song.isCollected,
-          currentIsCollected,
-          nextIsCollected,
+          response,
         });
-  
-        if (currentIsCollected) {
-          favoriteAction = 'remove';
-  
-          const response = await playlistClient.removeSongFromPlaylist({
-            token,
-            type: 'collect',
-            songId,
-          });
-  
-          console.log('[CachedSongsPanel] removed favorite:', {
-            songId,
-            title: song.title,
-            response,
-          });
-        } else {
-          favoriteAction = 'add';
-  
-          const response = await playlistClient.addSongToPlaylist({
-            token,
-            type: 'collect',
-            songId,
-          });
-  
-          console.log('[CachedSongsPanel] added favorite:', {
-            songId,
-            title: song.title,
-            response,
-          });
-        }
-  
-        useSongFavoriteStatusStore.getState().setFavoriteState(songId, nextIsCollected);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-  
-        console.log('[CachedSongsPanel] toggle favorite failed:', {
+      } else {
+        favoriteAction = 'add';
+
+        const response = await playlistClient.addSongToPlaylist({
+          token,
+          type: 'collect',
+          songId,
+        });
+
+        console.log('[CachedSongsPanel] added favorite:', {
           songId,
           title: song.title,
-          error: message,
-          favoriteAction,
+          response,
         });
-  
-        if (
-          favoriteAction === 'remove' &&
-          (message === 'server error' ||
-            message.includes('不在此歌单中') ||
-            message.includes('不在此歌單中'))
-        ) {
-          useSongFavoriteStatusStore.getState().setFavoriteState(songId, false);
-          return;
-        }
-  
-        setFavoriteErrorMessage(message);
-      } finally {
-        useSongFavoriteStatusStore.getState().clearFavoriteActionStatus(songId);
       }
-    },
-    [],
-  );
 
+      useSongFavoriteStatusStore.getState().setFavoriteState(songId, nextIsCollected);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      console.log('[CachedSongsPanel] toggle favorite failed:', {
+        songId,
+        title: song.title,
+        error: message,
+        favoriteAction,
+      });
+
+      if (
+        favoriteAction === 'remove' &&
+        (message === 'server error' ||
+          message.includes('不在此歌单中') ||
+          message.includes('不在此歌單中'))
+      ) {
+        useSongFavoriteStatusStore.getState().setFavoriteState(songId, false);
+        return;
+      }
+
+      setFavoriteErrorMessage(message);
+    } finally {
+      useSongFavoriteStatusStore.getState().clearFavoriteActionStatus(songId);
+    }
+  }, []);
 
   useEffect(() => {
     if (!visible) {
@@ -418,6 +470,47 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
 
     loadCachedSongs();
   }, [loadCachedSongs, visible]);
+
+  const keyExtractor = useCallback((item: CachedSongAsset) => {
+    return item.songId;
+  }, []);
+
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<CachedSongAsset> | null | undefined, index: number) => {
+      return {
+        length: CACHED_SONG_ROW_HEIGHT,
+        offset: CACHED_SONG_ROW_HEIGHT * index,
+        index,
+      };
+    },
+    [],
+  );
+
+  const renderCachedSongItem = useCallback(
+    ({ item }: { item: CachedSongAsset }) => {
+      return (
+        <CachedSongRow
+          item={item}
+          copy={copy}
+          isEditing={isEditing}
+          isRemoving={Boolean(removingSongIdMap[item.songId])}
+          onRemoveCachedSong={handleRemoveCachedSong}
+          onToggleFavorite={handleToggleFavorite}
+          onInsertSongNext={insertSongNext}
+          onEnqueueSongAfterDownload={enqueueSongAfterDownload}
+        />
+      );
+    },
+    [
+      copy,
+      enqueueSongAfterDownload,
+      handleRemoveCachedSong,
+      handleToggleFavorite,
+      insertSongNext,
+      isEditing,
+      removingSongIdMap,
+    ],
+  );
 
   if (!visible) {
     return null;
@@ -496,115 +589,134 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
             <Text style={styles.loadingText}>{copy.loadingCachedSongs}</Text>
           </View>
         ) : (
+          // <FlatList
+          //   data={cachedSongs}
+          //   keyExtractor={(item) => item.songId}
+          //   contentContainerStyle={styles.listContent}
+          //   initialNumToRender={8}
+          //   maxToRenderPerBatch={8}
+          //   windowSize={5}
+          //   removeClippedSubviews
+          //   // renderItem={({ item }) => {
+          //   //   // const song = item.song;
+          //   //   // const title = song?.title ?? item.songId;
+          //   //   // const artists = song?.artists;
+          //   //   const song = item.song;
+          //   //   const title = song?.title ? formatDisplaySongTitle(song.title) : item.songId;
+          //   //   const artistText = formatArtists(song?.artists, copy.unknownArtist);
+
+          //   //   return (
+          //   //     <Swipeable
+          //   //       enabled={isEditing}
+          //   //       renderRightActions={() => (
+          //   //         <Pressable
+          //   //           style={styles.swipeRemoveButton}
+          //   //           disabled={Boolean(removingSongIdMap[item.songId])}
+          //   //           onPress={() => {
+          //   //             handleRemoveCachedSong(item.songId);
+          //   //           }}
+          //   //         >
+          //   //           <Text style={styles.swipeRemoveText}>
+          //   //             {removingSongIdMap[item.songId] ? copy.removing : copy.remove}
+          //   //           </Text>
+          //   //         </Pressable>
+          //   //       )}
+          //   //     >
+          //   //       <Pressable
+          //   //         style={({ pressed }) => [
+          //   //           styles.songRow,
+          //   //           pressed && styles.songRowPressed,
+          //   //           songActionStatusMap[item.songId] && styles.songRowResolving,
+          //   //         ]}
+          //   //         disabled={!song}
+          //   //         onPress={() => {
+          //   //           if (!song) {
+          //   //             return;
+          //   //           }
+
+          //   //           if (isEditing) {
+          //   //             return;
+          //   //           }
+
+          //   //           // insertSongNext(song);
+          //   //           enqueueSongAfterDownload(song);
+          //   //         }}
+          //   //       >
+          //   //         <View style={styles.songIconBox}>
+          //   //           <SongReadyIcon width={32} height={32} />
+          //   //         </View>
+
+          //   //         <Text style={styles.songTitle} numberOfLines={1}>
+          //   //           {truncateText(title, 18)}
+          //   //         </Text>
+
+          //   //         <Text style={styles.artistText} numberOfLines={1}>
+          //   //           {truncateText(artistText, 16)}
+          //   //         </Text>
+
+          //   //         <Pressable style={styles.favoriteButton}>
+          //   //           {song?.isCollected ? (
+          //   //             <SongLikedIcon width={42} height={42} />
+          //   //           ) : (
+          //   //             <SongLikeIcon width={42} height={42} />
+          //   //           )}
+          //   //         </Pressable>
+
+          //   //         <Pressable
+          //   //           style={styles.insertButton}
+          //   //           disabled={!song || Boolean(songActionStatusMap[item.songId])}
+          //   //           onPress={(event) => {
+          //   //             event.stopPropagation();
+
+          //   //             if (!song) {
+          //   //               return;
+          //   //             }
+
+          //   //             insertSongNext(song);
+          //   //             // enqueueSongAfterDownload(song);
+          //   //             console.log('isInsertSongNext');
+          //   //           }}
+          //   //         >
+          //   //           <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
+          //   //             {getInsertButtonText(songActionStatusMap[item.songId], copy)}
+          //   //           </Text>
+          //   //         </Pressable>
+          //   //       </Pressable>
+          //   //     </Swipeable>
+          //   //   );
+          //   // }}
+
+          //   renderItem={({ item }) => (
+          //     <CachedSongRow
+          //       item={item}
+          //       copy={copy}
+          //       isEditing={isEditing}
+          //       isRemoving={Boolean(removingSongIdMap[item.songId])}
+          //       onRemoveCachedSong={handleRemoveCachedSong}
+          //       onToggleFavorite={handleToggleFavorite}
+          //       onInsertSongNext={insertSongNext}
+          //       onEnqueueSongAfterDownload={enqueueSongAfterDownload}
+          //     />
+          //   )}
+          //   ListEmptyComponent={
+          //     <View style={styles.centerContent}>
+          //       <Text style={styles.emptyText}>{copy.emptyCachedSongs}</Text>
+          //     </View>
+          //   }
+          // />
+
           <FlatList
             data={cachedSongs}
-            keyExtractor={(item) => item.songId}
+            keyExtractor={keyExtractor}
+            getItemLayout={getItemLayout}
             contentContainerStyle={styles.listContent}
             initialNumToRender={8}
-            maxToRenderPerBatch={8}
+            maxToRenderPerBatch={6}
+            updateCellsBatchingPeriod={50}
             windowSize={5}
             removeClippedSubviews
-            // renderItem={({ item }) => {
-            //   // const song = item.song;
-            //   // const title = song?.title ?? item.songId;
-            //   // const artists = song?.artists;
-            //   const song = item.song;
-            //   const title = song?.title ? formatDisplaySongTitle(song.title) : item.songId;
-            //   const artistText = formatArtists(song?.artists, copy.unknownArtist);
-
-            //   return (
-            //     <Swipeable
-            //       enabled={isEditing}
-            //       renderRightActions={() => (
-            //         <Pressable
-            //           style={styles.swipeRemoveButton}
-            //           disabled={Boolean(removingSongIdMap[item.songId])}
-            //           onPress={() => {
-            //             handleRemoveCachedSong(item.songId);
-            //           }}
-            //         >
-            //           <Text style={styles.swipeRemoveText}>
-            //             {removingSongIdMap[item.songId] ? copy.removing : copy.remove}
-            //           </Text>
-            //         </Pressable>
-            //       )}
-            //     >
-            //       <Pressable
-            //         style={({ pressed }) => [
-            //           styles.songRow,
-            //           pressed && styles.songRowPressed,
-            //           songActionStatusMap[item.songId] && styles.songRowResolving,
-            //         ]}
-            //         disabled={!song}
-            //         onPress={() => {
-            //           if (!song) {
-            //             return;
-            //           }
-
-            //           if (isEditing) {
-            //             return;
-            //           }
-
-            //           // insertSongNext(song);
-            //           enqueueSongAfterDownload(song);
-            //         }}
-            //       >
-            //         <View style={styles.songIconBox}>
-            //           <SongReadyIcon width={32} height={32} />
-            //         </View>
-
-            //         <Text style={styles.songTitle} numberOfLines={1}>
-            //           {truncateText(title, 18)}
-            //         </Text>
-
-            //         <Text style={styles.artistText} numberOfLines={1}>
-            //           {truncateText(artistText, 16)}
-            //         </Text>
-
-            //         <Pressable style={styles.favoriteButton}>
-            //           {song?.isCollected ? (
-            //             <SongLikedIcon width={42} height={42} />
-            //           ) : (
-            //             <SongLikeIcon width={42} height={42} />
-            //           )}
-            //         </Pressable>
-
-            //         <Pressable
-            //           style={styles.insertButton}
-            //           disabled={!song || Boolean(songActionStatusMap[item.songId])}
-            //           onPress={(event) => {
-            //             event.stopPropagation();
-
-            //             if (!song) {
-            //               return;
-            //             }
-
-            //             insertSongNext(song);
-            //             // enqueueSongAfterDownload(song);
-            //             console.log('isInsertSongNext');
-            //           }}
-            //         >
-            //           <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-            //             {getInsertButtonText(songActionStatusMap[item.songId], copy)}
-            //           </Text>
-            //         </Pressable>
-            //       </Pressable>
-            //     </Swipeable>
-            //   );
-            // }}
-
-            renderItem={({ item }) => (
-              <CachedSongRow
-                item={item}
-                copy={copy}
-                isEditing={isEditing}
-                isRemoving={Boolean(removingSongIdMap[item.songId])}
-                onRemoveCachedSong={handleRemoveCachedSong}
-                onToggleFavorite={handleToggleFavorite}
-                onInsertSongNext={insertSongNext}
-                onEnqueueSongAfterDownload={enqueueSongAfterDownload}
-              />
-            )}
+            keyboardShouldPersistTaps="handled"
+            renderItem={renderCachedSongItem}
             ListEmptyComponent={
               <View style={styles.centerContent}>
                 <Text style={styles.emptyText}>{copy.emptyCachedSongs}</Text>

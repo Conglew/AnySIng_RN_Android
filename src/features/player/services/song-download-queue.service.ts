@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { InteractionManager } from 'react-native';
 import { useDownloadQueueStore } from '../stores/download-queue.store';
 import { SongDownloadTask } from '../types/download.types';
 import { songAssetResolverService } from './song-asset-resolver.service';
@@ -8,6 +9,15 @@ import { songCacheService } from './song-cache.service';
 import { useSongDownloadStatusStore } from '../stores/song-download-status.store';
 
 const MAX_CONCURRENT_DOWNLOADS = 1;
+const ENABLE_DOWNLOAD_LOG = __DEV__ && false;
+
+function downloadLog(message: string, payload?: unknown) {
+  if (!ENABLE_DOWNLOAD_LOG) {
+    return;
+  }
+
+  console.log(message, payload);
+}
 
 function createTaskId(songId: string) {
   return `${songId}-${Date.now()}`;
@@ -26,6 +36,7 @@ async function downloadFile({
   let lastProgressUpdateAt = 0;
   let lastBytesWritten = 0;
   let lastSpeedCalculatedAt = Date.now();
+  let latestSpeedText = '0.00 MB/s';
 
   const tempUri = `${finalUri}.tmp`;
 
@@ -56,8 +67,8 @@ async function downloadFile({
       const isFirstUpdate = lastProgress < 0;
       const isCompleted = progress >= 100;
       const isProgressChanged = progress !== lastProgress;
-      const isProgressChangedEnough = progressDelta >= 1;
-      const isTimePassedEnough = timeDelta >= 300;
+      const isProgressChangedEnough = progressDelta >= 5;
+      const isTimePassedEnough = timeDelta >= 1000;
 
       if (
         !isFirstUpdate &&
@@ -71,7 +82,8 @@ async function downloadFile({
       const speedTimeDelta = Math.max(1, now - lastSpeedCalculatedAt);
       const bytesDelta = Math.max(0, bytesWritten - lastBytesWritten);
       const bytesPerSecond = (bytesDelta / speedTimeDelta) * 1000;
-      const speedText = `${(bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s`;
+
+      latestSpeedText = `${(bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s`;
 
       lastBytesWritten = bytesWritten;
       lastSpeedCalculatedAt = now;
@@ -83,13 +95,13 @@ async function downloadFile({
         progress,
       });
 
-      useSongDownloadStatusStore.getState().setDownloading(task.song, progress, speedText);
+      useSongDownloadStatusStore.getState().setDownloading(task.song, progress, latestSpeedText);
     },
   );
 
   const result = await downloadResumable.downloadAsync();
 
-  console.log('[SongDownloadQueue] download result:', {
+  downloadLog('[SongDownloadQueue] download result:', {
     songId: task.songId,
     title: task.song.title,
     status: result?.status,
@@ -144,12 +156,17 @@ async function downloadFile({
     throw new Error('Download failed: final file is missing or empty.');
   }
 
+  useDownloadQueueStore.getState().updateTask(task.taskId, {
+    progress: 100,
+  });
+
+  useSongDownloadStatusStore.getState().setDownloading(task.song, 100, latestSpeedText);
+
   return finalUri;
 }
 
 async function executeTask(task: SongDownloadTask) {
   const { updateTask, removeTask } = useDownloadQueueStore.getState();
-  // const { setDownloading, clearStatus } = useSongDownloadStatusStore.getState();
   const { setPreparing, clearStatus } = useSongDownloadStatusStore.getState();
 
   try {
@@ -168,8 +185,6 @@ async function executeTask(task: SongDownloadTask) {
 
     const dir = await songCacheService.ensureSongDir(task.songId);
 
-    // const videoExtension = getFileExtensionFromUrl(assets.videoUrl, 'mp4');
-    // const videoUri = `${dir}video.${videoExtension}`;
     const videoUri = `${dir}video.mkv`;
 
     const localVideoUri = await downloadFile({
@@ -178,37 +193,9 @@ async function executeTask(task: SongDownloadTask) {
       task,
     });
 
-    // let localVocalUri: string | undefined;
-    // let localInstrumentalUri: string | undefined;
-
-    // if (assets.vocalUrl) {
-    //   const vocalExtension = getFileExtensionFromUrl(assets.vocalUrl, 'wav');
-
-    //   localVocalUri = await downloadFile({
-    //     url: assets.vocalUrl,
-    //     finalUri: `${dir}vocal.${vocalExtension}`,
-    //     task,
-    //   });
-    // }
-
-    // if (assets.instrumentalUrl) {
-    //   const instrumentalExtension = getFileExtensionFromUrl(
-    //     assets.instrumentalUrl,
-    //     'wav',
-    //   );
-
-    //   localInstrumentalUri = await downloadFile({
-    //     url: assets.instrumentalUrl,
-    //     finalUri: `${dir}instrumental.${instrumentalExtension}`,
-    //     task,
-    //   });
-    // }
-
     await songCacheService.saveCachedSong(task.songId, {
       songId: task.songId,
       videoUri: localVideoUri,
-      // vocalUri: localVocalUri,
-      // instrumentalUri: localInstrumentalUri,
       downloadedAt: Date.now(),
       song: task.song,
     });
@@ -248,6 +235,22 @@ async function executeTask(task: SongDownloadTask) {
   }
 }
 
+let pumpTimer: ReturnType<typeof setTimeout> | null = null;
+
+function schedulePump(delayMs = 300) {
+  if (pumpTimer) {
+    clearTimeout(pumpTimer);
+  }
+
+  pumpTimer = setTimeout(() => {
+    pumpTimer = null;
+
+    InteractionManager.runAfterInteractions(() => {
+      songDownloadQueueService.pump();
+    });
+  }, delayMs);
+}
+
 export const songDownloadQueueService = {
   enqueue({
     songId,
@@ -276,7 +279,9 @@ export const songDownloadQueueService = {
 
     useDownloadQueueStore.getState().addTask(task);
 
-    console.log('[SongDownloadQueue] enqueue:', {
+    useSongDownloadStatusStore.getState().setQueued(task.song);
+
+    downloadLog('[SongDownloadQueue] enqueue:', {
       taskId: task.taskId,
       songId: task.songId,
       title: task.song.title,
@@ -284,7 +289,7 @@ export const songDownloadQueueService = {
       priority: task.priority,
     });
 
-    this.pump();
+    schedulePump();
 
     return task;
   },
@@ -294,7 +299,7 @@ export const songDownloadQueueService = {
 
     const activeCount = activeTaskIds.length;
 
-    console.log('[SongDownloadQueue] pump:', {
+    downloadLog('[SongDownloadQueue] pump:', {
       tasksCount: tasks.length,
       activeTaskIds,
       activeCount,
@@ -302,7 +307,7 @@ export const songDownloadQueueService = {
     });
 
     if (activeCount >= MAX_CONCURRENT_DOWNLOADS) {
-      console.log('[SongDownloadQueue] pump skipped: max concurrent reached', {
+      downloadLog('[SongDownloadQueue] pump skipped: max concurrent reached', {
         activeTaskIds,
       });
 
@@ -326,7 +331,7 @@ export const songDownloadQueueService = {
       })
       .slice(0, availableSlots);
 
-    console.log('[SongDownloadQueue] queued tasks selected:', {
+    downloadLog('[SongDownloadQueue] queued tasks selected:', {
       queuedTaskIds: queuedTasks.map((task) => task.taskId),
     });
 

@@ -24,7 +24,7 @@ export const MAIN_FOOTER_COPY: Record<LanguageValue, MainFooterCopy> = {
     accompaniment: '伴唱',
     restart: '重唱',
     queued: '已点',
-    record: '录制',
+    record: '返回',
   },
   'zh-TW': {
     home: '主頁',
@@ -36,7 +36,7 @@ export const MAIN_FOOTER_COPY: Record<LanguageValue, MainFooterCopy> = {
     accompaniment: '伴唱',
     restart: '重唱',
     queued: '已點',
-    record: '錄製',
+    record: '返回',
   },
   en: {
     home: 'Home',
@@ -48,7 +48,7 @@ export const MAIN_FOOTER_COPY: Record<LanguageValue, MainFooterCopy> = {
     accompaniment: 'Backing',
     restart: 'Restart',
     queued: 'Queue',
-    record: 'Record',
+    record: 'Back',
   },
   ms: {
     home: 'Utama',
@@ -60,6 +60,6 @@ export const MAIN_FOOTER_COPY: Record<LanguageValue, MainFooterCopy> = {
     accompaniment: 'Iringan',
     restart: 'Ulang',
     queued: 'Giliran',
-    record: 'Rakam',
+    record: 'Back',
   },
 };

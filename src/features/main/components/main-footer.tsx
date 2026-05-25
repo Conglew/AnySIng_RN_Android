@@ -243,7 +243,14 @@ export function MainFooter() {
         const isPauseItem = item.action === 'togglePause';
         const isAudioTrackItem = item.action === 'toggleAudioTrack';
 
+        const isRecordItem = item.labelKey === 'record';
+        const shouldHideRecordItem = isRecordItem && videoMode === 'footerMini';
+
         const displayLabel = (() => {
+          if (isRecordItem && videoMode === 'fullscreen') {
+            return '返回';
+          }
+
           if (isPauseItem) {
             return isPaused ? copy.resume : copy.pause;
           }
@@ -267,8 +274,6 @@ export function MainFooter() {
           return item.Icon;
         })();
 
-        const isRecordItem = item.labelKey === 'record';
-        const shouldHideRecordItem = isRecordItem && videoMode === 'footerMini';
 
         return (
           <Pressable
@@ -302,6 +307,12 @@ export function MainFooter() {
                 openQueuedSongsPanel();
                 return;
               }
+              
+              if (item.labelKey === 'record' && videoMode === 'fullscreen') {
+                closeFullscreen();
+                return;
+              }
+
 
               if (item.action === 'togglePause') {
                 console.log('[MainFooter] before toggle isPaused:', isPaused);

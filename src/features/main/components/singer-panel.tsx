@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  GestureResponderEvent,
   Image,
   ImageSourcePropType,
   Pressable,
@@ -53,6 +54,7 @@ type Props = {
 };
 
 const PAGE_SIZE = 20;
+const SINGER_SONG_ROW_HEIGHT = 62;
 
 function formatArtists(artists: SongDto['artists']) {
   if (!Array.isArray(artists) || artists.length === 0) {
@@ -78,6 +80,10 @@ function truncateText(value: string, maxLength: number) {
 function getInsertButtonText(status: SongDownloadStatus | undefined, copy: SingerPanelCopy) {
   if (!status) {
     return copy.insert;
+  }
+
+  if (status.phase === 'queued') {
+    return '等待中';
   }
 
   if (status.phase === 'preparing') {
@@ -143,7 +149,7 @@ type SingerSongRowProps = {
   copy: SingerPanelCopy;
   selectedSingerName: string;
   onToggleFavorite: (song: SongDto) => void;
-  onInsertSongNext: (song: SongDto) => void;
+  onAddSongToQueue: (song: SongDto) => void;
 };
 
 const SingerSongRow = memo(function SingerSongRow({
@@ -151,7 +157,7 @@ const SingerSongRow = memo(function SingerSongRow({
   copy,
   selectedSingerName,
   onToggleFavorite,
-  onInsertSongNext,
+  onAddSongToQueue,
 }: SingerSongRowProps) {
   const songActionStatus = useSongDownloadStatusStore((state) => state.statusMap[song._id]);
 
@@ -164,6 +170,52 @@ const SingerSongRow = memo(function SingerSongRow({
   const isSongActionLoading = Boolean(songActionStatus);
   const isFavorite = favoriteState ?? Boolean(song.isCollected);
 
+  const displayTitle = useMemo(() => {
+    return truncateText(formatDisplaySongTitle(song.title), 11);
+  }, [song.title]);
+
+  const displayArtistText = useMemo(() => {
+    return truncateText(formatSongArtistText(song, selectedSingerName), 5);
+  }, [selectedSingerName, song]);
+
+  const insertButtonText = useMemo(() => {
+    return getInsertButtonText(songActionStatus, copy);
+  }, [copy, songActionStatus]);
+
+  const handlePressRow = useCallback(() => {
+    if (isSongActionLoading) {
+      return;
+    }
+
+    onAddSongToQueue(song);
+  }, [isSongActionLoading, onAddSongToQueue, song]);
+
+  const handlePressFavorite = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+
+      if (isFavoriteActionLoading) {
+        return;
+      }
+
+      onToggleFavorite(song);
+    },
+    [isFavoriteActionLoading, onToggleFavorite, song],
+  );
+
+  const handlePressInsert = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+
+      if (isSongActionLoading) {
+        return;
+      }
+
+      onAddSongToQueue(song);
+    },
+    [isSongActionLoading, onAddSongToQueue, song],
+  );
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -171,29 +223,24 @@ const SingerSongRow = memo(function SingerSongRow({
         pressed && styles.songRowPressed,
         isSongActionLoading && styles.songRowResolving,
       ]}
-      onPress={() => {
-        onInsertSongNext(song);
-      }}
+      onPress={handlePressRow}
     >
       <View style={styles.songIconBox}>
         <SongReadyIcon width={32} height={32} />
       </View>
 
       <Text style={styles.songTitle} numberOfLines={1}>
-        {truncateText(formatDisplaySongTitle(song.title), 11)}
+        {displayTitle}
       </Text>
 
       <Text style={styles.artistText} numberOfLines={1}>
-        {truncateText(formatSongArtistText(song, selectedSingerName), 5)}
+        {displayArtistText}
       </Text>
 
       <Pressable
         style={styles.favoriteButton}
         disabled={isFavoriteActionLoading}
-        onPress={(event) => {
-          event.stopPropagation();
-          onToggleFavorite(song);
-        }}
+        onPress={handlePressFavorite}
       >
         {isFavorite ? (
           <SongLikedIcon width={42} height={42} />
@@ -205,13 +252,10 @@ const SingerSongRow = memo(function SingerSongRow({
       <Pressable
         style={styles.insertButton}
         disabled={isSongActionLoading}
-        onPress={(event) => {
-          event.stopPropagation();
-          onInsertSongNext(song);
-        }}
+        onPress={handlePressInsert}
       >
         <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-          {getInsertButtonText(songActionStatus, copy)}
+          {insertButtonText}
         </Text>
       </Pressable>
     </Pressable>
@@ -330,7 +374,7 @@ export function SingerPanel({ visible, onClose }: Props) {
   }, [searchKeyword]);
 
   // const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
-  const { insertSongNext } = useInsertSongPlayback();
+  const { enqueueSongAfterDownload } = useInsertSongPlayback();
 
   const isSingerListMode = selectedSinger === null;
 
@@ -744,14 +788,14 @@ export function SingerPanel({ visible, onClose }: Props) {
         const currentIsCollected = currentFavoriteState ?? Boolean(song.isCollected);
         const nextIsCollected = !currentIsCollected;
 
-        console.log('[SingerPanel] favorite decision:', {
-          songId,
-          title: song.title,
-          storeFavoriteState: currentFavoriteState,
-          songIsCollected: song.isCollected,
-          currentIsCollected,
-          nextIsCollected,
-        });
+        // console.log('[SingerPanel] favorite decision:', {
+        //   songId,
+        //   title: song.title,
+        //   storeFavoriteState: currentFavoriteState,
+        //   songIsCollected: song.isCollected,
+        //   currentIsCollected,
+        //   nextIsCollected,
+        // });
 
         if (currentIsCollected) {
           favoriteAction = 'remove';
@@ -762,11 +806,11 @@ export function SingerPanel({ visible, onClose }: Props) {
             songId,
           });
 
-          console.log('[SingerPanel] removed favorite:', {
-            songId,
-            title: song.title,
-            response,
-          });
+          // console.log('[SingerPanel] removed favorite:', {
+          //   songId,
+          //   title: song.title,
+          //   response,
+          // });
         } else {
           favoriteAction = 'add';
 
@@ -776,11 +820,11 @@ export function SingerPanel({ visible, onClose }: Props) {
             songId,
           });
 
-          console.log('[SingerPanel] added favorite:', {
-            songId,
-            title: song.title,
-            response,
-          });
+          // console.log('[SingerPanel] added favorite:', {
+          //   songId,
+          //   title: song.title,
+          //   response,
+          // });
         }
 
         useSongFavoriteStatusStore.getState().setFavoriteState(songId, nextIsCollected);
@@ -842,6 +886,36 @@ export function SingerPanel({ visible, onClose }: Props) {
     setSearchKeyword('');
     setDebouncedSearchKeyword('');
   }, [visible]);
+
+  const singerSongKeyExtractor = useCallback((item: SongDto) => {
+    return item._id;
+  }, []);
+
+  const getSingerSongItemLayout = useCallback(
+    (_data: ArrayLike<SongDto> | null | undefined, index: number) => {
+      return {
+        length: SINGER_SONG_ROW_HEIGHT,
+        offset: SINGER_SONG_ROW_HEIGHT * index,
+        index,
+      };
+    },
+    [],
+  );
+
+  const renderSingerSongItem = useCallback(
+    ({ item }: { item: SongDto }) => {
+      return (
+        <SingerSongRow
+          song={item}
+          copy={copy}
+          selectedSingerName={selectedSingerName}
+          onToggleFavorite={handleToggleFavorite}
+          onAddSongToQueue={enqueueSongAfterDownload}
+        />
+      );
+    },
+    [copy, handleToggleFavorite, enqueueSongAfterDownload, selectedSingerName],
+  );
 
   if (!visible) {
     return null;
@@ -939,80 +1013,112 @@ export function SingerPanel({ visible, onClose }: Props) {
                   <Text style={styles.loadingText}>{copy.loadingSongs}</Text>
                 </View>
               ) : (
+                // <FlatList
+                //   key="singer-song-list"
+                //   ref={songListRef}
+                //   style={styles.listArea}
+                //   data={filteredSongs}
+                //   keyExtractor={(item) => item._id}
+                //   contentContainerStyle={styles.songListContent}
+                //   // onEndReached={handleLoadMoreSongs}
+                //   onEndReached={isSearchMode ? undefined : handleLoadMoreSongs}
+                //   onEndReachedThreshold={0.35}
+                //   showsVerticalScrollIndicator={false}
+                //   initialNumToRender={8}
+                //   maxToRenderPerBatch={8}
+                //   windowSize={5}
+                //   removeClippedSubviews
+                //   renderItem={({ item }) => (
+                //     // <Pressable
+                //     //   style={({ pressed }) => [
+                //     //     styles.songRow,
+                //     //     pressed && styles.songRowPressed,
+                //     //     songActionStatusMap[item._id] && styles.songRowResolving,
+                //     //   ]}
+                //     //   onPress={() => insertSongNext(item)}
+                //     // >
+                //     //   <View style={styles.songIconBox}>
+                //     //     <SongReadyIcon width={32} height={32} />
+                //     //   </View>
+
+                //     //   <Text style={styles.songTitle} numberOfLines={1}>
+                //     //     {truncateText(formatDisplaySongTitle(item.title), 11)}
+                //     //   </Text>
+
+                //     //   <Text style={styles.artistText} numberOfLines={1}>
+                //     //     {/* {truncateText(formatArtists(item.artists), 5)} */}
+                //     //     {truncateText(formatSongArtistText(item, selectedSingerName), 5)}
+                //     //   </Text>
+
+                //     //   <Pressable
+                //     //     style={styles.favoriteButton}
+                //     //     disabled={Boolean(favoriteActionStatusMap[item._id])}
+                //     //     onPress={(event) => {
+                //     //       event.stopPropagation();
+                //     //       handleToggleFavorite(item);
+                //     //     }}
+                //     //   >
+                //     //     {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
+                //     //       <SongLikedIcon width={42} height={42} />
+                //     //     ) : (
+                //     //       <SongLikeIcon width={42} height={42} />
+                //     //     )}
+                //     //   </Pressable>
+
+                //     //   <Pressable
+                //     //     style={styles.insertButton}
+                //     //     disabled={Boolean(songActionStatusMap[item._id])}
+                //     //     onPress={(event) => {
+                //     //       event.stopPropagation();
+                //     //       insertSongNext(item);
+                //     //     }}
+                //     //   >
+                //     //     <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
+                //     //       {getInsertButtonText(songActionStatusMap[item._id], copy)}
+                //     //     </Text>
+                //     //   </Pressable>
+                //     // </Pressable>
+
+                //     <SingerSongRow
+                //       song={item}
+                //       copy={copy}
+                //       selectedSingerName={selectedSingerName}
+                //       onToggleFavorite={handleToggleFavorite}
+                //       onInsertSongNext={insertSongNext}
+                //     />
+                //   )}
+                //   ListEmptyComponent={
+                //     <View style={styles.centerContent}>
+                //       <Text style={styles.emptyText}>{copy.emptySongs}</Text>
+                //     </View>
+                //   }
+                //   ListFooterComponent={
+                //     isLoadingMoreSongs ? (
+                //       <View style={styles.footerLoading}>
+                //         <ActivityIndicator />
+                //       </View>
+                //     ) : null
+                //   }
+                // />
+
                 <FlatList
                   key="singer-song-list"
                   ref={songListRef}
                   style={styles.listArea}
                   data={filteredSongs}
-                  keyExtractor={(item) => item._id}
+                  keyExtractor={singerSongKeyExtractor}
+                  getItemLayout={getSingerSongItemLayout}
                   contentContainerStyle={styles.songListContent}
-                  // onEndReached={handleLoadMoreSongs}
                   onEndReached={isSearchMode ? undefined : handleLoadMoreSongs}
                   onEndReachedThreshold={0.35}
                   showsVerticalScrollIndicator={false}
                   initialNumToRender={8}
-                  maxToRenderPerBatch={8}
+                  maxToRenderPerBatch={6}
+                  updateCellsBatchingPeriod={50}
                   windowSize={5}
                   removeClippedSubviews
-                  renderItem={({ item }) => (
-                    // <Pressable
-                    //   style={({ pressed }) => [
-                    //     styles.songRow,
-                    //     pressed && styles.songRowPressed,
-                    //     songActionStatusMap[item._id] && styles.songRowResolving,
-                    //   ]}
-                    //   onPress={() => insertSongNext(item)}
-                    // >
-                    //   <View style={styles.songIconBox}>
-                    //     <SongReadyIcon width={32} height={32} />
-                    //   </View>
-
-                    //   <Text style={styles.songTitle} numberOfLines={1}>
-                    //     {truncateText(formatDisplaySongTitle(item.title), 11)}
-                    //   </Text>
-
-                    //   <Text style={styles.artistText} numberOfLines={1}>
-                    //     {/* {truncateText(formatArtists(item.artists), 5)} */}
-                    //     {truncateText(formatSongArtistText(item, selectedSingerName), 5)}
-                    //   </Text>
-
-                    //   <Pressable
-                    //     style={styles.favoriteButton}
-                    //     disabled={Boolean(favoriteActionStatusMap[item._id])}
-                    //     onPress={(event) => {
-                    //       event.stopPropagation();
-                    //       handleToggleFavorite(item);
-                    //     }}
-                    //   >
-                    //     {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
-                    //       <SongLikedIcon width={42} height={42} />
-                    //     ) : (
-                    //       <SongLikeIcon width={42} height={42} />
-                    //     )}
-                    //   </Pressable>
-
-                    //   <Pressable
-                    //     style={styles.insertButton}
-                    //     disabled={Boolean(songActionStatusMap[item._id])}
-                    //     onPress={(event) => {
-                    //       event.stopPropagation();
-                    //       insertSongNext(item);
-                    //     }}
-                    //   >
-                    //     <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                    //       {getInsertButtonText(songActionStatusMap[item._id], copy)}
-                    //     </Text>
-                    //   </Pressable>
-                    // </Pressable>
-
-                    <SingerSongRow
-                      song={item}
-                      copy={copy}
-                      selectedSingerName={selectedSingerName}
-                      onToggleFavorite={handleToggleFavorite}
-                      onInsertSongNext={insertSongNext}
-                    />
-                  )}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={renderSingerSongItem}
                   ListEmptyComponent={
                     <View style={styles.centerContent}>
                       <Text style={styles.emptyText}>{copy.emptySongs}</Text>

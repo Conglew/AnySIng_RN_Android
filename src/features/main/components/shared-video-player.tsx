@@ -10,7 +10,7 @@
 
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Pressable, StyleSheet, View } from 'react-native';
 import Video, { SelectedTrackType, type SelectedTrack } from 'react-native-video';
 
@@ -88,38 +88,64 @@ export function SharedVideoPlayer() {
   const isFullscreen = mode === 'fullscreen';
   const activeMiniRect = mode === 'footerMini' ? footerMiniRect : homeMiniRect;
 
-  const handleToggleFullscreen = () => {
-    console.log('[SharedVideoPlayer] press video:', {
-      mode,
-      activeMiniRect,
-      isFullscreenChromeVisible,
-    });
+  // const handleToggleFullscreen = () => {
+  //   console.log('[SharedVideoPlayer] press video:', {
+  //     mode,
+  //     activeMiniRect,
+  //     isFullscreenChromeVisible,
+  //   });
 
+  //   if (!activeMiniRect) {
+  //     console.log('[SharedVideoPlayer] toggle ignored: missing activeMiniRect');
+  //     return;
+  //   }
+
+  //   if (isFullscreen) {
+  //     /**
+  //      * fullscreen 且 Header/Footer 已隱藏：
+  //      * 第一次點擊只顯示 Header/Footer，不退出 fullscreen。
+  //      */
+  //     if (!isFullscreenChromeVisible) {
+  //       showFullscreenChrome();
+  //       return;
+  //     }
+
+  //     /**
+  //      * fullscreen 且 Header/Footer 顯示中：
+  //      * 再次點擊才退出 fullscreen，回到 mini。
+  //      */
+  //     closeFullscreen();
+  //     return;
+  //   }
+
+  //   openFullscreen();
+  // };
+
+  const handleToggleFullscreen = useCallback(() => {
     if (!activeMiniRect) {
       console.log('[SharedVideoPlayer] toggle ignored: missing activeMiniRect');
       return;
     }
 
     if (isFullscreen) {
-      /**
-       * fullscreen 且 Header/Footer 已隱藏：
-       * 第一次點擊只顯示 Header/Footer，不退出 fullscreen。
-       */
       if (!isFullscreenChromeVisible) {
         showFullscreenChrome();
         return;
       }
 
-      /**
-       * fullscreen 且 Header/Footer 顯示中：
-       * 再次點擊才退出 fullscreen，回到 mini。
-       */
       closeFullscreen();
       return;
     }
 
     openFullscreen();
-  };
+  }, [
+    activeMiniRect,
+    closeFullscreen,
+    isFullscreen,
+    isFullscreenChromeVisible,
+    openFullscreen,
+    showFullscreenChrome,
+  ]);
 
   /**
    * 有 currentPlaybackItem 時播放目前歌曲。
@@ -127,6 +153,16 @@ export function SharedVideoPlayer() {
    */
   const playbackVideoUri = currentPlaybackItem?.localVideoUri ?? resolvedDefaultVideoUri;
   const isDefaultVideo = !currentPlaybackItem;
+
+  const videoSource = useMemo(() => {
+    if (!playbackVideoUri) {
+      return undefined;
+    }
+
+    return {
+      uri: playbackVideoUri,
+    };
+  }, [playbackVideoUri]);
 
   const selectedAudioTrack = useMemo<SelectedTrack | undefined>(() => {
     const selectedIndex =
@@ -284,50 +320,99 @@ export function SharedVideoPlayer() {
       return;
     }
 
-    console.log('[SharedVideoPlayer] restart current video:', {
-      restartToken,
-      playbackVideoUri,
-      queueId: currentPlaybackItem?.queueId,
-    });
+    // console.log('[SharedVideoPlayer] restart current video:', {
+    //   restartToken,
+    //   playbackVideoUri,
+    //   queueId: currentPlaybackItem?.queueId,
+    // });
 
     videoRef.current?.seek?.(0);
   }, [currentPlaybackItem?.queueId, playbackVideoUri, restartToken]);
 
-  const handleVideoLoad = (payload: any) => {
-    console.log('[SharedVideoPlayer] onLoad:', {
-      playbackVideoUri,
-      currentPlaybackItem: currentPlaybackItem
-        ? {
-            queueId: currentPlaybackItem.queueId,
-            songId: currentPlaybackItem.songId,
-            title: currentPlaybackItem.title,
-            artistText: currentPlaybackItem.artistText,
-            localVideoUri: currentPlaybackItem.localVideoUri,
-          }
-        : null,
-      isDefaultVideo,
-      isPaused,
-      audioTracks: payload?.audioTracks,
-    });
+  // const handleVideoLoad = (payload: any) => {
+  //   console.log('[SharedVideoPlayer] onLoad:', {
+  //     playbackVideoUri,
+  //     currentPlaybackItem: currentPlaybackItem
+  //       ? {
+  //           queueId: currentPlaybackItem.queueId,
+  //           songId: currentPlaybackItem.songId,
+  //           title: currentPlaybackItem.title,
+  //           artistText: currentPlaybackItem.artistText,
+  //           localVideoUri: currentPlaybackItem.localVideoUri,
+  //         }
+  //       : null,
+  //     isDefaultVideo,
+  //     isPaused,
+  //     audioTracks: payload?.audioTracks,
+  //   });
 
-    const audioTracks = payload?.audioTracks ?? [];
+  //   const audioTracks = payload?.audioTracks ?? [];
 
-    const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
-    const accompanimentTrack = audioTracks[DEFAULT_ACCOMPANIMENT_TRACK_INDEX];
+  //   const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
+  //   const accompanimentTrack = audioTracks[DEFAULT_ACCOMPANIMENT_TRACK_INDEX];
 
-    setAudioTrackIndexes({
-      vocalAudioTrackIndex: vocalTrack ? DEFAULT_VOCAL_TRACK_INDEX : null,
-      accompanimentAudioTrackIndex: accompanimentTrack ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX : null,
-    });
-  };
+  //   setAudioTrackIndexes({
+  //     vocalAudioTrackIndex: vocalTrack ? DEFAULT_VOCAL_TRACK_INDEX : null,
+  //     accompanimentAudioTrackIndex: accompanimentTrack ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX : null,
+  //   });
+  // };
 
-  const handleVideoEnd = () => {
-    // console.log('[SharedVideoPlayer] playback ended:', {
-    //   isDefaultVideo,
-    //   songId: currentPlaybackItem?.songId,
-    //   song: currentPlaybackItem?.song,
-    // });
+  const handleVideoLoad = useCallback(
+    (payload: any) => {
+      const audioTracks = payload?.audioTracks ?? [];
 
+      const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
+      const accompanimentTrack = audioTracks[DEFAULT_ACCOMPANIMENT_TRACK_INDEX];
+
+      const nextVocalAudioTrackIndex = vocalTrack ? DEFAULT_VOCAL_TRACK_INDEX : null;
+      const nextAccompanimentAudioTrackIndex = accompanimentTrack
+        ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX
+        : null;
+
+      if (
+        vocalAudioTrackIndex === nextVocalAudioTrackIndex &&
+        accompanimentAudioTrackIndex === nextAccompanimentAudioTrackIndex
+      ) {
+        return;
+      }
+
+      setAudioTrackIndexes({
+        vocalAudioTrackIndex: nextVocalAudioTrackIndex,
+        accompanimentAudioTrackIndex: nextAccompanimentAudioTrackIndex,
+      });
+    },
+    [accompanimentAudioTrackIndex, setAudioTrackIndexes, vocalAudioTrackIndex],
+  );
+
+  // const handleVideoEnd = () => {
+  //   // console.log('[SharedVideoPlayer] playback ended:', {
+  //   //   isDefaultVideo,
+  //   //   songId: currentPlaybackItem?.songId,
+  //   //   song: currentPlaybackItem?.song,
+  //   // });
+
+  //   if (isDefaultVideo) {
+  //     videoRef.current?.seek?.(0);
+  //     return;
+  //   }
+
+  //   if (isHandlingVideoEndRef.current) {
+  //     return;
+  //   }
+
+  //   isHandlingVideoEndRef.current = true;
+
+  //   skipCurrent()
+  //     .catch((error) => {
+  //       console.log('[SharedVideoPlayer] sync skipCurrent onEnd failed:', error);
+  //       finishCurrentPlaybackItem();
+  //     })
+  //     .finally(() => {
+  //       isHandlingVideoEndRef.current = false;
+  //     });
+  // };
+
+  const handleVideoEnd = useCallback(() => {
     if (isDefaultVideo) {
       videoRef.current?.seek?.(0);
       return;
@@ -347,58 +432,124 @@ export function SharedVideoPlayer() {
       .finally(() => {
         isHandlingVideoEndRef.current = false;
       });
-  };
+  }, [finishCurrentPlaybackItem, isDefaultVideo, skipCurrent]);
 
   const handlingPlaybackErrorKeysRef = useRef<Set<string>>(new Set());
 
-  const handleVideoError = (event: unknown) => {
-    const errorKey =
-      currentPlaybackItem?.queueId ??
-      currentPlaybackItem?.songId ??
-      playbackVideoUri ??
-      'unknown-playback-error';
+  useEffect(() => {
+    handlingPlaybackErrorKeysRef.current.clear();
+  }, [currentPlaybackItem?.queueId, playbackVideoUri]);
 
-    console.log('[SharedVideoPlayer] onError:', {
-      errorKey,
-      event,
+  // const handleVideoError = (event: unknown) => {
+  //   const errorKey =
+  //     currentPlaybackItem?.queueId ??
+  //     currentPlaybackItem?.songId ??
+  //     playbackVideoUri ??
+  //     'unknown-playback-error';
+
+  //   console.log('[SharedVideoPlayer] onError:', {
+  //     errorKey,
+  //     event,
+  //     isDefaultVideo,
+  //     playbackVideoUri,
+  //     currentPlaybackItem: currentPlaybackItem
+  //       ? {
+  //           queueId: currentPlaybackItem.queueId,
+  //           songId: currentPlaybackItem.songId,
+  //           title: currentPlaybackItem.title,
+  //           artistText: currentPlaybackItem.artistText,
+  //           localVideoUri: currentPlaybackItem.localVideoUri,
+  //         }
+  //       : null,
+  //   });
+
+  //   if (isDefaultVideo) {
+  //     console.log('[SharedVideoPlayer] onError ignored: default video error');
+  //     return;
+  //   }
+
+  //   if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
+  //     console.log('[SharedVideoPlayer] onError ignored: same item already handled', {
+  //       errorKey,
+  //     });
+  //     return;
+  //   }
+
+  //   handlingPlaybackErrorKeysRef.current.add(errorKey);
+
+  //   skipCurrentAfterPlaybackError({
+  //     reason: 'video-error',
+  //     source: 'SharedVideoPlayer',
+  //     error: event,
+  //   }).catch((error) => {
+  //     console.log('[SharedVideoPlayer] skipCurrentAfterPlaybackError failed:', {
+  //       errorKey,
+  //       error,
+  //     });
+  //   });
+  // };
+
+  const currentQueueId = currentPlaybackItem?.queueId;
+  const currentSongId = currentPlaybackItem?.songId;
+  const currentTitle = currentPlaybackItem?.title;
+  const currentLocalVideoUri = currentPlaybackItem?.localVideoUri;
+  const handleVideoError = useCallback(
+    (event: unknown) => {
+      const errorKey =
+        currentPlaybackItem?.queueId ??
+        currentPlaybackItem?.songId ??
+        playbackVideoUri ??
+        'unknown-playback-error';
+
+      console.log('[SharedVideoPlayer] onError:', {
+        errorKey,
+        isDefaultVideo,
+        playbackVideoUri,
+        currentPlaybackItem: currentPlaybackItem
+          ? {
+              queueId: currentPlaybackItem.queueId,
+              songId: currentPlaybackItem.songId,
+              title: currentPlaybackItem.title,
+              localVideoUri: currentPlaybackItem.localVideoUri,
+            }
+          : null,
+      });
+
+      if (isDefaultVideo) {
+        console.log('[SharedVideoPlayer] onError ignored: default video error');
+        return;
+      }
+
+      if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
+        console.log('[SharedVideoPlayer] onError ignored: same item already handled', {
+          errorKey,
+        });
+        return;
+      }
+
+      handlingPlaybackErrorKeysRef.current.add(errorKey);
+
+      skipCurrentAfterPlaybackError({
+        reason: 'video-error',
+        source: 'SharedVideoPlayer',
+        error: event,
+      }).catch((error) => {
+        console.log('[SharedVideoPlayer] skipCurrentAfterPlaybackError failed:', {
+          errorKey,
+          error,
+        });
+      });
+    },
+    [
+      currentLocalVideoUri,
+      currentQueueId,
+      currentSongId,
+      currentTitle,
       isDefaultVideo,
       playbackVideoUri,
-      currentPlaybackItem: currentPlaybackItem
-        ? {
-            queueId: currentPlaybackItem.queueId,
-            songId: currentPlaybackItem.songId,
-            title: currentPlaybackItem.title,
-            artistText: currentPlaybackItem.artistText,
-            localVideoUri: currentPlaybackItem.localVideoUri,
-          }
-        : null,
-    });
-
-    if (isDefaultVideo) {
-      console.log('[SharedVideoPlayer] onError ignored: default video error');
-      return;
-    }
-
-    if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
-      console.log('[SharedVideoPlayer] onError ignored: same item already handled', {
-        errorKey,
-      });
-      return;
-    }
-
-    handlingPlaybackErrorKeysRef.current.add(errorKey);
-
-    skipCurrentAfterPlaybackError({
-      reason: 'video-error',
-      source: 'SharedVideoPlayer',
-      error: event,
-    }).catch((error) => {
-      console.log('[SharedVideoPlayer] skipCurrentAfterPlaybackError failed:', {
-        errorKey,
-        error,
-      });
-    });
-  };
+      skipCurrentAfterPlaybackError,
+    ],
+  );
 
   useEffect(() => {
     if (!currentPlaybackItem) {
@@ -446,7 +597,8 @@ export function SharedVideoPlayer() {
   // const isBlockedByPanel = useFullscreenVideoStore((state) => state.isBlockedByPanel);
 
   // const shouldHideVideoPlayer = backgroundMode !== 'home' || isBlockedByPanel;
-  const shouldHideVideoPlayer = backgroundMode !== 'home' && mode !== 'footerMini';
+  const shouldHideVideoPlayer =
+    backgroundMode !== 'home' && mode !== 'footerMini' && mode !== 'fullscreen';
 
   //   if (shouldHideVideoPlayer) {
   //     return null;
@@ -455,20 +607,28 @@ export function SharedVideoPlayer() {
   /**
    * 預設影片還沒準備好時，不渲染 Video。
    */
-  if (!playbackVideoUri || !activeMiniRect) {
+  // if (!playbackVideoUri || !activeMiniRect) {
+  //   return null;
+  // }
+  if (!videoSource || !activeMiniRect) {
     return null;
   }
 
   return (
     <View
-      pointerEvents="box-none"
-      style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
+      pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
+      style={[
+        styles.layer,
+        mode === 'footerMini' && styles.footerMiniLayer,
+        shouldHideVideoPlayer && styles.hiddenLayer,
+      ]}
     >
       <Animated.View style={[styles.videoFrame, animatedStyle]}>
         <Video
           ref={videoRef}
           key={currentPlaybackItem?.queueId ?? playbackVideoUri}
-          source={{ uri: playbackVideoUri }}
+          // source={{ uri: playbackVideoUri }}
+          source={videoSource}
           style={styles.video}
           resizeMode="contain"
           controls={false}

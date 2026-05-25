@@ -1,51 +1,49 @@
 import { useCallback } from 'react';
 
-import * as ExpoFileSystem from 'expo-file-system/legacy';
-
 import { SongDto } from '@/src/services/song/song.types';
-
-import { songAssetResolverService } from '../services/song-asset-resolver.service';
-import { songDownloadQueueService } from '../services/song-download-queue.service';
-
-import { songCacheService } from '../services/song-cache.service';
-import { usePlaybackQueueStore } from '../stores/playback-queue.store';
-import { useSongDownloadStatusStore } from '../stores/song-download-status.store';
-
-import { songDownloadCancelService } from '@/src/features/player/services/song-download-cancel.service';
 
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
 
-// function sleep(ms: number) {
-//   return new Promise<void>((resolve) => {
-//     setTimeout(resolve, ms);
-//   });
-// }
+import { songDownloadCancelService } from '@/src/features/player/services/song-download-cancel.service';
+import { songDownloadQueueService } from '../services/song-download-queue.service';
+import { songCacheService } from '../services/song-cache.service';
 
-// let globalDownloadQueue: Promise<void> = Promise.resolve();
+import { usePlaybackQueueStore } from '../stores/playback-queue.store';
+import { useSongDownloadStatusStore } from '../stores/song-download-status.store';
 
-// function enqueueGlobalDownloadJob(job: () => Promise<void>) {
-//   const nextJob = globalDownloadQueue
-//     .catch(() => undefined)
-//     .then(async () => {
-//       await job();
+type InsertSongMode = 'queue' | 'next';
 
-//       /**
-//        * 下載任務完成後讓 JS thread / UI / video player 稍微喘息。
-//        * 數值不要太大，200~500ms 即可。
-//        */
-//       await sleep(300);
-//     });
+type InsertSongParams = {
+  song: SongDto;
+  mode?: InsertSongMode;
+};
 
-//   globalDownloadQueue = nextJob.catch(() => undefined);
+const PENDING_QUEUE_FLUSH_DELAY_MS = 2000;
 
-//   return nextJob;
-// }
+let pendingQueueTimer: ReturnType<typeof setTimeout> | null = null;
 
-function throwIfDownloadCancelled(songId: string) {
-  if (songDownloadCancelService.isCancelled(songId)) {
-    throw new Error('Download cancelled.');
+const pendingQueueSongMap = new Map<string, SongDto>();
+
+function schedulePendingQueueFlush({
+  onFlushSong,
+}: {
+  onFlushSong: (song: SongDto) => void | Promise<void>;
+}) {
+  if (pendingQueueTimer) {
+    clearTimeout(pendingQueueTimer);
   }
+
+  pendingQueueTimer = setTimeout(() => {
+    pendingQueueTimer = null;
+
+    const pendingSongs = Array.from(pendingQueueSongMap.values());
+    pendingQueueSongMap.clear();
+
+    pendingSongs.forEach((song) => {
+      void onFlushSong(song);
+    });
+  }, PENDING_QUEUE_FLUSH_DELAY_MS);
 }
 
 function formatArtists(artists: SongDto['artists']) {
@@ -53,10 +51,33 @@ function formatArtists(artists: SongDto['artists']) {
     return '未知歌手';
   }
 
-  return artists
-    .map((artist) => String(artist))
-    .filter(Boolean)
-    .join('、');
+  const artistNames = artists
+    .map((artist) => {
+      if (typeof artist === 'string') {
+        return artist;
+      }
+
+      if (artist && typeof artist === 'object') {
+        const record = artist as Record<string, unknown>;
+
+        if (typeof record.name === 'string') {
+          return record.name;
+        }
+
+        if (typeof record.artistName === 'string') {
+          return record.artistName;
+        }
+
+        if (typeof record.singerName === 'string') {
+          return record.singerName;
+        }
+      }
+
+      return '';
+    })
+    .filter(Boolean);
+
+  return artistNames.length > 0 ? artistNames.join('、') : '未知歌手';
 }
 
 function findLatestPlaylistSongItemBySongId({
@@ -94,31 +115,6 @@ function findLatestPlaylistSongItemBySongId({
   })[0];
 }
 
-function getFileExtensionFromS3Key(key?: string) {
-  if (!key) {
-    return 'mkv';
-  }
-
-  const filename = key.split('/').pop() || '';
-  const extension = filename.split('.').pop();
-
-  if (!extension || extension.length > 8) {
-    return 'mkv';
-  }
-
-  return extension;
-}
-
-function calculateDownloadProgress(totalBytesWritten: number, totalBytesExpectedToWrite: number) {
-  if (totalBytesExpectedToWrite <= 0) {
-    return 0;
-  }
-
-  const progress = Math.floor((totalBytesWritten / totalBytesExpectedToWrite) * 100);
-
-  return Math.max(0, Math.min(progress, 100));
-}
-
 function createPlaybackQueueItem({
   song,
   queueId,
@@ -142,39 +138,14 @@ function createPlaybackQueueItem({
   };
 }
 
-type InsertSongMode = 'queue' | 'next';
-
-// type ActiveDownloadTask = {
-//   downloadResumable: ExpoFileSystem.DownloadResumable;
-//   tempUri: string;
-// };
-
-// const activeDownloadTasks = new Map<string, ActiveDownloadTask>();
-// const cancelledSongIds = new Set<string>();
-
-type InsertSongParams = {
-  song: SongDto;
-  mode?: InsertSongMode;
-};
-
-function formatDownloadSpeed(bytesPerSecond: number) {
-  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) {
-    return '-- MB/s';
-  }
-
-  const mbPerSecond = bytesPerSecond / 1024 / 1024;
-
-  if (mbPerSecond >= 1) {
-    return `${mbPerSecond.toFixed(1)} MB/s`;
-  }
-
-  const kbPerSecond = bytesPerSecond / 1024;
-  return `${Math.max(kbPerSecond, 0).toFixed(0)} KB/s`;
-}
-
 export function useInsertSongPlayback() {
   const enqueueSong = usePlaybackQueueStore((state) => state.enqueue);
   const enqueueNextSong = usePlaybackQueueStore((state) => state.enqueueNext);
+
+  const setQueued = useSongDownloadStatusStore((state) => state.setQueued);
+  const clearDownloadStatus = useSongDownloadStatusStore((state) => state.clearStatus);
+
+  const songActionStatusMap = useSongDownloadStatusStore((state) => state.statusMap);
 
   const syncPendingPlaylistAndEnqueue = useCallback(
     async ({
@@ -224,10 +195,6 @@ export function useInsertSongPlayback() {
         songId: song._id,
       });
 
-      /**
-       * 插播下一首時，後端 response 通常會直接給 nextUp。
-       * 這是最準的來源。
-       */
       const playlistItem =
         response.nextUp?.songId === song._id && response.nextUp.queueId
           ? response.nextUp
@@ -252,278 +219,74 @@ export function useInsertSongPlayback() {
     [enqueueNextSong, enqueueSong],
   );
 
-  const songActionStatusMap = useSongDownloadStatusStore((state) => state.statusMap);
-  const setPreparing = useSongDownloadStatusStore((state) => state.setPreparing);
-  const setDownloading = useSongDownloadStatusStore((state) => state.setDownloading);
-  const clearDownloadStatus = useSongDownloadStatusStore((state) => state.clearStatus);
+  const enqueuePendingSongDownloadTask = useCallback(
+    async (song: SongDto) => {
+      const songId = song._id;
 
-  // const insertSong = useCallback(
-  //   async ({ song, mode = 'next' }: InsertSongParams) => {
-  //     const songId = song._id;
+      if (!songId) {
+        return;
+      }
 
-  //     let tempUri: string | null = null;
+      const existingStatus = useSongDownloadStatusStore.getState().statusMap[songId];
 
-  //     const currentStatus = useSongDownloadStatusStore.getState().statusMap[songId];
+      /**
+       * 如果等待期間狀態被清掉，代表可能已取消或已被其他流程處理。
+       */
+      if (!existingStatus) {
+        return;
+      }
 
-  //     /**
-  //      * 避免同一首歌在不同 Panel 被重複點擊後重複下載。
-  //      */
-  //     if (currentStatus) {
-  //       console.log('[useInsertSongPlayback] song is already processing:', {
-  //         songId,
-  //         currentStatus,
-  //       });
+      /**
+       * 只有 queued 狀態才允許從 pending buffer 轉成下載任務。
+       * preparing / downloading 都代表已經在流程中，不重複建立 task。
+       */
+      if (existingStatus.phase !== 'queued') {
+        return;
+      }
 
-  //       return;
-  //     }
+      /**
+       * flush 時重新檢查 cache。
+       * 避免等待期間同一首歌已經被其他地方下載完成，卻又重複建立下載任務。
+       */
+      const cachedSong = await songCacheService.getCachedSong(songId);
 
-  //     try {
-  //       // setPreparing(songId);
-  //       setPreparing(song);
+      if (cachedSong?.videoUri) {
+        await syncPendingPlaylistAndEnqueue({
+          song,
+          localVideoUri: cachedSong.videoUri,
+          mode: 'queue',
+        });
 
-  //       const cachedSong = await songCacheService.getCachedSong(songId);
+        clearDownloadStatus(songId);
+        return;
+      }
 
-  //       // if (cachedSong?.videoUri) {
-  //       //   const item = createPlaybackQueueItem({
-  //       //     song,
-  //       //     artistText: formatArtists(song.artists),
-  //       //     localVideoUri: cachedSong.videoUri,
-  //       //   });
+      songDownloadQueueService.enqueue({
+        songId,
+        song,
+        mode: 'queue',
+        priority: 'normal',
+        onCompleted: async ({ song, localVideoUri }) => {
+          await syncPendingPlaylistAndEnqueue({
+            song,
+            localVideoUri,
+            mode: 'queue',
+          });
 
-  //       //   if (mode === 'queue') {
-  //       //     enqueueSong(item);
-  //       //   } else {
-  //       //     enqueueNextSong(item);
-  //       //   }
-
-  //       //   return;
-  //       // }
-
-  //       if (cachedSong?.videoUri) {
-  //         await syncPendingPlaylistAndEnqueue({
-  //           song,
-  //           localVideoUri: cachedSong.videoUri,
-  //           mode,
-  //         });
-
-  //         return;
-  //       }
-
-  //       const resolvedAssets = await songAssetResolverService.resolveFromS3Title({
-  //         songId,
-  //         title: song.title,
-  //       });
-
-  //       // setDownloading(songId, 0);
-  //       setDownloading(song, 0);
-
-  //       const songDir = await songCacheService.ensureSongDir(songId);
-  //       const extension = getFileExtensionFromS3Key(resolvedAssets.s3Key);
-
-  //       /**
-  //        * 先下載到暫存檔，避免下載失敗時留下半成品正式檔案。
-  //        */
-  //       const finalUri = `${songDir}video.${extension}`;
-  //       tempUri = `${songDir}video.${extension}.tmp`;
-
-  //       // const downloadResumable = ExpoFileSystem.createDownloadResumable(
-  //       //   resolvedAssets.videoUrl,
-  //       //   tempUri,
-  //       //   {},
-  //       //   (downloadProgress) => {
-  //       //     const progress = calculateDownloadProgress(
-  //       //       downloadProgress.totalBytesWritten,
-  //       //       downloadProgress.totalBytesExpectedToWrite,
-  //       //     );
-
-  //       //     if (progress === lastProgress) {
-  //       //       return;
-  //       //     }
-
-  //       //     lastProgress = progress;
-
-  //       //     // setDownloading(songId, progress);
-  //       //     setDownloading(song, progress);
-  //       //   },
-  //       // );
-
-  //       let lastProgress = -1;
-  //       let lastProgressUpdateAt = 0;
-  //       let lastSpeedText = '-- MB/s';
-  //       let lastSpeedTimestamp = Date.now();
-  //       let lastBytesWritten = 0;
-
-  //       const downloadResumable = ExpoFileSystem.createDownloadResumable(
-  //         resolvedAssets.videoUrl,
-  //         tempUri,
-  //         {},
-  //         (downloadProgress) => {
-  //           const progress = calculateDownloadProgress(
-  //             downloadProgress.totalBytesWritten,
-  //             downloadProgress.totalBytesExpectedToWrite,
-  //           );
-
-  //           const now = Date.now();
-  //           const elapsedSeconds = (now - lastSpeedTimestamp) / 1000;
-  //           const bytesDelta = downloadProgress.totalBytesWritten - lastBytesWritten;
-
-  //           if (elapsedSeconds >= 0.5 && bytesDelta >= 0) {
-  //             const bytesPerSecond = bytesDelta / elapsedSeconds;
-
-  //             lastSpeedText = formatDownloadSpeed(bytesPerSecond);
-  //             lastSpeedTimestamp = now;
-  //             lastBytesWritten = downloadProgress.totalBytesWritten;
-  //           }
-
-  //           // if (progress === lastProgress) {
-  //           //   return;
-  //           // }
-
-  //           // lastProgress = progress;
-
-  //           // setDownloading(song, progress, lastSpeedText);
-
-  //           const progressDelta = progress - lastProgress;
-  //           const isProgressChangedEnough = progressDelta >= 0.05;
-  //           const isTimePassedEnough = now - lastProgressUpdateAt >= 300;
-  //           const isCompleted = progress >= 1;
-
-  //           if (!isProgressChangedEnough && !isTimePassedEnough && !isCompleted) {
-  //             return;
-  //           }
-
-  //           lastProgress = progress;
-  //           lastProgressUpdateAt = now;
-
-  //           setDownloading(song, progress, lastSpeedText);
-  //         },
-  //       );
-
-  //       songDownloadCancelService.register(songId, downloadResumable);
-
-  //       // activeDownloadTasks.set(songId, {
-  //       //   downloadResumable,
-  //       //   tempUri,
-  //       // });
-
-  //       throwIfDownloadCancelled(songId);
-
-  //       const downloadResult = await downloadResumable.downloadAsync();
-
-  //       // if (cancelledSongIds.has(songId)) {
-  //       //   throw new Error('Download cancelled.');
-  //       // }
-
-  //       throwIfDownloadCancelled(songId);
-
-  //       if (!downloadResult?.uri) {
-  //         throw new Error('Download failed: missing local uri.');
-  //       }
-
-  //       throwIfDownloadCancelled(songId);
-
-  //       /**
-  //        * 如果正式檔案已存在，先刪除，避免 moveAsync 失敗。
-  //        */
-  //       const existingFinalFile = await ExpoFileSystem.getInfoAsync(finalUri);
-
-  //       if (existingFinalFile.exists) {
-  //         await ExpoFileSystem.deleteAsync(finalUri, {
-  //           idempotent: true,
-  //         });
-  //       }
-
-  //       throwIfDownloadCancelled(songId);
-
-  //       await ExpoFileSystem.moveAsync({
-  //         from: tempUri,
-  //         to: finalUri,
-  //       });
-
-  //       throwIfDownloadCancelled(songId);
-
-  //       await songCacheService.saveCachedSong(songId, {
-  //         songId,
-  //         videoUri: finalUri,
-  //         downloadedAt: Date.now(),
-  //         totalBytes: resolvedAssets.size,
-  //         song,
-  //       });
-
-  //       // const item = createPlaybackQueueItem({
-  //       //   song,
-  //       //   artistText: formatArtists(song.artists),
-  //       //   localVideoUri: finalUri,
-  //       // });
-
-  //       // if (mode === 'queue') {
-  //       //   enqueueSong(item);
-  //       // } else {
-  //       //   enqueueNextSong(item);
-  //       // }
-
-  //       throwIfDownloadCancelled(songId);
-
-  //       await syncPendingPlaylistAndEnqueue({
-  //         song,
-  //         localVideoUri: finalUri,
-  //         mode,
-  //       });
-  //     } catch (error) {
-  //       if (
-  //         songDownloadCancelService.isCancelled(songId) ||
-  //         (error instanceof Error && error.message === 'Download cancelled.')
-  //       ) {
-  //         console.log('[useInsertSongPlayback] download cancelled:', {
-  //           songId,
-  //           title: song.title,
-  //         });
-
-  //         return;
-  //       }
-
-  //       console.log('[useInsertSongPlayback] insert song failed:', {
-  //         songId,
-  //         title: song.title,
-  //         error,
-  //       });
-  //     } finally {
-  //       // const activeTask = activeDownloadTasks.get(songId);
-
-  //       // if (activeTask) {
-  //       //   await ExpoFileSystem.deleteAsync(activeTask.tempUri, {
-  //       //     idempotent: true,
-  //       //   });
-  //       // }
-
-  //       if (tempUri) {
-  //         try {
-  //           await ExpoFileSystem.deleteAsync(tempUri, {
-  //             idempotent: true,
-  //           });
-  //         } catch (error) {
-  //           console.log('[useInsertSongPlayback] delete temp file failed:', {
-  //             songId,
-  //             tempUri,
-  //             error,
-  //           });
-  //         }
-  //       }
-
-  //       // activeDownloadTasks.delete(songId);
-  //       // cancelledSongIds.delete(songId);
-
-  //       songDownloadCancelService.unregister(songId);
-  //       clearDownloadStatus(songId);
-  //     }
-  //   },
-  //   // [clearDownloadStatus, enqueueNextSong, enqueueSong, setDownloading, setPreparing],
-  //   [clearDownloadStatus, setDownloading, setPreparing, syncPendingPlaylistAndEnqueue],
-  // );
+          clearDownloadStatus(song._id);
+        },
+      });
+    },
+    [clearDownloadStatus, syncPendingPlaylistAndEnqueue],
+  );
 
   const insertSong = useCallback(
     async ({ song, mode = 'next' }: InsertSongParams) => {
       const songId = song._id;
+
+      if (!songId) {
+        return;
+      }
 
       const currentStatus = useSongDownloadStatusStore.getState().statusMap[songId];
 
@@ -537,8 +300,11 @@ export function useInsertSongPlayback() {
       }
 
       try {
-        setPreparing(song);
-
+        /**
+         * 插播流程：
+         * 已下載：直接同步後端 pending / next，並加入本地播放隊列。
+         * 未下載：直接建立下載任務，因為插播屬於高優先級。
+         */
         const cachedSong = await songCacheService.getCachedSong(songId);
 
         if (cachedSong?.videoUri) {
@@ -548,7 +314,6 @@ export function useInsertSongPlayback() {
             mode,
           });
 
-          clearDownloadStatus(songId);
           return;
         }
 
@@ -568,6 +333,7 @@ export function useInsertSongPlayback() {
           },
         });
       } catch (error) {
+        pendingQueueSongMap.delete(songId);
         clearDownloadStatus(songId);
 
         console.log('[useInsertSongPlayback] insert song failed:', {
@@ -577,69 +343,8 @@ export function useInsertSongPlayback() {
         });
       }
     },
-    [clearDownloadStatus, setPreparing, syncPendingPlaylistAndEnqueue],
+    [clearDownloadStatus, syncPendingPlaylistAndEnqueue],
   );
-
-  // const cancelSongDownload = useCallback(
-  //   async (songId: string) => {
-  //     const activeTask = activeDownloadTasks.get(songId);
-
-  //     cancelledSongIds.add(songId);
-
-  //     if (!activeTask) {
-  //       clearDownloadStatus(songId);
-  //       return;
-  //     }
-
-  //     try {
-  //       await activeTask.downloadResumable.pauseAsync();
-
-  //       await ExpoFileSystem.deleteAsync(activeTask.tempUri, {
-  //         idempotent: true,
-  //       });
-  //     } catch (error) {
-  //       console.log('[useInsertSongPlayback] cancel download failed:', {
-  //         songId,
-  //         error,
-  //       });
-  //     } finally {
-  //       activeDownloadTasks.delete(songId);
-  //       cancelledSongIds.delete(songId);
-  //       clearDownloadStatus(songId);
-  //     }
-  //   },
-  //   [clearDownloadStatus],
-  // );
-
-  // const insertSongNext = useCallback(
-  //   async (song: SongDto) => {
-  //     await insertSong({
-  //       song,
-  //       mode: 'next',
-  //     });
-  //   },
-  //   [insertSong],
-  // );
-
-  const cancelSongDownload = useCallback(
-    async (songId: string) => {
-      await songDownloadCancelService.cancel(songId);
-      clearDownloadStatus(songId);
-    },
-    [clearDownloadStatus],
-  );
-
-  // const insertSongNext = useCallback(
-  //   async (song: SongDto) => {
-  //     await enqueueGlobalDownloadJob(async () => {
-  //       await insertSong({
-  //         song,
-  //         mode: 'next',
-  //       });
-  //     });
-  //   },
-  //   [insertSong],
-  // );
 
   const insertSongNext = useCallback(
     async (song: SongDto) => {
@@ -651,36 +356,72 @@ export function useInsertSongPlayback() {
     [insertSong],
   );
 
-  // const enqueueSongAfterDownload = useCallback(
-  //   async (song: SongDto) => {
-  //     await insertSong({
-  //       song,
-  //       mode: 'queue',
-  //     });
-  //   },
-  //   [insertSong],
-  // );
-
-  // const enqueueSongAfterDownload = useCallback(
-  //   async (song: SongDto) => {
-  //     await enqueueGlobalDownloadJob(async () => {
-  //       await insertSong({
-  //         song,
-  //         mode: 'queue',
-  //       });
-  //     });
-  //   },
-  //   [insertSong],
-  // );
-
   const enqueueSongAfterDownload = useCallback(
     async (song: SongDto) => {
-      await insertSong({
-        song,
-        mode: 'queue',
-      });
+      const songId = song._id;
+
+      if (!songId) {
+        return;
+      }
+
+      const existingStatus = useSongDownloadStatusStore.getState().statusMap[songId];
+
+      if (existingStatus) {
+        return;
+      }
+
+      try {
+        /**
+         * 一般點歌流程：
+         * 已下載：直接加入後端 pending 與本地播放隊列尾端。
+         */
+        const cachedSong = await songCacheService.getCachedSong(songId);
+
+        if (cachedSong?.videoUri) {
+          await syncPendingPlaylistAndEnqueue({
+            song,
+            localVideoUri: cachedSong.videoUri,
+            mode: 'queue',
+          });
+
+          return;
+        }
+
+        /**
+         * 未下載：
+         * 只標記 queued，不搜尋 S3、不下載、不加入播放隊列。
+         * 等使用者停止操作後，才由 pendingQueueSongMap flush 成下載任務。
+         */
+        setQueued(song);
+
+        pendingQueueSongMap.set(songId, song);
+
+        schedulePendingQueueFlush({
+          onFlushSong: enqueuePendingSongDownloadTask,
+        });
+      } catch (error) {
+        pendingQueueSongMap.delete(songId);
+        clearDownloadStatus(songId);
+
+        console.log('[useInsertSongPlayback] enqueue song failed:', {
+          songId,
+          title: song.title,
+          error,
+        });
+      }
     },
-    [insertSong],
+    [clearDownloadStatus, enqueuePendingSongDownloadTask, setQueued, syncPendingPlaylistAndEnqueue],
+  );
+
+  const cancelSongDownload = useCallback(
+    async (songId: string) => {
+      pendingQueueSongMap.delete(songId);
+
+      await songDownloadCancelService.cancel(songId);
+
+      clearDownloadStatus(songId);
+    },
+    [clearDownloadStatus],
   );
 
   return {

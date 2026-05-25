@@ -86,6 +86,10 @@ function getInsertButtonText(status: SongDownloadStatus | undefined, copy: Categ
     return copy.insert;
   }
 
+  if (status.phase === 'queued') {
+    return '等待中';
+  }
+
   if (status.phase === 'preparing') {
     return copy.preparing;
   }
@@ -111,14 +115,14 @@ type CategorySongRowProps = {
   song: SongDto;
   copy: CategoryPanelCopy;
   onToggleFavorite: (song: SongDto) => void;
-  onInsertSongNext: (song: SongDto) => void;
+  onAddSongToQueue: (song: SongDto) => void;
 };
 
 const CategorySongRow = memo(function CategorySongRow({
   song,
   copy,
   onToggleFavorite,
-  onInsertSongNext,
+  onAddSongToQueue,
 }: CategorySongRowProps) {
   const songActionStatus = useSongDownloadStatusStore((state) => state.statusMap[song._id]);
 
@@ -144,7 +148,7 @@ const CategorySongRow = memo(function CategorySongRow({
           title: song.title,
         });
 
-        onInsertSongNext(song);
+        onAddSongToQueue(song);
       }}
     >
       <View style={styles.songIconBox}>
@@ -179,7 +183,7 @@ const CategorySongRow = memo(function CategorySongRow({
         disabled={isSongActionLoading}
         onPress={(event) => {
           event.stopPropagation();
-          onInsertSongNext(song);
+          onAddSongToQueue(song);
         }}
       >
         <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
@@ -217,7 +221,7 @@ export function CategoryPanel({ visible, onClose }: Props) {
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryDto | null>(null);
 
-  const { insertSongNext } = useInsertSongPlayback();
+  const { enqueueSongAfterDownload } = useInsertSongPlayback();
 
   const queryClient = useQueryClient();
 
@@ -655,7 +659,7 @@ export function CategoryPanel({ visible, onClose }: Props) {
                     song={item}
                     copy={copy}
                     onToggleFavorite={handleToggleFavorite}
-                    onInsertSongNext={insertSongNext}
+                    onAddSongToQueue={enqueueSongAfterDownload}
                   />
                 )}
                 ListEmptyComponent={

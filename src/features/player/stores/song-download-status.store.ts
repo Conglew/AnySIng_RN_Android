@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import type { SongDto } from '@/src/services/song/song.types';
 
-export type SongDownloadPhase = 'preparing' | 'downloading';
+export type SongDownloadPhase = 'queued' | 'preparing' | 'downloading';
 
 export type SongDownloadStatus = {
   phase: SongDownloadPhase;
@@ -25,11 +25,14 @@ type SongDownloadStatusStore = {
    */
   statusMap: Record<string, SongDownloadStatus | undefined>;
 
+  setQueued: (song: SongDto) => void;
   setPreparing: (song: SongDto) => void;
   setDownloading: (song: SongDto, progress: number, speedText?: string) => void;
   clearStatus: (songId: string) => void;
   clearAllStatus: () => void;
 };
+
+const MIN_PROGRESS_UPDATE_STEP = 3;
 
 function appendDownloadIdIfNeeded(downloadIds: string[], songId: string) {
   if (downloadIds.includes(songId)) {
@@ -39,29 +42,104 @@ function appendDownloadIdIfNeeded(downloadIds: string[], songId: string) {
   return [...downloadIds, songId];
 }
 
+function normalizeProgress(progress: number) {
+  if (!Number.isFinite(progress)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.floor(progress)));
+}
+
 export const useSongDownloadStatusStore = create<SongDownloadStatusStore>((set) => ({
   downloadIds: [],
   statusMap: {},
 
-  setPreparing: (song) => {
-    set((state) => ({
-      downloadIds: appendDownloadIdIfNeeded(state.downloadIds, song._id),
-      statusMap: {
-        ...state.statusMap,
-        [song._id]: {
-          phase: 'preparing',
-          progress: 0,
-          song,
-          createdAt: state.statusMap[song._id]?.createdAt ?? Date.now(),
-          speedText: state.statusMap[song._id]?.speedText,
+  setQueued: (song) => {
+    set((state) => {
+      const previousStatus = state.statusMap[song._id];
+
+      /**
+       * 如果已經進入 preparing / downloading，
+       * 不要因為再次點擊又把狀態退回 queued。
+       */
+      if (previousStatus?.phase === 'preparing' || previousStatus?.phase === 'downloading') {
+        return state;
+      }
+
+      /**
+       * 已經是 queued 就不重複更新，避免 Row 不必要 render。
+       */
+      if (previousStatus?.phase === 'queued') {
+        return state;
+      }
+
+      return {
+        downloadIds: appendDownloadIdIfNeeded(state.downloadIds, song._id),
+        statusMap: {
+          ...state.statusMap,
+          [song._id]: {
+            phase: 'queued',
+            progress: 0,
+            song,
+            createdAt: previousStatus?.createdAt ?? Date.now(),
+            speedText: previousStatus?.speedText,
+          },
         },
-      },
-    }));
+      };
+    });
+  },
+
+  setPreparing: (song) => {
+    set((state) => {
+      const previousStatus = state.statusMap[song._id];
+
+      if (previousStatus?.phase === 'preparing') {
+        return state;
+      }
+
+      return {
+        downloadIds: appendDownloadIdIfNeeded(state.downloadIds, song._id),
+        statusMap: {
+          ...state.statusMap,
+          [song._id]: {
+            phase: 'preparing',
+            progress: 0,
+            song,
+            createdAt: previousStatus?.createdAt ?? Date.now(),
+            speedText: previousStatus?.speedText,
+          },
+        },
+      };
+    });
   },
 
   setDownloading: (song, progress, speedText) => {
     set((state) => {
+      const nextProgress = normalizeProgress(progress);
       const previousStatus = state.statusMap[song._id];
+
+      const previousProgress = previousStatus?.progress ?? 0;
+      const previousSpeedText = previousStatus?.speedText;
+
+      const isSameDownloadingStatus =
+        previousStatus?.phase === 'downloading' &&
+        previousProgress === nextProgress &&
+        previousSpeedText === speedText;
+
+      if (isSameDownloadingStatus) {
+        return state;
+      }
+
+      const shouldThrottleProgress =
+        previousStatus?.phase === 'downloading' &&
+        nextProgress !== 100 &&
+        nextProgress > previousProgress &&
+        nextProgress - previousProgress < MIN_PROGRESS_UPDATE_STEP &&
+        previousSpeedText === speedText;
+
+      if (shouldThrottleProgress) {
+        return state;
+      }
 
       return {
         /**
@@ -73,7 +151,7 @@ export const useSongDownloadStatusStore = create<SongDownloadStatusStore>((set) 
           ...state.statusMap,
           [song._id]: {
             phase: 'downloading',
-            progress,
+            progress: nextProgress,
             song,
             createdAt: previousStatus?.createdAt ?? Date.now(),
             speedText: speedText ?? previousStatus?.speedText,
@@ -85,6 +163,13 @@ export const useSongDownloadStatusStore = create<SongDownloadStatusStore>((set) 
 
   clearStatus: (songId) => {
     set((state) => {
+      const hasStatus = Boolean(state.statusMap[songId]);
+      const hasDownloadId = state.downloadIds.includes(songId);
+
+      if (!hasStatus && !hasDownloadId) {
+        return state;
+      }
+
       const nextStatusMap = { ...state.statusMap };
       delete nextStatusMap[songId];
 
@@ -96,9 +181,15 @@ export const useSongDownloadStatusStore = create<SongDownloadStatusStore>((set) 
   },
 
   clearAllStatus: () => {
-    set({
-      downloadIds: [],
-      statusMap: {},
+    set((state) => {
+      if (state.downloadIds.length === 0 && Object.keys(state.statusMap).length === 0) {
+        return state;
+      }
+
+      return {
+        downloadIds: [],
+        statusMap: {},
+      };
     });
   },
 }));

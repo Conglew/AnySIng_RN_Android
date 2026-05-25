@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -33,6 +33,9 @@ function truncateText(text: string, maxLength: number) {
   return `${text.slice(0, maxLength)}...`;
 }
 
+const QUEUED_SONG_ROW_LAYOUT_HEIGHT = 78;
+const DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT = 78;
+
 type QueuedSongRowProps = {
   queueId: string;
   songId: string;
@@ -54,8 +57,21 @@ const QueuedSongRow = memo(function QueuedSongRow({
   copy,
   onInterject,
 }: QueuedSongRowProps) {
-  const songTitle = truncateText(formatDisplaySongTitle(title), 14);
-  const displayArtistText = truncateText(artistText ?? copy.unknownArtist, 17);
+  const songTitle = useMemo(() => {
+    return truncateText(formatDisplaySongTitle(title), 14);
+  }, [title]);
+
+  const displayArtistText = useMemo(() => {
+    return truncateText(artistText ?? copy.unknownArtist, 17);
+  }, [artistText, copy.unknownArtist]);
+
+  const handleInterject = useCallback(() => {
+    if (isInterjecting) {
+      return;
+    }
+
+    onInterject(queueId, songId);
+  }, [isInterjecting, onInterject, queueId, songId]);
 
   return (
     <View style={[styles.songRow, isCurrent && styles.currentSongRow]}>
@@ -85,7 +101,7 @@ const QueuedSongRow = memo(function QueuedSongRow({
         <Pressable
           style={[styles.interjectButton, isInterjecting && styles.interjectButtonDisabled]}
           disabled={isInterjecting}
-          onPress={() => onInterject(queueId, songId)}
+          onPress={handleInterject}
         >
           <Text style={styles.interjectButtonText}>
             {isInterjecting ? copy.processing : copy.insert}
@@ -109,32 +125,61 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
 }: DownloadingSongRowProps) {
   const status = useSongDownloadStatusStore((state) => state.statusMap[songId]);
 
+  const songTitle = useMemo(() => {
+    if (!status) {
+      return '';
+    }
+
+    return truncateText(formatDisplaySongTitle(status.song.title), 14);
+  }, [status]);
+
+  const artistText = useMemo(() => {
+    if (!status) {
+      return '';
+    }
+
+    return truncateText(
+      Array.isArray(status.song.artists)
+        ? status.song.artists
+            .map((artist) => {
+              if (typeof artist === 'string') {
+                return artist;
+              }
+
+              return artist?.name;
+            })
+            .filter(Boolean)
+            .join(' / ')
+        : copy.unknownArtist,
+      17,
+    );
+  }, [copy.unknownArtist, status]);
+
+  const progress = useMemo(() => {
+    if (!status) {
+      return 0;
+    }
+
+    return Math.max(0, Math.min(status.progress, 100));
+  }, [status]);
+
+  const statusText = useMemo(() => {
+    if (!status) {
+      return '';
+    }
+
+    return status.phase === 'preparing' ? copy.preparingDownload : copy.downloading(progress);
+  }, [copy, progress, status]);
+
+  const speedText = status?.speedText ?? '-- MB/s';
+
+  const handleCancel = useCallback(() => {
+    onCancel(songId);
+  }, [onCancel, songId]);
+
   if (!status) {
     return null;
   }
-
-  const songTitle = truncateText(formatDisplaySongTitle(status.song.title), 14);
-
-  const artistText = truncateText(
-    Array.isArray(status.song.artists)
-      ? status.song.artists
-          .map((artist) => {
-            if (typeof artist === 'string') {
-              return artist;
-            }
-
-            return artist?.name;
-          })
-          .filter(Boolean)
-          .join(' / ')
-      : copy.unknownArtist,
-    17,
-  );
-
-  const progress = Math.max(0, Math.min(status.progress, 100));
-  const statusText =
-    status.phase === 'preparing' ? copy.preparingDownload : copy.downloading(progress);
-  const speedText = status.speedText ?? '-- MB/s';
 
   return (
     <View style={styles.downloadRow}>
@@ -157,7 +202,7 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
         <Text style={styles.downloadSpeedText}>{speedText}</Text>
       </View>
 
-      <Pressable style={styles.cancelDownloadButton} onPress={() => onCancel(songId)} hitSlop={10}>
+      <Pressable style={styles.cancelDownloadButton} onPress={handleCancel} hitSlop={10}>
         <Text style={styles.cancelDownloadButtonText}>×</Text>
       </Pressable>
     </View>
@@ -183,7 +228,13 @@ export function QueuedSongsPanel() {
   const [activeTab, setActiveTab] = useState<PanelTab>('queued');
   const [interjectingQueueIdMap, setInterjectingQueueIdMap] = useState<Record<string, boolean>>({});
 
-  const displayQueue = currentItem ? [currentItem, ...queue] : queue;
+  const displayQueue = useMemo(() => {
+    if (currentItem) {
+      return [currentItem, ...queue];
+    }
+
+    return queue;
+  }, [currentItem, queue]);
 
   const handleInterjectQueueItem = useCallback(
     async (queueId: string, songId: string) => {
@@ -261,6 +312,61 @@ export function QueuedSongsPanel() {
     [cancelSongDownload],
   );
 
+  const queuedKeyExtractor = useCallback((item: { queueId: string }) => {
+    return item.queueId;
+  }, []);
+
+  const downloadingKeyExtractor = useCallback((songId: string) => {
+    return songId;
+  }, []);
+
+  const getQueuedItemLayout = useCallback(
+    (_data: ArrayLike<unknown> | null | undefined, index: number) => {
+      return {
+        length: QUEUED_SONG_ROW_LAYOUT_HEIGHT,
+        offset: QUEUED_SONG_ROW_LAYOUT_HEIGHT * index,
+        index,
+      };
+    },
+    [],
+  );
+
+  const getDownloadingItemLayout = useCallback(
+    (_data: ArrayLike<string> | null | undefined, index: number) => {
+      return {
+        length: DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT,
+        offset: DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT * index,
+        index,
+      };
+    },
+    [],
+  );
+
+  const renderQueuedSongItem = useCallback(
+    ({ item }: { item: (typeof displayQueue)[number] }) => {
+      return (
+        <QueuedSongRow
+          queueId={item.queueId}
+          songId={item.songId}
+          title={item.title}
+          artistText={item.artistText}
+          isCurrent={item.queueId === currentItem?.queueId}
+          isInterjecting={Boolean(interjectingQueueIdMap[item.queueId])}
+          copy={copy}
+          onInterject={handleInterjectQueueItem}
+        />
+      );
+    },
+    [copy, currentItem?.queueId, handleInterjectQueueItem, interjectingQueueIdMap],
+  );
+
+  const renderDownloadingSongItem = useCallback(
+    ({ item: songId }: { item: string }) => {
+      return <DownloadingSongRow songId={songId} copy={copy} onCancel={handleCancelDownload} />;
+    },
+    [copy, handleCancelDownload],
+  );
+
   if (!isVisible) {
     return null;
   }
@@ -297,15 +403,47 @@ export function QueuedSongsPanel() {
         </View>
 
         {activeTab === 'queued' ? (
+          // <FlatList
+          //   style={styles.list}
+          //   contentContainerStyle={styles.listContent}
+          //   data={displayQueue}
+          //   keyExtractor={(item) => item.queueId}
+          //   showsVerticalScrollIndicator={false}
+          //   keyboardShouldPersistTaps="handled"
+          //   initialNumToRender={8}
+          //   maxToRenderPerBatch={8}
+          //   windowSize={5}
+          //   removeClippedSubviews
+          //   ListEmptyComponent={
+          //     <View style={styles.emptyBox}>
+          //       <Text style={styles.emptyText}>{copy.emptyQueued}</Text>
+          //     </View>
+          //   }
+          //   renderItem={({ item }) => (
+          //     <QueuedSongRow
+          //       queueId={item.queueId}
+          //       songId={item.songId}
+          //       title={item.title}
+          //       artistText={item.artistText}
+          //       isCurrent={item.queueId === currentItem?.queueId}
+          //       isInterjecting={Boolean(interjectingQueueIdMap[item.queueId])}
+          //       copy={copy}
+          //       onInterject={handleInterjectQueueItem}
+          //     />
+          //   )}
+          // />
+
           <FlatList
             style={styles.list}
             contentContainerStyle={styles.listContent}
             data={displayQueue}
-            keyExtractor={(item) => item.queueId}
+            keyExtractor={queuedKeyExtractor}
+            getItemLayout={getQueuedItemLayout}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             initialNumToRender={8}
-            maxToRenderPerBatch={8}
+            maxToRenderPerBatch={6}
+            updateCellsBatchingPeriod={50}
             windowSize={5}
             removeClippedSubviews
             ListEmptyComponent={
@@ -313,29 +451,41 @@ export function QueuedSongsPanel() {
                 <Text style={styles.emptyText}>{copy.emptyQueued}</Text>
               </View>
             }
-            renderItem={({ item }) => (
-              <QueuedSongRow
-                queueId={item.queueId}
-                songId={item.songId}
-                title={item.title}
-                artistText={item.artistText}
-                isCurrent={item.queueId === currentItem?.queueId}
-                isInterjecting={Boolean(interjectingQueueIdMap[item.queueId])}
-                copy={copy}
-                onInterject={handleInterjectQueueItem}
-              />
-            )}
+            renderItem={renderQueuedSongItem}
           />
         ) : (
+          // <FlatList
+          //   style={styles.list}
+          //   contentContainerStyle={styles.listContent}
+          //   data={downloadingSongIds}
+          //   keyExtractor={(songId) => songId}
+          //   showsVerticalScrollIndicator={false}
+          //   keyboardShouldPersistTaps="handled"
+          //   initialNumToRender={8}
+          //   maxToRenderPerBatch={8}
+          //   windowSize={5}
+          //   removeClippedSubviews
+          //   ListEmptyComponent={
+          //     <View style={styles.emptyBox}>
+          //       <Text style={styles.emptyText}>{copy.emptyDownloading}</Text>
+          //     </View>
+          //   }
+          //   renderItem={({ item: songId }) => (
+          //     <DownloadingSongRow songId={songId} copy={copy} onCancel={handleCancelDownload} />
+          //   )}
+          // />
+
           <FlatList
             style={styles.list}
             contentContainerStyle={styles.listContent}
             data={downloadingSongIds}
-            keyExtractor={(songId) => songId}
+            keyExtractor={downloadingKeyExtractor}
+            getItemLayout={getDownloadingItemLayout}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             initialNumToRender={8}
-            maxToRenderPerBatch={8}
+            maxToRenderPerBatch={6}
+            updateCellsBatchingPeriod={50}
             windowSize={5}
             removeClippedSubviews
             ListEmptyComponent={
@@ -343,9 +493,7 @@ export function QueuedSongsPanel() {
                 <Text style={styles.emptyText}>{copy.emptyDownloading}</Text>
               </View>
             }
-            renderItem={({ item: songId }) => (
-              <DownloadingSongRow songId={songId} copy={copy} onCancel={handleCancelDownload} />
-            )}
+            renderItem={renderDownloadingSongItem}
           />
         )}
       </View>

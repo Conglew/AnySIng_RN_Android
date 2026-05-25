@@ -1,7 +1,8 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  GestureResponderEvent,
   Image,
   Pressable,
   StyleSheet,
@@ -55,6 +56,8 @@ type LanguageTab = {
   label: string;
   value?: string;
 };
+
+const NEW_SONG_ROW_HEIGHT = 70;
 
 // type SongActionStatus = {
 //   phase: 'preparing' | 'downloading';
@@ -170,6 +173,10 @@ function getInsertButtonText(status: SongDownloadStatus | undefined, copy: NewSo
     return copy.insert;
   }
 
+  if (status.phase === 'queued') {
+    return '等待中';
+  }
+
   if (status.phase === 'preparing') {
     return copy.preparing;
   }
@@ -185,14 +192,14 @@ type NewSongRowProps = {
   song: SongDto;
   copy: NewSongsPanelCopy;
   onToggleFavorite: (song: SongDto) => void;
-  onInsertSongNext: (song: SongDto) => void;
+  onAddSongToQueue: (song: SongDto) => void;
 };
 
 const NewSongRow = memo(function NewSongRow({
   song,
   copy,
   onToggleFavorite,
-  onInsertSongNext,
+  onAddSongToQueue,
 }: NewSongRowProps) {
   const songActionStatus = useSongDownloadStatusStore((state) => state.statusMap[song._id]);
 
@@ -205,6 +212,52 @@ const NewSongRow = memo(function NewSongRow({
   const isSongActionLoading = Boolean(songActionStatus);
   const isFavorite = favoriteState ?? Boolean(song.isCollected);
 
+  const displayTitle = useMemo(() => {
+    return truncateText(formatDisplaySongTitle(song.title), 11);
+  }, [song.title]);
+
+  const displayArtistText = useMemo(() => {
+    return truncateText(formatArtists(song.artists), 5);
+  }, [song.artists]);
+
+  const insertButtonText = useMemo(() => {
+    return getInsertButtonText(songActionStatus, copy);
+  }, [songActionStatus, copy]);
+
+  const handlePressRow = useCallback(() => {
+    if (isSongActionLoading) {
+      return;
+    }
+
+    onAddSongToQueue(song);
+  }, [isSongActionLoading, onAddSongToQueue, song]);
+
+  const handlePressFavorite = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+
+      if (isFavoriteActionLoading) {
+        return;
+      }
+
+      onToggleFavorite(song);
+    },
+    [isFavoriteActionLoading, onToggleFavorite, song],
+  );
+
+  const handlePressInsert = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+
+      if (isSongActionLoading) {
+        return;
+      }
+
+      onAddSongToQueue(song);
+    },
+    [isSongActionLoading, onAddSongToQueue, song],
+  );
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -212,34 +265,24 @@ const NewSongRow = memo(function NewSongRow({
         pressed && styles.songRowPressed,
         isSongActionLoading && styles.songRowResolving,
       ]}
-      onPress={() => {
-        console.log('[NewSongsPanel] pressed song:', {
-          songId: song._id,
-          title: song.title,
-        });
-
-        onInsertSongNext(song);
-      }}
+      onPress={handlePressRow}
     >
       <View style={styles.songIconBox}>
         <SongReadyIcon width={32} height={32} />
       </View>
 
       <Text style={styles.songTitle} numberOfLines={1}>
-        {truncateText(formatDisplaySongTitle(song.title), 11)}
+        {displayTitle}
       </Text>
 
       <Text style={styles.artistText} numberOfLines={1}>
-        {truncateText(formatArtists(song.artists), 5)}
+        {displayArtistText}
       </Text>
 
       <Pressable
         style={styles.favoriteButton}
         disabled={isFavoriteActionLoading}
-        onPress={(event) => {
-          event.stopPropagation();
-          onToggleFavorite(song);
-        }}
+        onPress={handlePressFavorite}
       >
         {isFavorite ? (
           <SongLikedIcon width={42} height={42} />
@@ -251,13 +294,10 @@ const NewSongRow = memo(function NewSongRow({
       <Pressable
         style={styles.insertButton}
         disabled={isSongActionLoading}
-        onPress={(event) => {
-          event.stopPropagation();
-          onInsertSongNext(song);
-        }}
+        onPress={handlePressInsert}
       >
         <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-          {getInsertButtonText(songActionStatus, copy)}
+          {insertButtonText}
         </Text>
       </Pressable>
     </Pressable>
@@ -320,7 +360,7 @@ export function NewSongsPanel({ visible, onClose }: Props) {
   // const clearDownloadStatus = useSongDownloadStatusStore((state) => state.clearStatus);
 
   // const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
-  const { insertSongNext } = useInsertSongPlayback();
+  const { enqueueSongAfterDownload } = useInsertSongPlayback();
 
   const queryClient = useQueryClient();
 
@@ -794,14 +834,46 @@ export function NewSongsPanel({ visible, onClose }: Props) {
     loadFirstPage();
   }, [loadFirstPage, visible]);
 
+  const displaySongs = useMemo(() => {
+    if (isSearchMode && selectedLanguage.value) {
+      return songs.filter((song) => song.language === selectedLanguage.value);
+    }
+
+    return songs;
+  }, [isSearchMode, selectedLanguage.value, songs]);
+
+  const keyExtractor = useCallback((item: SongDto) => {
+    return item._id;
+  }, []);
+
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<SongDto> | null | undefined, index: number) => {
+      return {
+        length: NEW_SONG_ROW_HEIGHT,
+        offset: NEW_SONG_ROW_HEIGHT * index,
+        index,
+      };
+    },
+    [],
+  );
+
+  const renderNewSongItem = useCallback(
+    ({ item }: { item: SongDto }) => {
+      return (
+        <NewSongRow
+          song={item}
+          copy={copy}
+          onToggleFavorite={handleToggleFavorite}
+          onAddSongToQueue={enqueueSongAfterDownload}
+        />
+      );
+    },
+    [copy, handleToggleFavorite, enqueueSongAfterDownload],
+  );
+
   if (!visible) {
     return null;
   }
-
-  const displaySongs =
-    isSearchMode && selectedLanguage.value
-      ? songs.filter((song) => song.language === selectedLanguage.value)
-      : songs;
 
   return (
     <View style={styles.panelLayer}>
@@ -856,26 +928,19 @@ export function NewSongsPanel({ visible, onClose }: Props) {
             ) : (
               <FlatList
                 ref={songListRef}
-                // data={songs}
                 data={displaySongs}
-                keyExtractor={(item) => item._id}
+                keyExtractor={keyExtractor}
+                getItemLayout={getItemLayout}
                 contentContainerStyle={styles.listContent}
-                // onEndReached={loadNextPage}
                 onEndReached={isSearchLanguageFilterMode ? undefined : loadNextPage}
                 onEndReachedThreshold={0.35}
                 initialNumToRender={8}
-                maxToRenderPerBatch={8}
+                maxToRenderPerBatch={6}
+                updateCellsBatchingPeriod={50}
                 windowSize={5}
                 removeClippedSubviews
                 keyboardShouldPersistTaps="handled"
-                renderItem={({ item }) => (
-                  <NewSongRow
-                    song={item}
-                    copy={copy}
-                    onToggleFavorite={handleToggleFavorite}
-                    onInsertSongNext={insertSongNext}
-                  />
-                )}
+                renderItem={renderNewSongItem}
                 ListEmptyComponent={
                   <View style={styles.centerContent}>
                     <Text style={styles.emptyText}>目前沒有新歌資料</Text>

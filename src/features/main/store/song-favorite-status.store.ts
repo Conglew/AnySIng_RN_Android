@@ -13,16 +13,26 @@ export const useSongFavoriteStatusStore = create<SongFavoriteStatusStore>((set) 
   favoriteStateMap: {},
 
   setFavoriteActionLoading: (songId, isLoading) => {
-    set((state) => ({
-      actionStatusMap: {
-        ...state.actionStatusMap,
-        [songId]: isLoading,
-      },
-    }));
+    set((state) => {
+      if (state.actionStatusMap[songId] === isLoading) {
+        return state;
+      }
+
+      return {
+        actionStatusMap: {
+          ...state.actionStatusMap,
+          [songId]: isLoading,
+        },
+      };
+    });
   },
 
   clearFavoriteActionStatus: (songId) => {
     set((state) => {
+      if (!state.actionStatusMap[songId]) {
+        return state;
+      }
+
       const nextActionStatusMap = { ...state.actionStatusMap };
       delete nextActionStatusMap[songId];
 
@@ -33,11 +43,17 @@ export const useSongFavoriteStatusStore = create<SongFavoriteStatusStore>((set) 
   },
 
   setFavoriteState: (songId, isFavorite) => {
-    set((state) => ({
-      favoriteStateMap: {
-        ...state.favoriteStateMap,
-        [songId]: isFavorite,
-      },
-    }));
+    set((state) => {
+      if (state.favoriteStateMap[songId] === isFavorite) {
+        return state;
+      }
+
+      return {
+        favoriteStateMap: {
+          ...state.favoriteStateMap,
+          [songId]: isFavorite,
+        },
+      };
+    });
   },
 }));

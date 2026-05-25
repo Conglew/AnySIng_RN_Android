@@ -124,14 +124,23 @@ export function SongRequestQrPanel() {
   );
 
   useEffect(() => {
+    let isMounted = true;
+
     if (!isVisible) {
-      return;
+      setQrUrl('');
+      return () => {
+        isMounted = false;
+      };
     }
 
     const buildQrUrl = async () => {
       try {
         const token = await getAccessToken();
         const userId = await getUserId();
+
+        if (!isMounted) {
+          return;
+        }
 
         if (!token || !userId) {
           console.log('[SongRequestQrPanel] missing token or userId', {
@@ -147,16 +156,25 @@ export function SongRequestQrPanel() {
           token,
           userId,
           room: userId,
+          source: 'tablet-qr',
         });
 
         setQrUrl(`${SONG_REQUEST_WEB_URL}?${params.toString()}`);
       } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
         console.log('[SongRequestQrPanel] build QR url failed:', error);
         setQrUrl('');
       }
     };
 
     buildQrUrl();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isVisible]);
 
   if (!isVisible) {
