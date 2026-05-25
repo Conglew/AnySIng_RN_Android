@@ -28,6 +28,45 @@ function buildQuery(params: Record<string, string | number | undefined | null>) 
   return queryString ? `?${queryString}` : '';
 }
 
+type RemoveSongFromPlaylistBody = {
+  songId?: string;
+  queueId?: string;
+};
+
+function buildRemoveSongFromPlaylistBody({
+  type,
+  songId,
+  queueId,
+}: {
+  type: PlaylistType;
+  songId?: string;
+  queueId?: string | null;
+}): RemoveSongFromPlaylistBody {
+  if (type === 'collect') {
+    if (!songId) {
+      throw new Error('Missing songId for collect playlist removal.');
+    }
+
+    return {
+      songId,
+    };
+  }
+
+  if (queueId) {
+    return {
+      queueId,
+    };
+  }
+
+  if (songId) {
+    return {
+      songId,
+    };
+  }
+
+  throw new Error('Missing songId or queueId for playlist removal.');
+}
+
 export const playlistClient = {
   /**
    * 取得目前使用者的歌單。
@@ -102,8 +141,8 @@ export const playlistClient = {
   /**
    * 從指定歌單移除歌曲。
    *
-   * queueId：精準移除某一筆 queue item
-   * songId：移除該歌曲
+   * collect：只用 songId 移除收藏歌曲
+   * pending：優先用 queueId 精準移除某一筆 queue item，沒有 queueId 時才用 songId
    */
   removeSongFromPlaylist({
     token,
@@ -116,17 +155,16 @@ export const playlistClient = {
     songId?: string;
     queueId?: string | null;
   }) {
-    return apiRequest<RemoveSongFromPlaylistResponse, { songId?: string; queueId?: string | null }>(
-      {
-        method: 'DELETE',
-        path: `/playlist/user/${type}/songs`,
-        token,
-        body: {
-          songId,
-          queueId,
-        },
-      },
-    );
+    return apiRequest<RemoveSongFromPlaylistResponse, RemoveSongFromPlaylistBody>({
+      method: 'DELETE',
+      path: `/playlist/user/${type}/songs`,
+      token,
+      body: buildRemoveSongFromPlaylistBody({
+        type,
+        songId,
+        queueId,
+      }),
+    });
   },
 
   /**

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,7 +16,12 @@ import { playlistClient } from '@/src/services/playlist/playlist-client';
 
 import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
 
-import { SongDownloadStatus } from '@/src/features/player/stores/song-download-status.store';
+import {
+  SongDownloadStatus,
+  useSongDownloadStatusStore,
+} from '@/src/features/player/stores/song-download-status.store';
+
+import { useSongFavoriteStatusStore } from '@/src/features/main/store/song-favorite-status.store';
 
 import { useRankingSongsCache } from '@/src/features/song/hook/use-ranking-songs-cache';
 
@@ -156,6 +161,84 @@ function getInsertButtonText(status: SongDownloadStatus | undefined, copy: Ranki
   return copy.insert;
 }
 
+type RankingSongRowProps = {
+  song: SongDto;
+  copy: RankingSongsPanelCopy;
+  onToggleFavorite: (song: SongDto) => void;
+  onInsertSongNext: (song: SongDto) => void;
+};
+
+const RankingSongRow = memo(function RankingSongRow({
+  song,
+  copy,
+  onToggleFavorite,
+  onInsertSongNext,
+}: RankingSongRowProps) {
+  const songActionStatus = useSongDownloadStatusStore((state) => state.statusMap[song._id]);
+
+  const isFavoriteActionLoading = useSongFavoriteStatusStore((state) =>
+    Boolean(state.actionStatusMap[song._id]),
+  );
+
+  const favoriteState = useSongFavoriteStatusStore((state) => state.favoriteStateMap[song._id]);
+
+  const isSongActionLoading = Boolean(songActionStatus);
+  const isFavorite = favoriteState ?? Boolean(song.isCollected);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.songRow,
+        pressed && styles.songRowPressed,
+        isSongActionLoading && styles.songRowResolving,
+      ]}
+      onPress={() => {
+        onInsertSongNext(song);
+      }}
+    >
+      <View style={styles.songIconBox}>
+        <SongReadyIcon width={32} height={32} />
+      </View>
+
+      <Text style={styles.songTitle} numberOfLines={1}>
+        {truncateText(formatDisplaySongTitle(song.title), 11)}
+      </Text>
+
+      <Text style={styles.artistText} numberOfLines={1}>
+        {truncateText(formatArtists(song.artists), 8)}
+      </Text>
+
+      <Pressable
+        style={styles.favoriteButton}
+        disabled={isFavoriteActionLoading}
+        onPress={(event) => {
+          event.stopPropagation();
+          onToggleFavorite(song);
+        }}
+      >
+        {isFavorite ? (
+          <SongLikedIcon width={42} height={42} />
+        ) : (
+          <SongLikeIcon width={42} height={42} />
+        )}
+      </Pressable>
+
+      <Pressable
+        style={styles.insertButton}
+        disabled={isSongActionLoading}
+        onPress={(event) => {
+          event.stopPropagation();
+          onInsertSongNext(song);
+        }}
+      >
+        <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
+          {getInsertButtonText(songActionStatus, copy)}
+        </Text>
+      </Pressable>
+    </Pressable>
+  );
+});
+
 export function RankingSongsPanel({ visible, onClose }: Props) {
   const songListRef = useRef<FlatList<SongDto>>(null);
 
@@ -175,7 +258,8 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
 
   const isSearchLanguageFilterMode = isSearchMode && Boolean(selectedLanguage.value);
 
-  const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
+  // const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
+  const { insertSongNext } = useInsertSongPlayback();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -230,11 +314,11 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
 
   const queryClient = useQueryClient();
 
-  const [favoriteActionStatusMap, setFavoriteActionStatusMap] = useState<Record<string, boolean>>(
-    {},
-  );
+  // const [favoriteActionStatusMap, setFavoriteActionStatusMap] = useState<Record<string, boolean>>(
+  //   {},
+  // );
 
-  const [favoriteStateMap, setFavoriteStateMap] = useState<Record<string, boolean>>({});
+  // const [favoriteStateMap, setFavoriteStateMap] = useState<Record<string, boolean>>({});
 
   const handlePressLanguage = useCallback((tab: LanguageTab) => {
     songListRef.current?.scrollToOffset({
@@ -251,6 +335,126 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
     });
   }, []);
 
+  // const handleToggleFavorite = useCallback(
+  //   async (song: SongDto) => {
+  //     const songId = song._id;
+
+  //     if (!songId) {
+  //       console.log('[RankingSongsPanel] favorite ignored: missing songId', song);
+  //       return;
+  //     }
+
+  //     if (favoriteActionStatusMap[songId]) {
+  //       return;
+  //     }
+
+  //     setFavoriteActionStatusMap((previous) => ({
+  //       ...previous,
+  //       [songId]: true,
+  //     }));
+
+  //     try {
+  //       setErrorMessage('');
+
+  //       const token = await getAccessToken();
+
+  //       if (!token) {
+  //         throw new Error('Missing access token.');
+  //       }
+
+  //       // if (song.isCollected) {
+  //       //   await playlistClient.removeSongFromPlaylist({
+  //       //     token,
+  //       //     type: 'collect',
+  //       //     songId,
+  //       //   });
+
+  //       //   console.log('[RankingSongsPanel] removed favorite:', {
+  //       //     songId,
+  //       //     title: song.title,
+  //       //   });
+  //       // } else {
+  //       //   await playlistClient.addSongToPlaylist({
+  //       //     token,
+  //       //     type: 'collect',
+  //       //     songId,
+  //       //   });
+
+  //       //   console.log('[RankingSongsPanel] added favorite:', {
+  //       //     songId,
+  //       //     title: song.title,
+  //       //   });
+  //       // }
+  //       const currentIsCollected = favoriteStateMap[songId] ?? Boolean(song.isCollected);
+  //       const nextIsCollected = !currentIsCollected;
+
+  //       if (currentIsCollected) {
+  //         await playlistClient.removeSongFromPlaylist({
+  //           token,
+  //           type: 'collect',
+  //           songId,
+  //         });
+
+  //         console.log('[RankingSongsPanel] removed favorite:', {
+  //           songId,
+  //           title: song.title,
+  //         });
+  //       } else {
+  //         await playlistClient.addSongToPlaylist({
+  //           token,
+  //           type: 'collect',
+  //           songId,
+  //         });
+
+  //         console.log('[RankingSongsPanel] added favorite:', {
+  //           songId,
+  //           title: song.title,
+  //         });
+  //       }
+
+  //       setFavoriteStateMap((previous) => ({
+  //         ...previous,
+  //         [songId]: nextIsCollected,
+  //       }));
+
+  //       /**
+  //        * 讓排行榜歌曲列表重新取得 isCollected 狀態。
+  //        *
+  //        * 如果 useRankingSongsCache 有自己的 refetch / mutate 方法，
+  //        * 之後可以改成精準更新；目前先用 invalidateQueries 讓資料重新同步。
+  //        */
+  //       queryClient.invalidateQueries({
+  //         queryKey: ['ranking-songs'],
+  //       });
+
+  //       queryClient.invalidateQueries({
+  //         queryKey: ['songs'],
+  //       });
+
+  //       queryClient.invalidateQueries({
+  //         queryKey: ['playlist'],
+  //       });
+  //     } catch (error) {
+  //       const message = error instanceof Error ? error.message : String(error);
+
+  //       console.log('[RankingSongsPanel] toggle favorite failed:', {
+  //         songId,
+  //         title: song.title,
+  //         error: message,
+  //       });
+
+  //       setErrorMessage(message);
+  //     } finally {
+  //       setFavoriteActionStatusMap((previous) => {
+  //         const next = { ...previous };
+  //         delete next[songId];
+  //         return next;
+  //       });
+  //     }
+  //   },
+  //   [favoriteActionStatusMap, favoriteStateMap, queryClient, setErrorMessage],
+  // );
+
   const handleToggleFavorite = useCallback(
     async (song: SongDto) => {
       const songId = song._id;
@@ -260,14 +464,15 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
         return;
       }
 
-      if (favoriteActionStatusMap[songId]) {
+      const favoriteStore = useSongFavoriteStatusStore.getState();
+
+      if (favoriteStore.actionStatusMap[songId]) {
         return;
       }
 
-      setFavoriteActionStatusMap((previous) => ({
-        ...previous,
-        [songId]: true,
-      }));
+      favoriteStore.setFavoriteActionLoading(songId, true);
+
+      let favoriteAction: 'add' | 'remove' | null = null;
 
       try {
         setErrorMessage('');
@@ -278,34 +483,23 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
           throw new Error('Missing access token.');
         }
 
-        // if (song.isCollected) {
-        //   await playlistClient.removeSongFromPlaylist({
-        //     token,
-        //     type: 'collect',
-        //     songId,
-        //   });
-
-        //   console.log('[RankingSongsPanel] removed favorite:', {
-        //     songId,
-        //     title: song.title,
-        //   });
-        // } else {
-        //   await playlistClient.addSongToPlaylist({
-        //     token,
-        //     type: 'collect',
-        //     songId,
-        //   });
-
-        //   console.log('[RankingSongsPanel] added favorite:', {
-        //     songId,
-        //     title: song.title,
-        //   });
-        // }
-        const currentIsCollected = favoriteStateMap[songId] ?? Boolean(song.isCollected);
+        const currentFavoriteState = useSongFavoriteStatusStore.getState().favoriteStateMap[songId];
+        const currentIsCollected = currentFavoriteState ?? Boolean(song.isCollected);
         const nextIsCollected = !currentIsCollected;
 
+        console.log('[RankingSongsPanel] favorite decision:', {
+          songId,
+          title: song.title,
+          storeFavoriteState: currentFavoriteState,
+          songIsCollected: song.isCollected,
+          currentIsCollected,
+          nextIsCollected,
+        });
+
         if (currentIsCollected) {
-          await playlistClient.removeSongFromPlaylist({
+          favoriteAction = 'remove';
+
+          const response = await playlistClient.removeSongFromPlaylist({
             token,
             type: 'collect',
             songId,
@@ -314,9 +508,12 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
           console.log('[RankingSongsPanel] removed favorite:', {
             songId,
             title: song.title,
+            response,
           });
         } else {
-          await playlistClient.addSongToPlaylist({
+          favoriteAction = 'add';
+
+          const response = await playlistClient.addSongToPlaylist({
             token,
             type: 'collect',
             songId,
@@ -325,27 +522,11 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
           console.log('[RankingSongsPanel] added favorite:', {
             songId,
             title: song.title,
+            response,
           });
         }
 
-        setFavoriteStateMap((previous) => ({
-          ...previous,
-          [songId]: nextIsCollected,
-        }));
-
-        /**
-         * 讓排行榜歌曲列表重新取得 isCollected 狀態。
-         *
-         * 如果 useRankingSongsCache 有自己的 refetch / mutate 方法，
-         * 之後可以改成精準更新；目前先用 invalidateQueries 讓資料重新同步。
-         */
-        queryClient.invalidateQueries({
-          queryKey: ['ranking-songs'],
-        });
-
-        queryClient.invalidateQueries({
-          queryKey: ['songs'],
-        });
+        useSongFavoriteStatusStore.getState().setFavoriteState(songId, nextIsCollected);
 
         queryClient.invalidateQueries({
           queryKey: ['playlist'],
@@ -357,18 +538,30 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
           songId,
           title: song.title,
           error: message,
+          favoriteAction,
         });
+
+        if (
+          favoriteAction === 'remove' &&
+          (message === 'server error' ||
+            message.includes('不在此歌单中') ||
+            message.includes('不在此歌單中'))
+        ) {
+          useSongFavoriteStatusStore.getState().setFavoriteState(songId, false);
+
+          queryClient.invalidateQueries({
+            queryKey: ['playlist'],
+          });
+
+          return;
+        }
 
         setErrorMessage(message);
       } finally {
-        setFavoriteActionStatusMap((previous) => {
-          const next = { ...previous };
-          delete next[songId];
-          return next;
-        });
+        useSongFavoriteStatusStore.getState().clearFavoriteActionStatus(songId);
       }
     },
-    [favoriteActionStatusMap, favoriteStateMap, queryClient, setErrorMessage],
+    [queryClient, setErrorMessage],
   );
 
   /*
@@ -604,6 +797,11 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                 // onEndReached={loadNextPage}
                 onEndReached={isSearchLanguageFilterMode ? undefined : loadNextPage}
                 onEndReachedThreshold={0.35}
+                initialNumToRender={8}
+                maxToRenderPerBatch={8}
+                windowSize={5}
+                removeClippedSubviews
+                keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
                   // <View style={styles.songRow}>
                   //   <View style={styles.songIconBox}>
@@ -630,58 +828,65 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                   //   </Pressable>
                   // </View>
 
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.songRow,
-                      pressed && styles.songRowPressed,
-                      songActionStatusMap[item._id] && styles.songRowResolving,
-                    ]}
-                    onPress={() => {
-                      // handlePressInsert(item);
-                      insertSongNext(item);
-                    }}
-                  >
-                    <View style={styles.songIconBox}>
-                      <SongReadyIcon width={32} height={32} />
-                    </View>
+                  // <Pressable
+                  //   style={({ pressed }) => [
+                  //     styles.songRow,
+                  //     pressed && styles.songRowPressed,
+                  //     songActionStatusMap[item._id] && styles.songRowResolving,
+                  //   ]}
+                  //   onPress={() => {
+                  //     // handlePressInsert(item);
+                  //     insertSongNext(item);
+                  //   }}
+                  // >
+                  //   <View style={styles.songIconBox}>
+                  //     <SongReadyIcon width={32} height={32} />
+                  //   </View>
 
-                    <Text style={styles.songTitle} numberOfLines={1}>
-                      {truncateText(formatDisplaySongTitle(item.title), 11)}
-                    </Text>
+                  //   <Text style={styles.songTitle} numberOfLines={1}>
+                  //     {truncateText(formatDisplaySongTitle(item.title), 11)}
+                  //   </Text>
 
-                    <Text style={styles.artistText} numberOfLines={1}>
-                      {truncateText(formatArtists(item.artists), 8)}
-                    </Text>
+                  //   <Text style={styles.artistText} numberOfLines={1}>
+                  //     {truncateText(formatArtists(item.artists), 8)}
+                  //   </Text>
 
-                    <Pressable
-                      style={styles.favoriteButton}
-                      disabled={Boolean(favoriteActionStatusMap[item._id])}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        handleToggleFavorite(item);
-                      }}
-                    >
-                      {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
-                        <SongLikedIcon width={42} height={42} />
-                      ) : (
-                        <SongLikeIcon width={42} height={42} />
-                      )}
-                    </Pressable>
+                  //   <Pressable
+                  //     style={styles.favoriteButton}
+                  //     disabled={Boolean(favoriteActionStatusMap[item._id])}
+                  //     onPress={(event) => {
+                  //       event.stopPropagation();
+                  //       handleToggleFavorite(item);
+                  //     }}
+                  //   >
+                  //     {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
+                  //       <SongLikedIcon width={42} height={42} />
+                  //     ) : (
+                  //       <SongLikeIcon width={42} height={42} />
+                  //     )}
+                  //   </Pressable>
 
-                    <Pressable
-                      style={styles.insertButton}
-                      disabled={Boolean(songActionStatusMap[item._id])}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        // handlePressInsert(item);
-                        insertSongNext(item);
-                      }}
-                    >
-                      <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                        {getInsertButtonText(songActionStatusMap[item._id], copy)}
-                      </Text>
-                    </Pressable>
-                  </Pressable>
+                  //   <Pressable
+                  //     style={styles.insertButton}
+                  //     disabled={Boolean(songActionStatusMap[item._id])}
+                  //     onPress={(event) => {
+                  //       event.stopPropagation();
+                  //       // handlePressInsert(item);
+                  //       insertSongNext(item);
+                  //     }}
+                  //   >
+                  //     <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
+                  //       {getInsertButtonText(songActionStatusMap[item._id], copy)}
+                  //     </Text>
+                  //   </Pressable>
+                  // </Pressable>
+
+                  <RankingSongRow
+                    song={item}
+                    copy={copy}
+                    onToggleFavorite={handleToggleFavorite}
+                    onInsertSongNext={insertSongNext}
+                  />
                 )}
                 ListEmptyComponent={
                   <View style={styles.centerContent}>

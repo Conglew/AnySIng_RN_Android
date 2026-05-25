@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,7 +7,14 @@ import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { playlistClient } from '@/src/services/playlist/playlist-client';
 
 import { useInsertSongPlayback } from '@/src/features/player/hook/use-insert-song-playback';
-import { SongDownloadStatus } from '@/src/features/player/stores/song-download-status.store';
+
+import {
+  SongDownloadStatus,
+  useSongDownloadStatusStore,
+} from '@/src/features/player/stores/song-download-status.store';
+
+import { useSongFavoriteStatusStore } from '@/src/features/main/store/song-favorite-status.store';
+
 import { useCollectedSongsQuery } from '@/src/features/playlist/hook/use-collected-songs-query';
 import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
 import { SongDto } from '@/src/services/song/song.types';
@@ -72,6 +79,82 @@ function getInsertButtonText(status: SongDownloadStatus | undefined, copy: MySon
   return copy.insert;
 }
 
+type MySongRowProps = {
+  song: SongDto;
+  copy: MySongsPanelCopy;
+  onToggleFavorite: (song: SongDto) => void;
+  onInsertSongNext: (song: SongDto) => void;
+};
+
+const MySongRow = memo(function MySongRow({
+  song,
+  copy,
+  onToggleFavorite,
+  onInsertSongNext,
+}: MySongRowProps) {
+  const songActionStatus = useSongDownloadStatusStore((state) => state.statusMap[song._id]);
+
+  const isFavoriteActionLoading = useSongFavoriteStatusStore((state) =>
+    Boolean(state.actionStatusMap[song._id]),
+  );
+
+  const favoriteState = useSongFavoriteStatusStore((state) => state.favoriteStateMap[song._id]);
+
+  const isSongActionLoading = Boolean(songActionStatus);
+  const isFavorite = favoriteState ?? Boolean(song.isCollected);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.songRow,
+        pressed && styles.songRowPressed,
+        isSongActionLoading && styles.songRowResolving,
+      ]}
+      onPress={() => onInsertSongNext(song)}
+    >
+      <View style={styles.songIconBox}>
+        <SongReadyIcon width={32} height={32} />
+      </View>
+
+      <Text style={styles.songTitle} numberOfLines={1}>
+        {truncateText(formatDisplaySongTitle(song.title), 16)}
+      </Text>
+
+      <Text style={styles.artistText} numberOfLines={1}>
+        {truncateText(formatArtists(song.artists, copy.unknownArtist), 10)}
+      </Text>
+
+      <Pressable
+        style={styles.favoriteButton}
+        disabled={isFavoriteActionLoading}
+        onPress={(event) => {
+          event.stopPropagation();
+          onToggleFavorite(song);
+        }}
+      >
+        {isFavorite ? (
+          <SongLikedIcon width={42} height={42} />
+        ) : (
+          <SongLikeIcon width={42} height={42} />
+        )}
+      </Pressable>
+
+      <Pressable
+        style={styles.insertButton}
+        disabled={isSongActionLoading}
+        onPress={(event) => {
+          event.stopPropagation();
+          onInsertSongNext(song);
+        }}
+      >
+        <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
+          {getInsertButtonText(songActionStatus, copy)}
+        </Text>
+      </Pressable>
+    </Pressable>
+  );
+});
+
 export function MySongsPanel({ visible, onClose }: Props) {
   const language = useAppLanguageStore((state) => state.language);
   const copy = MY_SONGS_PANEL_COPY[language];
@@ -84,7 +167,8 @@ export function MySongsPanel({ visible, onClose }: Props) {
     enabled: visible,
   });
 
-  const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
+  // const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
+  const { insertSongNext } = useInsertSongPlayback();
 
   const totalPages = useMemo(() => {
     if (songs.length <= 0) {
@@ -96,13 +180,104 @@ export function MySongsPanel({ visible, onClose }: Props) {
 
   const queryClient = useQueryClient();
 
-  const [favoriteActionStatusMap, setFavoriteActionStatusMap] = useState<Record<string, boolean>>(
-    {},
-  );
+  // const [favoriteActionStatusMap, setFavoriteActionStatusMap] = useState<Record<string, boolean>>(
+  //   {},
+  // );
 
-  const [favoriteStateMap, setFavoriteStateMap] = useState<Record<string, boolean>>({});
+  // const [favoriteStateMap, setFavoriteStateMap] = useState<Record<string, boolean>>({});
 
   const [favoriteErrorMessage, setFavoriteErrorMessage] = useState('');
+
+  // const handleToggleFavorite = useCallback(
+  //   async (song: SongDto) => {
+  //     const songId = song._id;
+
+  //     if (!songId) {
+  //       console.log('[MySongsPanel] favorite ignored: missing songId', song);
+  //       return;
+  //     }
+
+  //     if (favoriteActionStatusMap[songId]) {
+  //       return;
+  //     }
+
+  //     setFavoriteActionStatusMap((previous) => ({
+  //       ...previous,
+  //       [songId]: true,
+  //     }));
+
+  //     try {
+  //       setFavoriteErrorMessage('');
+
+  //       const token = await getAccessToken();
+
+  //       if (!token) {
+  //         throw new Error('Missing access token.');
+  //       }
+
+  //       const currentIsCollected = favoriteStateMap[songId] ?? Boolean(song.isCollected);
+  //       const nextIsCollected = !currentIsCollected;
+
+  //       if (currentIsCollected) {
+  //         await playlistClient.removeSongFromPlaylist({
+  //           token,
+  //           type: 'collect',
+  //           songId,
+  //         });
+
+  //         console.log('[MySongsPanel] removed favorite:', {
+  //           songId,
+  //           title: song.title,
+  //         });
+  //       } else {
+  //         await playlistClient.addSongToPlaylist({
+  //           token,
+  //           type: 'collect',
+  //           songId,
+  //         });
+
+  //         console.log('[MySongsPanel] added favorite:', {
+  //           songId,
+  //           title: song.title,
+  //         });
+  //       }
+
+  //       setFavoriteStateMap((previous) => ({
+  //         ...previous,
+  //         [songId]: nextIsCollected,
+  //       }));
+
+  //       queryClient.invalidateQueries({
+  //         queryKey: ['songs'],
+  //       });
+
+  //       queryClient.invalidateQueries({
+  //         queryKey: ['playlist'],
+  //       });
+
+  //       queryClient.invalidateQueries({
+  //         queryKey: ['new-songs'],
+  //       });
+  //     } catch (error) {
+  //       const message = error instanceof Error ? error.message : String(error);
+
+  //       console.log('[MySongsPanel] toggle favorite failed:', {
+  //         songId,
+  //         title: song.title,
+  //         error: message,
+  //       });
+
+  //       setFavoriteErrorMessage(message);
+  //     } finally {
+  //       setFavoriteActionStatusMap((previous) => {
+  //         const next = { ...previous };
+  //         delete next[songId];
+  //         return next;
+  //       });
+  //     }
+  //   },
+  //   [favoriteActionStatusMap, favoriteStateMap, queryClient],
+  // );
 
   const handleToggleFavorite = useCallback(
     async (song: SongDto) => {
@@ -113,14 +288,15 @@ export function MySongsPanel({ visible, onClose }: Props) {
         return;
       }
 
-      if (favoriteActionStatusMap[songId]) {
+      const favoriteStore = useSongFavoriteStatusStore.getState();
+
+      if (favoriteStore.actionStatusMap[songId]) {
         return;
       }
 
-      setFavoriteActionStatusMap((previous) => ({
-        ...previous,
-        [songId]: true,
-      }));
+      favoriteStore.setFavoriteActionLoading(songId, true);
+
+      let favoriteAction: 'add' | 'remove' | null = null;
 
       try {
         setFavoriteErrorMessage('');
@@ -131,11 +307,23 @@ export function MySongsPanel({ visible, onClose }: Props) {
           throw new Error('Missing access token.');
         }
 
-        const currentIsCollected = favoriteStateMap[songId] ?? Boolean(song.isCollected);
+        const currentFavoriteState = useSongFavoriteStatusStore.getState().favoriteStateMap[songId];
+        const currentIsCollected = currentFavoriteState ?? Boolean(song.isCollected);
         const nextIsCollected = !currentIsCollected;
 
+        console.log('[MySongsPanel] favorite decision:', {
+          songId,
+          title: song.title,
+          storeFavoriteState: currentFavoriteState,
+          songIsCollected: song.isCollected,
+          currentIsCollected,
+          nextIsCollected,
+        });
+
         if (currentIsCollected) {
-          await playlistClient.removeSongFromPlaylist({
+          favoriteAction = 'remove';
+
+          const response = await playlistClient.removeSongFromPlaylist({
             token,
             type: 'collect',
             songId,
@@ -144,9 +332,12 @@ export function MySongsPanel({ visible, onClose }: Props) {
           console.log('[MySongsPanel] removed favorite:', {
             songId,
             title: song.title,
+            response,
           });
         } else {
-          await playlistClient.addSongToPlaylist({
+          favoriteAction = 'add';
+
+          const response = await playlistClient.addSongToPlaylist({
             token,
             type: 'collect',
             songId,
@@ -155,24 +346,14 @@ export function MySongsPanel({ visible, onClose }: Props) {
           console.log('[MySongsPanel] added favorite:', {
             songId,
             title: song.title,
+            response,
           });
         }
 
-        setFavoriteStateMap((previous) => ({
-          ...previous,
-          [songId]: nextIsCollected,
-        }));
-
-        queryClient.invalidateQueries({
-          queryKey: ['songs'],
-        });
+        useSongFavoriteStatusStore.getState().setFavoriteState(songId, nextIsCollected);
 
         queryClient.invalidateQueries({
           queryKey: ['playlist'],
-        });
-
-        queryClient.invalidateQueries({
-          queryKey: ['new-songs'],
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -181,18 +362,30 @@ export function MySongsPanel({ visible, onClose }: Props) {
           songId,
           title: song.title,
           error: message,
+          favoriteAction,
         });
+
+        if (
+          favoriteAction === 'remove' &&
+          (message === 'server error' ||
+            message.includes('不在此歌单中') ||
+            message.includes('不在此歌單中'))
+        ) {
+          useSongFavoriteStatusStore.getState().setFavoriteState(songId, false);
+
+          queryClient.invalidateQueries({
+            queryKey: ['playlist'],
+          });
+
+          return;
+        }
 
         setFavoriteErrorMessage(message);
       } finally {
-        setFavoriteActionStatusMap((previous) => {
-          const next = { ...previous };
-          delete next[songId];
-          return next;
-        });
+        useSongFavoriteStatusStore.getState().clearFavoriteActionStatus(songId);
       }
     },
-    [favoriteActionStatusMap, favoriteStateMap, queryClient],
+    [queryClient],
   );
 
   if (!visible) {
@@ -219,55 +412,66 @@ export function MySongsPanel({ visible, onClose }: Props) {
             keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            removeClippedSubviews
             renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.songRow,
-                  pressed && styles.songRowPressed,
-                  songActionStatusMap[item._id] && styles.songRowResolving,
-                ]}
-                onPress={() => insertSongNext(item)}
-              >
-                <View style={styles.songIconBox}>
-                  <SongReadyIcon width={32} height={32} />
-                </View>
+              // <Pressable
+              //   style={({ pressed }) => [
+              //     styles.songRow,
+              //     pressed && styles.songRowPressed,
+              //     songActionStatusMap[item._id] && styles.songRowResolving,
+              //   ]}
+              //   onPress={() => insertSongNext(item)}
+              // >
+              //   <View style={styles.songIconBox}>
+              //     <SongReadyIcon width={32} height={32} />
+              //   </View>
 
-                <Text style={styles.songTitle} numberOfLines={1}>
-                  {truncateText(formatDisplaySongTitle(item.title), 16)}
-                </Text>
+              //   <Text style={styles.songTitle} numberOfLines={1}>
+              //     {truncateText(formatDisplaySongTitle(item.title), 16)}
+              //   </Text>
 
-                <Text style={styles.artistText} numberOfLines={1}>
-                  {truncateText(formatArtists(item.artists, copy.unknownArtist), 10)}
-                </Text>
+              //   <Text style={styles.artistText} numberOfLines={1}>
+              //     {truncateText(formatArtists(item.artists, copy.unknownArtist), 10)}
+              //   </Text>
 
-                <Pressable
-                  style={styles.favoriteButton}
-                  disabled={Boolean(favoriteActionStatusMap[item._id])}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    handleToggleFavorite(item);
-                  }}
-                >
-                  {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
-                    <SongLikedIcon width={42} height={42} />
-                  ) : (
-                    <SongLikeIcon width={42} height={42} />
-                  )}
-                </Pressable>
+              //   <Pressable
+              //     style={styles.favoriteButton}
+              //     disabled={Boolean(favoriteActionStatusMap[item._id])}
+              //     onPress={(event) => {
+              //       event.stopPropagation();
+              //       handleToggleFavorite(item);
+              //     }}
+              //   >
+              //     {(favoriteStateMap[item._id] ?? Boolean(item.isCollected)) ? (
+              //       <SongLikedIcon width={42} height={42} />
+              //     ) : (
+              //       <SongLikeIcon width={42} height={42} />
+              //     )}
+              //   </Pressable>
 
-                <Pressable
-                  style={styles.insertButton}
-                  disabled={Boolean(songActionStatusMap[item._id])}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    insertSongNext(item);
-                  }}
-                >
-                  <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
-                    {getInsertButtonText(songActionStatusMap[item._id], copy)}
-                  </Text>
-                </Pressable>
-              </Pressable>
+              //   <Pressable
+              //     style={styles.insertButton}
+              //     disabled={Boolean(songActionStatusMap[item._id])}
+              //     onPress={(event) => {
+              //       event.stopPropagation();
+              //       insertSongNext(item);
+              //     }}
+              //   >
+              //     <Text style={styles.insertText} numberOfLines={1} ellipsizeMode="clip">
+              //       {getInsertButtonText(songActionStatusMap[item._id], copy)}
+              //     </Text>
+              //   </Pressable>
+              // </Pressable>
+
+              <MySongRow
+                song={item}
+                copy={copy}
+                onToggleFavorite={handleToggleFavorite}
+                onInsertSongNext={insertSongNext}
+              />
             )}
             ListEmptyComponent={
               <View style={styles.centerContent}>
