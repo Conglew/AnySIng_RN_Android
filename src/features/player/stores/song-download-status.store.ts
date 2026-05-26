@@ -32,7 +32,7 @@ type SongDownloadStatusStore = {
   clearAllStatus: () => void;
 };
 
-const MIN_PROGRESS_UPDATE_STEP = 3;
+const MIN_PROGRESS_UPDATE_STEP = 10;
 
 function appendDownloadIdIfNeeded(downloadIds: string[], songId: string) {
   if (downloadIds.includes(songId)) {

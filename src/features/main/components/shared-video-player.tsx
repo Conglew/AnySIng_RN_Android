@@ -58,6 +58,8 @@ export function SharedVideoPlayer() {
   const videoRef = useRef<any>(null);
   const isHandlingVideoEndRef = useRef(false);
 
+  const isFullscreenTransitioningRef = useRef(false);
+
   const [resolvedDefaultVideoUri, setResolvedDefaultVideoUri] = useState<string | null>(null);
 
   const mode = useFullscreenVideoStore((state) => state.mode);
@@ -122,21 +124,27 @@ export function SharedVideoPlayer() {
   // };
 
   const handleToggleFullscreen = useCallback(() => {
+    if (isFullscreenTransitioningRef.current) {
+      return;
+    }
+  
     if (!activeMiniRect) {
       console.log('[SharedVideoPlayer] toggle ignored: missing activeMiniRect');
       return;
     }
-
+  
     if (isFullscreen) {
       if (!isFullscreenChromeVisible) {
         showFullscreenChrome();
         return;
       }
-
+  
+      isFullscreenTransitioningRef.current = true;
       closeFullscreen();
       return;
     }
-
+  
+    isFullscreenTransitioningRef.current = true;
     openFullscreen();
   }, [
     activeMiniRect,
@@ -299,11 +307,22 @@ export function SharedVideoPlayer() {
    * 所以切換顯示模式不會重頭播放。
    */
   useEffect(() => {
-    Animated.timing(progress, {
+    isFullscreenTransitioningRef.current = true;
+  
+    const animation = Animated.timing(progress, {
       toValue: isFullscreen ? 1 : 0,
       duration: isFullscreen ? 320 : 260,
       useNativeDriver: false,
-    }).start();
+    });
+  
+    animation.start(() => {
+      isFullscreenTransitioningRef.current = false;
+    });
+  
+    return () => {
+      animation.stop();
+      isFullscreenTransitioningRef.current = false;
+    };
   }, [isFullscreen, progress]);
 
   /**
@@ -495,40 +514,36 @@ export function SharedVideoPlayer() {
   const currentLocalVideoUri = currentPlaybackItem?.localVideoUri;
   const handleVideoError = useCallback(
     (event: unknown) => {
-      const errorKey =
-        currentPlaybackItem?.queueId ??
-        currentPlaybackItem?.songId ??
-        playbackVideoUri ??
-        'unknown-playback-error';
-
+      const errorKey = currentQueueId ?? currentSongId ?? playbackVideoUri ?? 'unknown-playback-error';
+  
       console.log('[SharedVideoPlayer] onError:', {
         errorKey,
         isDefaultVideo,
         playbackVideoUri,
-        currentPlaybackItem: currentPlaybackItem
+        currentPlaybackItem: currentQueueId
           ? {
-              queueId: currentPlaybackItem.queueId,
-              songId: currentPlaybackItem.songId,
-              title: currentPlaybackItem.title,
-              localVideoUri: currentPlaybackItem.localVideoUri,
+              queueId: currentQueueId,
+              songId: currentSongId,
+              title: currentTitle,
+              localVideoUri: currentLocalVideoUri,
             }
           : null,
       });
-
+  
       if (isDefaultVideo) {
         console.log('[SharedVideoPlayer] onError ignored: default video error');
         return;
       }
-
+  
       if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
         console.log('[SharedVideoPlayer] onError ignored: same item already handled', {
           errorKey,
         });
         return;
       }
-
+  
       handlingPlaybackErrorKeysRef.current.add(errorKey);
-
+  
       skipCurrentAfterPlaybackError({
         reason: 'video-error',
         source: 'SharedVideoPlayer',

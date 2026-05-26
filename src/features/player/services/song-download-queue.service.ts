@@ -231,13 +231,13 @@ async function executeTask(task: SongDownloadTask) {
 
     removeTask(task.taskId);
     clearStatus(task.songId);
-    songDownloadQueueService.pump();
+    schedulePump(500);
   }
 }
 
 let pumpTimer: ReturnType<typeof setTimeout> | null = null;
 
-function schedulePump(delayMs = 300) {
+function schedulePump(delayMs = 600) {
   if (pumpTimer) {
     clearTimeout(pumpTimer);
   }
