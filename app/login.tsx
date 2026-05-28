@@ -337,6 +337,11 @@ export default function LoginScreen() {
         password,
       });
 
+      console.log('[LoginScreen] login session token check:', {
+        hasToken: Boolean(session.token),
+        hasRefreshToken: Boolean((session as any).refreshToken ?? (session as any).refresh_token),
+      });
+
       await saveAuthSession(session);
 
       if (rememberMe) {

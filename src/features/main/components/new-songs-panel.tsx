@@ -787,7 +787,12 @@ export function NewSongsPanel({ visible, onClose }: Props) {
           queryKey: ['playlist'],
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message =
+          error instanceof Error && error.message === 'API request timeout.'
+            ? '新歌資料載入逾時，請確認網路或稍後再試。'
+            : error instanceof Error
+              ? error.message
+              : String(error);
 
         console.log('[NewSongsPanel] toggle favorite failed:', {
           songId,

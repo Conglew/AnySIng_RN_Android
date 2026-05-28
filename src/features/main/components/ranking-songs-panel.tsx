@@ -207,7 +207,7 @@ const RankingSongRow = memo(function RankingSongRow({
     if (isSongActionLoading) {
       return;
     }
-  
+
     onAddSongToQueue(song);
   }, [isSongActionLoading, onAddSongToQueue, song]);
 
@@ -227,11 +227,11 @@ const RankingSongRow = memo(function RankingSongRow({
   const handlePressInsert = useCallback(
     (event: GestureResponderEvent) => {
       event.stopPropagation();
-  
+
       if (isSongActionLoading) {
         return;
       }
-  
+
       onAddSongToQueue(song);
     },
     [isSongActionLoading, onAddSongToQueue, song],
@@ -576,7 +576,12 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
           queryKey: ['playlist'],
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message =
+          error instanceof Error && error.message === 'API request timeout.'
+            ? '新歌資料載入逾時，請確認網路或稍後再試。'
+            : error instanceof Error
+              ? error.message
+              : String(error);
 
         console.log('[RankingSongsPanel] toggle favorite failed:', {
           songId,

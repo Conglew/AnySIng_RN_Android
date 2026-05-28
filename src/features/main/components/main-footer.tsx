@@ -274,7 +274,6 @@ export function MainFooter() {
           return item.Icon;
         })();
 
-
         return (
           <Pressable
             ref={isRecordItem ? (recordSlotRef as any) : undefined}
@@ -307,12 +306,11 @@ export function MainFooter() {
                 openQueuedSongsPanel();
                 return;
               }
-              
+
               if (item.labelKey === 'record' && videoMode === 'fullscreen') {
                 closeFullscreen();
                 return;
               }
-
 
               if (item.action === 'togglePause') {
                 console.log('[MainFooter] before toggle isPaused:', isPaused);

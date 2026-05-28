@@ -3,6 +3,7 @@ import { ENDPOINTS } from '../api/endpoints';
 import {
   AuthLoginRequest,
   AuthLoginResponse,
+  AuthMeResponse,
   AuthSession,
   BillingSummaryResponse,
   DeleteAccountRequest,
@@ -30,10 +31,39 @@ import {
 } from './auth.types';
 
 function toAuthSession(response: AuthLoginResponse): AuthSession {
+  const token = response.token ?? response.access_token;
+
+  if (!token) {
+    throw new Error('Missing access token in auth response.');
+  }
+
   return {
-    token: response.token,
+    token,
+    refreshToken: response.refreshToken ?? response.refresh_token,
+    accessExp: response.access_exp ?? null,
+    refreshExp: response.refresh_exp ?? null,
+
     userId: response.userId,
     userEmail: response.userEmail,
+    sessionVersion: response.sessionVersion,
+    currentSubscription: response.currentSubscription,
+    paymentMethods: response.PaymentMethods ?? [],
+    defaultPaymentMethodId: response.DefaultPaymentMethodId ?? null,
+  };
+}
+
+function toAuthSessionFromMeResponse({
+  response,
+  token,
+}: {
+  response: AuthMeResponse;
+  token: string;
+}): AuthSession {
+  return {
+    token,
+    userId: response.userId,
+    userEmail: response.userEmail,
+    sessionVersion: response.sessionVersion,
     currentSubscription: response.currentSubscription,
     paymentMethods: response.PaymentMethods ?? [],
     defaultPaymentMethodId: response.DefaultPaymentMethodId ?? null,
@@ -58,17 +88,17 @@ export const authClient = {
    * 它只會確認 token 是否有效，成功代表可以繼續進入 home。
    */
   async me(token: string) {
-    const response = await apiRequest<AuthLoginResponse, undefined>({
+    const response = await apiRequest<AuthMeResponse, undefined>({
       method: 'GET',
       path: ENDPOINTS.user.me,
       token,
       timeoutMs: 15000,
     });
-
-    return {
-      ...toAuthSession(response),
+  
+    return toAuthSessionFromMeResponse({
+      response,
       token,
-    };
+    });
   },
 
   billingSummary(token: string) {

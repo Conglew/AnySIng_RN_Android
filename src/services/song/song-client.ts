@@ -44,6 +44,7 @@ export const songClient = {
       method: 'GET',
       path: `${ENDPOINTS.songs.list}${query}`,
       token,
+      timeoutMs: 100000,
     });
   },
 

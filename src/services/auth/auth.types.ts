@@ -4,9 +4,27 @@ export type AuthLoginRequest = {
 };
 
 export type AuthLoginResponse = {
-  token: string;
+  token?: string;
+  refreshToken?: string;
+
+  access_token?: string;
+  refresh_token?: string;
+  access_exp?: number | null;
+  refresh_exp?: number | null;
+
   userId: string;
   userEmail: string;
+  sessionVersion?: number;
+  currentSubscription: string | null;
+  PaymentMethods: string[];
+  DefaultPaymentMethodId: string | null;
+};
+
+export type AuthMeResponse = {
+  userId: string;
+  userEmail: string;
+  name?: string | null;
+  sessionVersion?: number;
   currentSubscription: string | null;
   PaymentMethods: string[];
   DefaultPaymentMethodId: string | null;
@@ -80,8 +98,13 @@ export type DeleteAccountResponse = {
 
 export type AuthSession = {
   token: string;
+  refreshToken?: string;
+  accessExp?: number | null;
+  refreshExp?: number | null;
+
   userId: string;
   userEmail: string;
+  sessionVersion?: number;
   currentSubscription: string | null;
   paymentMethods: string[];
   defaultPaymentMethodId: string | null;
@@ -165,7 +188,14 @@ export type ChangePasswordRequest = {
 
 export type ChangePasswordResponse = {
   message: string;
-  token: string;
+  token?: string;
+  refreshToken?: string;
+
+  access_token?: string;
+  refresh_token?: string;
+  access_exp?: number | null;
+  refresh_exp?: number | null;
+
   userId: string;
   userEmail: string;
   sessionVersion: number;
@@ -186,7 +216,14 @@ export type ChangeEmailRequest = {
 
 export type ChangeEmailResponse = {
   message: string;
-  token: string;
+  token?: string;
+  refreshToken?: string;
+
+  access_token?: string;
+  refresh_token?: string;
+  access_exp?: number | null;
+  refresh_exp?: number | null;
+
   userId: string;
   userEmail: string;
   sessionVersion: number;

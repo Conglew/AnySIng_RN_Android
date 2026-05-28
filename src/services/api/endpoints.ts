@@ -1,6 +1,7 @@
 export const ENDPOINTS = {
   auth: {
     login: '/auth/login',
+    refresh: '/auth/refresh',
     signup: '/auth/signup',
     sendSignupCode: '/auth/send-signup-code',
     verifySignupCode: '/auth/verify-signup-code',

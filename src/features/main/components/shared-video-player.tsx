@@ -127,23 +127,23 @@ export function SharedVideoPlayer() {
     if (isFullscreenTransitioningRef.current) {
       return;
     }
-  
+
     if (!activeMiniRect) {
       console.log('[SharedVideoPlayer] toggle ignored: missing activeMiniRect');
       return;
     }
-  
+
     if (isFullscreen) {
       if (!isFullscreenChromeVisible) {
         showFullscreenChrome();
         return;
       }
-  
+
       isFullscreenTransitioningRef.current = true;
       closeFullscreen();
       return;
     }
-  
+
     isFullscreenTransitioningRef.current = true;
     openFullscreen();
   }, [
@@ -308,17 +308,17 @@ export function SharedVideoPlayer() {
    */
   useEffect(() => {
     isFullscreenTransitioningRef.current = true;
-  
+
     const animation = Animated.timing(progress, {
       toValue: isFullscreen ? 1 : 0,
       duration: isFullscreen ? 320 : 260,
       useNativeDriver: false,
     });
-  
+
     animation.start(() => {
       isFullscreenTransitioningRef.current = false;
     });
-  
+
     return () => {
       animation.stop();
       isFullscreenTransitioningRef.current = false;
@@ -514,8 +514,9 @@ export function SharedVideoPlayer() {
   const currentLocalVideoUri = currentPlaybackItem?.localVideoUri;
   const handleVideoError = useCallback(
     (event: unknown) => {
-      const errorKey = currentQueueId ?? currentSongId ?? playbackVideoUri ?? 'unknown-playback-error';
-  
+      const errorKey =
+        currentQueueId ?? currentSongId ?? playbackVideoUri ?? 'unknown-playback-error';
+
       console.log('[SharedVideoPlayer] onError:', {
         errorKey,
         isDefaultVideo,
@@ -529,21 +530,21 @@ export function SharedVideoPlayer() {
             }
           : null,
       });
-  
+
       if (isDefaultVideo) {
         console.log('[SharedVideoPlayer] onError ignored: default video error');
         return;
       }
-  
+
       if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
         console.log('[SharedVideoPlayer] onError ignored: same item already handled', {
           errorKey,
         });
         return;
       }
-  
+
       handlingPlaybackErrorKeysRef.current.add(errorKey);
-  
+
       skipCurrentAfterPlaybackError({
         reason: 'video-error',
         source: 'SharedVideoPlayer',
