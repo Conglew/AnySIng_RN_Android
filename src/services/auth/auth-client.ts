@@ -94,7 +94,7 @@ export const authClient = {
       token,
       timeoutMs: 15000,
     });
-  
+
     return toAuthSessionFromMeResponse({
       response,
       token,

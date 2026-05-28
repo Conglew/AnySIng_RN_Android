@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -32,6 +32,8 @@ import {
   type MySongsPanelCopy,
 } from '@/src/features/main/i18n/my-songs-panel-copy';
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
+
+import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
@@ -125,9 +127,24 @@ const MySongRow = memo(function MySongRow({
   }, [songActionStatus, copy]);
 
   const handlePressRow = useCallback(() => {
+    useDebugLogStore.getState().addLog('MySongsPanel', 'press row', {
+      songId: song._id,
+      title: song.title,
+      isSongActionLoading,
+    });
+
     if (isSongActionLoading) {
+      useDebugLogStore.getState().addLog('MySongsPanel', 'press ignored: song action loading', {
+        songId: song._id,
+        title: song.title,
+      });
       return;
     }
+
+    useDebugLogStore.getState().addLog('MySongsPanel', 'enqueue song', {
+      songId: song._id,
+      title: song.title,
+    });
 
     onInsertSongNext(song);
   }, [isSongActionLoading, onInsertSongNext, song]);
@@ -149,9 +166,24 @@ const MySongRow = memo(function MySongRow({
     (event: GestureResponderEvent) => {
       event.stopPropagation();
 
+      useDebugLogStore.getState().addLog('MySongsPanel', 'press insert', {
+        songId: song._id,
+        title: song.title,
+        isSongActionLoading,
+      });
+
       if (isSongActionLoading) {
+        useDebugLogStore.getState().addLog('MySongsPanel', 'insert ignored: song action loading', {
+          songId: song._id,
+          title: song.title,
+        });
         return;
       }
+
+      useDebugLogStore.getState().addLog('MySongsPanel', 'insert song', {
+        songId: song._id,
+        title: song.title,
+      });
 
       onInsertSongNext(song);
     },
@@ -215,6 +247,18 @@ export function MySongsPanel({ visible, onClose }: Props) {
   } = useCollectedSongsQuery({
     enabled: visible,
   });
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    useDebugLogStore.getState().addLog('MySongsPanel', 'state changed', {
+      songsCount: songs.length,
+      isLoading,
+      error: error instanceof Error ? error.message : undefined,
+    });
+  }, [error, isLoading, songs.length, visible]);
 
   // const { songActionStatusMap, insertSongNext } = useInsertSongPlayback();
   const { enqueueSongAfterDownload } = useInsertSongPlayback();

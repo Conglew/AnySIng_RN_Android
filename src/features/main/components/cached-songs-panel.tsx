@@ -32,6 +32,8 @@ import {
 } from '@/src/features/main/i18n/cached-songs-panel-copy';
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
 
+import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+
 import SongLikeIcon from '@/assets/images/songPrefab/song-like-icon.svg';
 import SongLikedIcon from '@/assets/images/songPrefab/song-liked-icon.svg';
 import SongReadyIcon from '@/assets/images/songPrefab/song-ready-icon.svg';
@@ -161,13 +163,35 @@ const CachedSongRow = memo(function CachedSongRow({
   }, [item.songId, onRemoveCachedSong]);
 
   const handlePressRow = useCallback(() => {
+    useDebugLogStore.getState().addLog('CachedSongsPanel', 'press cached row', {
+      songId: item.songId,
+      hasSong: Boolean(song),
+      isEditing,
+      isSongActionLoading,
+      videoUri: item.videoUri,
+      title: song?.title,
+    });
+
     if (!song) {
+      useDebugLogStore.getState().addLog('CachedSongsPanel', 'press ignored: missing song', {
+        songId: item.songId,
+        videoUri: item.videoUri,
+      });
       return;
     }
 
     if (isEditing) {
+      useDebugLogStore.getState().addLog('CachedSongsPanel', 'press ignored: editing mode', {
+        songId: item.songId,
+        title: song.title,
+      });
       return;
     }
+
+    useDebugLogStore.getState().addLog('CachedSongsPanel', 'enqueue cached song', {
+      songId: item.songId,
+      title: song.title,
+    });
 
     onEnqueueSongAfterDownload(song);
   }, [isEditing, onEnqueueSongAfterDownload, song]);
@@ -292,15 +316,28 @@ export function CachedSongsPanel({ visible, onClose }: Props) {
   }, [cachedSongs.length]);
 
   const loadCachedSongs = useCallback(async () => {
+    useDebugLogStore.getState().addLog('CachedSongsPanel', 'load cached songs start');
+
     try {
       setErrorMessage('');
       setIsLoading(true);
 
       const result = await songCacheService.getAllCachedSongs();
 
+      useDebugLogStore.getState().addLog('CachedSongsPanel', 'load cached songs success', {
+        count: result.length,
+        missingSongCount: result.filter((item) => !item.song).length,
+      });
+
       setCachedSongs(result);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+
+      useDebugLogStore.getState().addLog('CachedSongsPanel', 'load cached songs failed', {
+        error: message,
+      });
+
+      setErrorMessage(message);
     } finally {
       setIsLoading(false);
     }

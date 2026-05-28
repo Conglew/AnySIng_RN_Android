@@ -30,6 +30,8 @@ import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-for
 
 import { SongDto } from '@/src/services/song/song.types';
 
+import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
 import {
   RANKING_PANEL_COPY,
@@ -762,8 +764,21 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
       return;
     }
 
+    useDebugLogStore.getState().addLog('RankingSongsPanel', 'visible: load first page start', {
+      languageValue: isSearchMode ? undefined : selectedLanguage.value,
+      searchKeyword: debouncedSearchKeyword,
+      searchMode: songSearchMode,
+    });
+
     loadFirstPage();
-  }, [loadFirstPage, visible]);
+  }, [
+    debouncedSearchKeyword,
+    isSearchMode,
+    loadFirstPage,
+    selectedLanguage.value,
+    songSearchMode,
+    visible,
+  ]);
 
   useEffect(() => {
     if (!isSearchMode) {
@@ -780,6 +795,31 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
 
     return songs;
   }, [isSearchMode, selectedLanguage.value, songs]);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    useDebugLogStore.getState().addLog('RankingSongsPanel', 'state changed', {
+      songsCount: songs.length,
+      displaySongsCount: displaySongs.length,
+      page,
+      totalPages,
+      isInitialLoading,
+      isLoadingMore,
+      errorMessage,
+    });
+  }, [
+    displaySongs.length,
+    errorMessage,
+    isInitialLoading,
+    isLoadingMore,
+    page,
+    songs.length,
+    totalPages,
+    visible,
+  ]);
 
   const keyExtractor = useCallback((item: SongDto) => {
     return item._id;

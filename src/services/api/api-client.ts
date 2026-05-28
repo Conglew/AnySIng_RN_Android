@@ -8,6 +8,8 @@ import {
   setAuthTokens,
 } from '@/src/services/auth/auth-token-store';
 
+import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 type ApiRequestOptions<TBody = unknown> = {
@@ -51,6 +53,10 @@ function safeStringify(value: unknown) {
   }
 }
 
+function addApiDebugLog(message: string, data?: unknown) {
+  useDebugLogStore.getState().addLog('ApiClient', message, data);
+}
+
 async function parseResponse(response: Response) {
   const contentType = response.headers.get('content-type') ?? '';
 
@@ -89,13 +95,16 @@ async function refreshAccessToken() {
 
 async function refreshAccessTokenInternal() {
   const refreshToken = await getRefreshToken();
-  
+
   console.log('[LanguageSelectScreen] stored refresh token check:', {
     hasRefreshToken: Boolean(refreshToken),
   });
 
   if (!refreshToken) {
     console.log('[ApiClient] refresh ignored: missing refresh token');
+
+    addApiDebugLog('refresh ignored: missing refresh token');
+
     return null;
   }
 
@@ -109,11 +118,23 @@ async function refreshAccessTokenInternal() {
       timeoutMs: APP_CONFIG.apiTimeoutMs,
     });
 
+    addApiDebugLog('refresh timeout abort', {
+      method: 'POST',
+      url,
+      timeoutMs: APP_CONFIG.apiTimeoutMs,
+    });
+
     controller.abort();
   }, APP_CONFIG.apiTimeoutMs);
 
   try {
     console.log('[ApiClient] refresh request:', {
+      method: 'POST',
+      url,
+      hasRefreshToken: Boolean(refreshToken),
+    });
+
+    addApiDebugLog('refresh request', {
       method: 'POST',
       url,
       hasRefreshToken: Boolean(refreshToken),
@@ -137,6 +158,13 @@ async function refreshAccessTokenInternal() {
       status: response.status,
       ok: response.ok,
       data: parsedResponse,
+    });
+
+    addApiDebugLog('refresh response', {
+      status: response.status,
+      ok: response.ok,
+      hasAccessToken: Boolean(parsedResponse.access_token ?? parsedResponse.accessToken),
+      hasRefreshToken: Boolean(parsedResponse.refresh_token ?? parsedResponse.refreshToken),
     });
 
     if (!response.ok) {
@@ -172,6 +200,11 @@ async function refreshAccessTokenInternal() {
       refreshToken: nextRefreshToken,
     });
 
+    addApiDebugLog('refresh success: tokens saved', {
+      hasNextAccessToken: Boolean(nextAccessToken),
+      hasNextRefreshToken: Boolean(nextRefreshToken),
+    });
+
     return nextAccessToken;
   } catch (error) {
     console.log('[ApiClient] refresh error:', {
@@ -182,6 +215,12 @@ async function refreshAccessTokenInternal() {
     if (error instanceof ApiError) {
       throw error;
     }
+
+    addApiDebugLog('refresh error', {
+      url,
+      errorName: error instanceof Error ? error.name : undefined,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
 
     if (error instanceof Error && error.name === 'AbortError') {
       throw new ApiError({
@@ -226,6 +265,12 @@ async function sendRequest<TResponse, TBody = unknown>({
       timeoutMs,
     });
 
+    addApiDebugLog('request timeout abort', {
+      method,
+      url,
+      timeoutMs,
+    });
+
     controller.abort();
   }, timeoutMs);
 
@@ -242,6 +287,14 @@ async function sendRequest<TResponse, TBody = unknown>({
     url,
     hasToken: Boolean(token),
     body,
+    timeoutMs,
+  });
+
+  addApiDebugLog('request', {
+    method,
+    url,
+    hasToken: Boolean(token),
+    hasBody: body !== undefined,
     timeoutMs,
   });
 
@@ -263,7 +316,24 @@ async function sendRequest<TResponse, TBody = unknown>({
       data: parsedResponse,
     });
 
+    addApiDebugLog('response', {
+      method,
+      url,
+      status: response.status,
+      ok: response.ok,
+    });
+
     if (!response.ok) {
+      addApiDebugLog('response not ok', {
+        method,
+        url,
+        status: response.status,
+        message: getErrorMessage(
+          parsedResponse,
+          `API request failed with status ${response.status}`,
+        ),
+      });
+
       throw new ApiError({
         message: getErrorMessage(
           parsedResponse,
@@ -281,6 +351,15 @@ async function sendRequest<TResponse, TBody = unknown>({
       method,
       url,
       error,
+    });
+
+    addApiDebugLog('error', {
+      method,
+      url,
+      errorName: error instanceof Error ? error.name : undefined,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      isApiError: error instanceof ApiError,
+      status: error instanceof ApiError ? error.status : undefined,
     });
 
     if (error instanceof ApiError) {
@@ -317,6 +396,14 @@ export async function apiRequest<TResponse, TBody = unknown>({
 }: ApiRequestOptions<TBody>): Promise<TResponse> {
   const resolvedToken = token !== undefined ? token : await getAccessToken();
 
+  addApiDebugLog('api request start', {
+    method,
+    path,
+    hasResolvedToken: Boolean(resolvedToken),
+    timeoutMs,
+    skipAuthRefresh,
+  });
+
   try {
     return await sendRequest<TResponse, TBody>({
       method,
@@ -327,6 +414,15 @@ export async function apiRequest<TResponse, TBody = unknown>({
     });
   } catch (error) {
     if (skipAuthRefresh || !(error instanceof ApiError) || error.status !== 401) {
+      addApiDebugLog('api request failed: no refresh retry', {
+        method,
+        path,
+        skipAuthRefresh,
+        isApiError: error instanceof ApiError,
+        status: error instanceof ApiError ? error.status : undefined,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+
       throw error;
     }
 
@@ -335,14 +431,29 @@ export async function apiRequest<TResponse, TBody = unknown>({
       path,
     });
 
+    addApiDebugLog('401: refresh start', {
+      method,
+      path,
+    });
+
     const nextAccessToken = await refreshAccessToken();
 
     if (!nextAccessToken) {
+      addApiDebugLog('401: refresh failed, clear session', {
+        method,
+        path,
+      });
+
       await clearAuthSession();
       throw error;
     }
 
     console.log('[ApiClient] retry request with refreshed token:', {
+      method,
+      path,
+    });
+
+    addApiDebugLog('401: retry with refreshed token', {
       method,
       path,
     });

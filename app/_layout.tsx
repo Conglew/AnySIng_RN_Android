@@ -16,6 +16,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useSocketConnection } from '@/src/services/socket/use-socket-connection';
 
+import { DebugLogOverlay } from '@/src/shared/debug/debug-log-overlay';
+
 function SocketConnectionGate() {
   const pathname = usePathname();
 
@@ -104,6 +106,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <SocketConnectionGate />
         <RootLayoutNav />
+        <DebugLogOverlay />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
