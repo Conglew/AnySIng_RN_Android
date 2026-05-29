@@ -343,6 +343,9 @@ export function NewSongsPanel({ visible, onClose }: Props) {
   // const [page, setPage] = useState(1);
   // const [total, setTotal] = useState(0);
 
+  const lastLoadKeyRef = useRef('');
+  const canLoadMoreRef = useRef(false);
+
   const language = useAppLanguageStore((state) => state.language);
   const setLanguage = useAppLanguageStore((state) => state.setLanguage);
   const copy = NEW_PANEL_COPY[language];
@@ -838,6 +841,20 @@ export function NewSongsPanel({ visible, onClose }: Props) {
       return;
     }
 
+    const loadKey = JSON.stringify({
+      languageValue: isSearchMode ? undefined : selectedLanguage.value,
+      searchKeyword: debouncedSearchKeyword,
+    });
+
+    if (lastLoadKeyRef.current === loadKey) {
+      useDebugLogStore.getState().addLog('NewSongsPanel', 'skip duplicate first page load', {
+        loadKey,
+      });
+      return;
+    }
+
+    lastLoadKeyRef.current = loadKey;
+
     useDebugLogStore.getState().addLog('NewSongsPanel', 'visible: load first page start', {
       languageValue: isSearchMode ? undefined : selectedLanguage.value,
       searchKeyword: debouncedSearchKeyword,
@@ -908,6 +925,36 @@ export function NewSongsPanel({ visible, onClose }: Props) {
     [copy, handleToggleFavorite, enqueueSongAfterDownload],
   );
 
+  const handleEndReached = useCallback(() => {
+    if (!canLoadMoreRef.current) {
+      useDebugLogStore.getState().addLog('NewSongsPanel', 'skip load more: momentum not started', {
+        page,
+        totalPages,
+      });
+      return;
+    }
+
+    if (isInitialLoading || isLoadingMore || page >= totalPages) {
+      useDebugLogStore.getState().addLog('NewSongsPanel', 'skip load more: blocked', {
+        page,
+        totalPages,
+        isInitialLoading,
+        isLoadingMore,
+      });
+      return;
+    }
+
+    canLoadMoreRef.current = false;
+
+    useDebugLogStore.getState().addLog('NewSongsPanel', 'load next page', {
+      nextPage: page + 1,
+      currentPage: page,
+      totalPages,
+    });
+
+    loadNextPage();
+  }, [isInitialLoading, isLoadingMore, loadNextPage, page, totalPages]);
+
   if (!visible) {
     return null;
   }
@@ -969,8 +1016,11 @@ export function NewSongsPanel({ visible, onClose }: Props) {
                 keyExtractor={keyExtractor}
                 getItemLayout={getItemLayout}
                 contentContainerStyle={styles.listContent}
-                onEndReached={isSearchLanguageFilterMode ? undefined : loadNextPage}
-                onEndReachedThreshold={0.35}
+                onMomentumScrollBegin={() => {
+                  canLoadMoreRef.current = true;
+                }}
+                onEndReached={isSearchLanguageFilterMode ? undefined : handleEndReached}
+                onEndReachedThreshold={0.2}
                 initialNumToRender={8}
                 maxToRenderPerBatch={6}
                 updateCellsBatchingPeriod={50}

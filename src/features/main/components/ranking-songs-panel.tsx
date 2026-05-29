@@ -288,6 +288,9 @@ const RankingSongRow = memo(function RankingSongRow({
 export function RankingSongsPanel({ visible, onClose }: Props) {
   const songListRef = useRef<FlatList<SongDto>>(null);
 
+  const lastLoadKeyRef = useRef('');
+  const canLoadMoreRef = useRef(false);
+
   const language = useAppLanguageStore((state) => state.language);
   const setLanguage = useAppLanguageStore((state) => state.setLanguage);
   const copy = RANKING_PANEL_COPY[language];
@@ -764,6 +767,21 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
       return;
     }
 
+    const loadKey = JSON.stringify({
+      languageValue: isSearchMode ? undefined : selectedLanguage.value,
+      searchKeyword: debouncedSearchKeyword,
+      searchMode: songSearchMode,
+    });
+
+    if (lastLoadKeyRef.current === loadKey) {
+      useDebugLogStore.getState().addLog('RankingSongsPanel', 'skip duplicate first page load', {
+        loadKey,
+      });
+      return;
+    }
+
+    lastLoadKeyRef.current = loadKey;
+
     useDebugLogStore.getState().addLog('RankingSongsPanel', 'visible: load first page start', {
       languageValue: isSearchMode ? undefined : selectedLanguage.value,
       searchKeyword: debouncedSearchKeyword,
@@ -849,6 +867,38 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
     },
     [copy, handleToggleFavorite, enqueueSongAfterDownload],
   );
+
+  const handleEndReached = useCallback(() => {
+    if (!canLoadMoreRef.current) {
+      useDebugLogStore
+        .getState()
+        .addLog('RankingSongsPanel', 'skip load more: momentum not started', {
+          page,
+          totalPages,
+        });
+      return;
+    }
+
+    if (isInitialLoading || isLoadingMore || page >= totalPages) {
+      useDebugLogStore.getState().addLog('RankingSongsPanel', 'skip load more: blocked', {
+        page,
+        totalPages,
+        isInitialLoading,
+        isLoadingMore,
+      });
+      return;
+    }
+
+    canLoadMoreRef.current = false;
+
+    useDebugLogStore.getState().addLog('RankingSongsPanel', 'load next page', {
+      nextPage: page + 1,
+      currentPage: page,
+      totalPages,
+    });
+
+    loadNextPage();
+  }, [isInitialLoading, isLoadingMore, loadNextPage, page, totalPages]);
 
   if (!visible) {
     return null;
@@ -1030,8 +1080,11 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
                 keyExtractor={keyExtractor}
                 getItemLayout={getItemLayout}
                 contentContainerStyle={styles.listContent}
-                onEndReached={isSearchLanguageFilterMode ? undefined : loadNextPage}
-                onEndReachedThreshold={0.35}
+                onMomentumScrollBegin={() => {
+                  canLoadMoreRef.current = true;
+                }}
+                onEndReached={isSearchLanguageFilterMode ? undefined : handleEndReached}
+                onEndReachedThreshold={0.2}
                 initialNumToRender={8}
                 maxToRenderPerBatch={6}
                 updateCellsBatchingPeriod={50}

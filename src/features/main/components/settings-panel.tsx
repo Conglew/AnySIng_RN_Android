@@ -815,7 +815,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
         },
       });
 
-      await setAccessToken(response.token);
+      await setAccessToken(token);
       await setUserEmail(response.userEmail);
 
       await fetchBillingSummaryOnce();
@@ -1391,7 +1391,7 @@ export function SettingsPanel({ visible, onClose }: Props) {
                         },
                       });
 
-                      await setAccessToken(response.token);
+                      await setAccessToken(token);
                       await setUserEmail(response.userEmail);
 
                       console.log('[SettingsPanel] password changed:', {

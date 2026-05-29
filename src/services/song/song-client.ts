@@ -44,7 +44,7 @@ export const songClient = {
       method: 'GET',
       path: `${ENDPOINTS.songs.list}${query}`,
       token,
-      timeoutMs: 100000,
+      timeoutMs: 45000,
     });
   },
 
@@ -118,7 +118,7 @@ export const songClient = {
       path: `${ENDPOINTS.songs.resolveFromS3}${query}`,
       token,
 
-      timeoutMs: 100000,
+      timeoutMs: 45000,
     });
   },
 };

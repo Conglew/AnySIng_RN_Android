@@ -38,7 +38,7 @@ export type SongDto = {
   album?: string;
   language?: string;
   coverUrl?: string;
-  mvUrl?: string;
+  // mvUrl?: string;
   signedMvUrl?: string | null;
   audioVariants?: SongAudioVariantDto[];
   signedAudioVariants?: SongAudioVariantDto[];

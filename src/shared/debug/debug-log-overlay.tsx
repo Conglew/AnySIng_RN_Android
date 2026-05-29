@@ -92,12 +92,12 @@ export function DebugLogOverlay() {
 
   return (
     <View pointerEvents="none" style={styles.container}>
-      {latestLogs.map((log) => (
+      {/* {latestLogs.map((log) => (
         <Text key={log.id} style={styles.text} numberOfLines={1}>
           {log.time} [{log.scope}] {log.message}
           {formatDebugData(log.data)}
         </Text>
-      ))}
+      ))} */}
     </View>
   );
 }
