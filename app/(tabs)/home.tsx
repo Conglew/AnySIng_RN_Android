@@ -199,49 +199,135 @@ export default function HomeScreen() {
   useEffect(() => {
     let isCancelled = false;
     let intervalId: ReturnType<typeof setInterval> | null = null;
+    let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let failureCount = 0;
+    let isHealthChecking = false;
   
-    async function warmUpHealth(reason: 'initial' | 'interval' | 'foreground') {
+    const clearRetryTimeout = () => {
+      if (!retryTimeoutId) {
+        return;
+      }
+  
+      clearTimeout(retryTimeoutId);
+      retryTimeoutId = null;
+    };
+  
+    const getRetryDelayMs = () => {
+      if (failureCount <= 1) {
+        return 1000 * 15;
+      }
+  
+      if (failureCount === 2) {
+        return 1000 * 30;
+      }
+  
+      return 1000 * 60;
+    };
+  
+    async function warmUpHealth(reason: 'initial' | 'interval' | 'foreground' | 'retry') {
       if (isCancelled) {
+        return;
+      }
+  
+      if (isHealthChecking) {
+        useDebugLogStore.getState().addLog(
+          'Home',
+          'health warm-up skipped: already running',
+          {
+            reason,
+          },
+          'warning',
+        );
         return;
       }
   
       const currentAppState = AppState.currentState;
   
       if (currentAppState !== 'active') {
-        useDebugLogStore.getState().addLog('Home', 'health warm-up skipped: app not active', {
-          reason,
-          appState: currentAppState,
-        });
+        useDebugLogStore.getState().addLog(
+          'Home',
+          'health warm-up skipped: app not active',
+          {
+            reason,
+            appState: currentAppState,
+          },
+          'warning',
+        );
         return;
       }
   
+      isHealthChecking = true;
+  
       try {
-        useDebugLogStore.getState().addLog('Home', 'health warm-up start', {
-          reason,
-        });
+        useDebugLogStore.getState().addLog(
+          'Home',
+          'health warm-up start',
+          {
+            reason,
+            failureCount,
+          },
+          'info',
+        );
   
         const result = await pingHealth({
-          timeoutMs: 10000,
+          timeoutMs: 15000,
         });
   
         if (isCancelled) {
           return;
         }
   
-        useDebugLogStore.getState().addLog('Home', 'health warm-up success', {
-          reason,
-          ok: result.ok,
-          now: result.now ?? result.t,
-        });
+        failureCount = 0;
+        clearRetryTimeout();
+  
+        useDebugLogStore.getState().addLog(
+          'Home',
+          'health warm-up success',
+          {
+            reason,
+            ok: result.ok,
+            now: result.now ?? result.t,
+          },
+          'success',
+        );
       } catch (error) {
         if (isCancelled) {
           return;
         }
   
-        useDebugLogStore.getState().addLog('Home', 'health warm-up failed', {
-          reason,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        failureCount += 1;
+  
+        const retryDelayMs = getRetryDelayMs();
+  
+        useDebugLogStore.getState().addLog(
+          'Home',
+          'health warm-up failed',
+          {
+            reason,
+            failureCount,
+            retryDelayMs,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'error',
+        );
+  
+        clearRetryTimeout();
+  
+        retryTimeoutId = setTimeout(() => {
+          warmUpHealth('retry');
+        }, retryDelayMs);
+  
+        useDebugLogStore.getState().addLog(
+          'Home',
+          'health warm-up retry scheduled',
+          {
+            failureCount,
+            retryDelayMs,
+          },
+          'warning',
+        );
+      } finally {
+        isHealthChecking = false;
       }
     }
   
@@ -252,7 +338,7 @@ export default function HomeScreen() {
   
       intervalId = setInterval(() => {
         warmUpHealth('interval');
-      }, 1000 * 60 * 5);
+      }, 1000 * 60 * 3);
     };
   
     const stopWarmUp = () => {
@@ -271,13 +357,17 @@ export default function HomeScreen() {
       const previousAppState = appStateRef.current;
       appStateRef.current = nextAppState;
   
-      useDebugLogStore.getState().addLog('Home', 'app state changed', {
-        previousAppState,
-        appState: nextAppState,
-      });
+      useDebugLogStore.getState().addLog(
+        'Home',
+        'app state changed',
+        {
+          previousAppState,
+          appState: nextAppState,
+        },
+        'info',
+      );
   
-      const didReturnToForeground =
-        previousAppState !== 'active' && nextAppState === 'active';
+      const didReturnToForeground = previousAppState !== 'active' && nextAppState === 'active';
   
       if (didReturnToForeground) {
         warmUpHealth('foreground');
@@ -287,12 +377,14 @@ export default function HomeScreen() {
   
       if (nextAppState !== 'active') {
         stopWarmUp();
+        clearRetryTimeout();
       }
     });
   
     return () => {
       isCancelled = true;
       stopWarmUp();
+      clearRetryTimeout();
       subscription.remove();
     };
   }, []);

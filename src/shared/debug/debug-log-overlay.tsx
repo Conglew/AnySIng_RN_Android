@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+import { DebugLogItem, useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 function formatUrl(value: unknown) {
   if (typeof value !== 'string') {
@@ -77,6 +77,25 @@ function formatDebugData(data: unknown) {
   return parts.length > 0 ? ` | ${parts.join(' | ')}` : '';
 }
 
+function getLogTextStyle(log: DebugLogItem) {
+  const isHomeHealthLog =
+    log.scope === 'Home' && log.message.startsWith('health warm-up');
+
+  if (!isHomeHealthLog) {
+    return styles.textInfo;
+  }
+
+  if (log.message.includes('success')) {
+    return styles.textSuccess;
+  }
+
+  if (log.message.includes('failed')) {
+    return styles.textError;
+  }
+
+  return styles.textInfo;
+}
+
 export function DebugLogOverlay() {
   const logs = useDebugLogStore((state) => state.logs);
 
@@ -88,12 +107,17 @@ export function DebugLogOverlay() {
     return null;
   }
 
-  const latestLogs = logs.slice(0, 20);
+  const latestLogs = logs.slice(0, 35);
 
   return (
     <View pointerEvents="none" style={styles.container}>
       {latestLogs.map((log) => (
-        <Text key={log.id} style={styles.text} numberOfLines={1}>
+        // <Text key={log.id} style={styles.text} numberOfLines={1}>
+        //   {log.time} [{log.scope}] {log.message}
+        //   {formatDebugData(log.data)}
+        // </Text>
+
+        <Text key={log.id} style={[styles.text, getLogTextStyle(log)]} numberOfLines={1}>
           {log.time} [{log.scope}] {log.message}
           {formatDebugData(log.data)}
         </Text>
@@ -110,7 +134,6 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     elevation: 999999,
     maxWidth: 920,
-    // maxHeight: 240,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
@@ -118,9 +141,24 @@ const styles = StyleSheet.create({
   },
 
   text: {
-    color: '#00FF7F',
     fontSize: 10,
     lineHeight: 14,
     fontWeight: '600',
+  },
+
+  textInfo: {
+    color: 'rgba(220, 220, 220, 0.88)',
+  },
+
+  textSuccess: {
+    color: '#00FF7F',
+  },
+
+  textError: {
+    color: '#FF4D4F',
+  },
+
+  textWarning: {
+    color: '#FFD166',
   },
 });
