@@ -88,16 +88,16 @@ export function DebugLogOverlay() {
     return null;
   }
 
-  const latestLogs = logs.slice(0, 200);
+  const latestLogs = logs.slice(0, 20);
 
   return (
     <View pointerEvents="none" style={styles.container}>
-      {/* {latestLogs.map((log) => (
+      {latestLogs.map((log) => (
         <Text key={log.id} style={styles.text} numberOfLines={1}>
           {log.time} [{log.scope}] {log.message}
           {formatDebugData(log.data)}
         </Text>
-      ))} */}
+      ))}
     </View>
   );
 }
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     elevation: 999999,
     maxWidth: 920,
-    maxHeight: 240,
+    // maxHeight: 240,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,

@@ -1,7 +1,8 @@
 import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
 import { useFullscreenVideoStore } from '@/src/features/main/store/fullscreen-video.store';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  AppState,
   Image,
   ImageBackground,
   ImageSourcePropType,
@@ -12,8 +13,14 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { authClient } from '@/src/services/auth/auth-client';
+// import { authClient } from '@/src/services/auth/auth-client';
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
+
+import { useSongListPreloadStore } from '@/src/features/song/store/song-list-preload.store';
+
+import { songClient } from '@/src/services/song/song-client';
+import { pingHealth } from '@/src/services/health/health-client';
+import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 import { HOME_COPY } from '@/src/features/main/i18n/home-copy';
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
@@ -179,6 +186,8 @@ export default function HomeScreen() {
 
   const setVideoBlockedByPanel = useFullscreenVideoStore((state) => state.setBlockedByPanel);
 
+  const appStateRef = useRef(AppState.currentState);
+
   useEffect(() => {
     setVideoBlockedByPanel(shouldHideHomeContent);
 
@@ -186,6 +195,207 @@ export default function HomeScreen() {
       setVideoBlockedByPanel(false);
     };
   }, [setVideoBlockedByPanel, shouldHideHomeContent]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+  
+    async function warmUpHealth(reason: 'initial' | 'interval' | 'foreground') {
+      if (isCancelled) {
+        return;
+      }
+  
+      const currentAppState = AppState.currentState;
+  
+      if (currentAppState !== 'active') {
+        useDebugLogStore.getState().addLog('Home', 'health warm-up skipped: app not active', {
+          reason,
+          appState: currentAppState,
+        });
+        return;
+      }
+  
+      try {
+        useDebugLogStore.getState().addLog('Home', 'health warm-up start', {
+          reason,
+        });
+  
+        const result = await pingHealth({
+          timeoutMs: 10000,
+        });
+  
+        if (isCancelled) {
+          return;
+        }
+  
+        useDebugLogStore.getState().addLog('Home', 'health warm-up success', {
+          reason,
+          ok: result.ok,
+          now: result.now ?? result.t,
+        });
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+  
+        useDebugLogStore.getState().addLog('Home', 'health warm-up failed', {
+          reason,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  
+    const startWarmUp = () => {
+      if (intervalId) {
+        return;
+      }
+  
+      intervalId = setInterval(() => {
+        warmUpHealth('interval');
+      }, 1000 * 60 * 5);
+    };
+  
+    const stopWarmUp = () => {
+      if (!intervalId) {
+        return;
+      }
+  
+      clearInterval(intervalId);
+      intervalId = null;
+    };
+  
+    warmUpHealth('initial');
+    startWarmUp();
+  
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      const previousAppState = appStateRef.current;
+      appStateRef.current = nextAppState;
+  
+      useDebugLogStore.getState().addLog('Home', 'app state changed', {
+        previousAppState,
+        appState: nextAppState,
+      });
+  
+      const didReturnToForeground =
+        previousAppState !== 'active' && nextAppState === 'active';
+  
+      if (didReturnToForeground) {
+        warmUpHealth('foreground');
+        startWarmUp();
+        return;
+      }
+  
+      if (nextAppState !== 'active') {
+        stopWarmUp();
+      }
+    });
+  
+    return () => {
+      isCancelled = true;
+      stopWarmUp();
+      subscription.remove();
+    };
+  }, []);
+
+
+  useEffect(() => {
+    let isCancelled = false;
+  
+    async function preloadHomeSongLists() {
+      useDebugLogStore.getState().addLog('Home', 'preload song lists start');
+  
+      try {
+        const token = await getAccessToken();
+  
+        if (!token) {
+          useDebugLogStore.getState().addLog('Home', 'preload skipped: missing token');
+          return;
+        }
+  
+        const [rankingResult, newSongsResult] = await Promise.allSettled([
+          songClient.getSongs({
+            token,
+            params: {
+              page: 1,
+              limit: 20,
+              sortBy: 'playCount',
+              order: 'desc',
+            },
+          }),
+          songClient.getSongs({
+            token,
+            params: {
+              page: 1,
+              limit: 20,
+              sortBy: 'createdAt',
+              order: 'desc',
+            },
+          }),
+        ]);
+  
+        if (isCancelled) {
+          return;
+        }
+        
+        const preloadStore = useSongListPreloadStore.getState();
+
+        if (rankingResult.status === 'fulfilled') {
+          preloadStore.setRankingSongsCache({
+            songs: rankingResult.value.songs,
+            page: rankingResult.value.page,
+            limit: rankingResult.value.limit,
+            total: rankingResult.value.total,
+            cachedAt: Date.now(),
+          });
+        }
+
+        if (newSongsResult.status === 'fulfilled') {
+          preloadStore.setNewSongsCache({
+            songs: newSongsResult.value.songs,
+            page: newSongsResult.value.page,
+            limit: newSongsResult.value.limit,
+            total: newSongsResult.value.total,
+            cachedAt: Date.now(),
+          });
+        }
+
+        useDebugLogStore.getState().addLog('Home', 'preload song lists finished', {
+          rankingStatus: rankingResult.status,
+          rankingCount:
+            rankingResult.status === 'fulfilled' ? rankingResult.value.songs.length : undefined,
+          rankingError:
+            rankingResult.status === 'rejected'
+              ? rankingResult.reason instanceof Error
+                ? rankingResult.reason.message
+                : String(rankingResult.reason)
+              : undefined,
+          newSongsStatus: newSongsResult.status,
+          newSongsCount:
+            newSongsResult.status === 'fulfilled' ? newSongsResult.value.songs.length : undefined,
+          newSongsError:
+            newSongsResult.status === 'rejected'
+              ? newSongsResult.reason instanceof Error
+                ? newSongsResult.reason.message
+                : String(newSongsResult.reason)
+              : undefined,
+        });
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+  
+        useDebugLogStore.getState().addLog('Home', 'preload song lists failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  
+    preloadHomeSongLists();
+  
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   // function handlePressHomeCard(title: string) {
   //   if (title === '歌手') {
