@@ -60,6 +60,9 @@ export function SharedVideoPlayer() {
 
   const isFullscreenTransitioningRef = useRef(false);
 
+  const [safePlaybackVideoUri, setSafePlaybackVideoUri] = useState<string | null>(null);
+  const [isPreparingSource, setIsPreparingSource] = useState(false);
+
   const [resolvedDefaultVideoUri, setResolvedDefaultVideoUri] = useState<string | null>(null);
 
   const mode = useFullscreenVideoStore((state) => state.mode);
@@ -72,6 +75,11 @@ export function SharedVideoPlayer() {
     (state) => state.isFullscreenChromeVisible,
   );
   const showFullscreenChrome = useFullscreenVideoStore((state) => state.showFullscreenChrome);
+  const restartFullscreenChromeAutoHideTimer = useFullscreenVideoStore(
+    (state) => state.restartFullscreenChromeAutoHideTimer,
+  );
+  const setPlaybackProgress = useFullscreenVideoStore((state) => state.setPlaybackProgress);
+  const resetPlaybackProgress = useFullscreenVideoStore((state) => state.resetPlaybackProgress);
 
   const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
   const finishCurrentPlaybackItem = usePlaybackQueueStore((state) => state.finishCurrent);
@@ -139,8 +147,7 @@ export function SharedVideoPlayer() {
         return;
       }
 
-      isFullscreenTransitioningRef.current = true;
-      closeFullscreen();
+      restartFullscreenChromeAutoHideTimer();
       return;
     }
 
@@ -148,10 +155,10 @@ export function SharedVideoPlayer() {
     openFullscreen();
   }, [
     activeMiniRect,
-    closeFullscreen,
     isFullscreen,
     isFullscreenChromeVisible,
     openFullscreen,
+    restartFullscreenChromeAutoHideTimer,
     showFullscreenChrome,
   ]);
 
@@ -162,15 +169,25 @@ export function SharedVideoPlayer() {
   const playbackVideoUri = currentPlaybackItem?.localVideoUri ?? resolvedDefaultVideoUri;
   const isDefaultVideo = !currentPlaybackItem;
 
+  // const videoSource = useMemo(() => {
+  //   if (!playbackVideoUri) {
+  //     return undefined;
+  //   }
+
+  //   return {
+  //     uri: playbackVideoUri,
+  //   };
+  // }, [playbackVideoUri]);
+
   const videoSource = useMemo(() => {
-    if (!playbackVideoUri) {
+    if (!safePlaybackVideoUri) {
       return undefined;
     }
 
     return {
-      uri: playbackVideoUri,
+      uri: safePlaybackVideoUri,
     };
-  }, [playbackVideoUri]);
+  }, [safePlaybackVideoUri]);
 
   const selectedAudioTrack = useMemo<SelectedTrack | undefined>(() => {
     const selectedIndex =
@@ -335,18 +352,12 @@ export function SharedVideoPlayer() {
   const restartToken = usePlayerControlStore((state) => state.restartToken);
 
   useEffect(() => {
-    if (!playbackVideoUri) {
+    if (!safePlaybackVideoUri || isPreparingSource) {
       return;
     }
 
-    // console.log('[SharedVideoPlayer] restart current video:', {
-    //   restartToken,
-    //   playbackVideoUri,
-    //   queueId: currentPlaybackItem?.queueId,
-    // });
-
     videoRef.current?.seek?.(0);
-  }, [currentPlaybackItem?.queueId, playbackVideoUri, restartToken]);
+  }, [currentPlaybackItem?.queueId, safePlaybackVideoUri, restartToken, isPreparingSource]);
 
   // const handleVideoLoad = (payload: any) => {
   //   console.log('[SharedVideoPlayer] onLoad:', {
@@ -376,8 +387,79 @@ export function SharedVideoPlayer() {
   //   });
   // };
 
+  // useEffect(() => {
+  //   let isCancelled = false;
+
+  //   async function switchSourceSafely() {
+  //     if (!playbackVideoUri) {
+  //       setSafePlaybackVideoUri(null);
+  //       setIsPreparingSource(false);
+  //       return;
+  //     }
+
+  //     setIsPreparingSource(true);
+  //     setSafePlaybackVideoUri(null);
+
+  //     await new Promise((resolve) => setTimeout(resolve, 180));
+
+  //     if (isCancelled) {
+  //       return;
+  //     }
+
+  //     setSafePlaybackVideoUri(playbackVideoUri);
+  //     setIsPreparingSource(false);
+  //   }
+
+  //   switchSourceSafely();
+
+  //   return () => {
+  //     isCancelled = true;
+  //   };
+  // }, [playbackVideoUri]);
+
+  useEffect(() => {
+    let isCancelled = false;
+  
+    async function switchSourceSafely() {
+      resetPlaybackProgress();
+  
+      if (!playbackVideoUri) {
+        setSafePlaybackVideoUri(null);
+        setIsPreparingSource(false);
+        return;
+      }
+  
+      /**
+       * 不要先 setSafePlaybackVideoUri(null)。
+       * 否則 Video 會短暫 unmount，Android decoder surface 容易閃綠屏。
+       *
+       * 保留上一個 source，等新 source 準備好後直接替換。
+       */
+      setIsPreparingSource(true);
+  
+      await new Promise((resolve) => setTimeout(resolve, 80));
+  
+      if (isCancelled) {
+        return;
+      }
+  
+      setSafePlaybackVideoUri(playbackVideoUri);
+      setIsPreparingSource(false);
+    }
+  
+    switchSourceSafely();
+  
+    return () => {
+      isCancelled = true;
+    };
+  }, [playbackVideoUri, resetPlaybackProgress]);
+
   const handleVideoLoad = useCallback(
     (payload: any) => {
+      const duration = typeof payload?.duration === 'number' ? payload.duration : 0;
+
+      setPlaybackProgress(0, duration);
+
       const audioTracks = payload?.audioTracks ?? [];
 
       const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
@@ -400,7 +482,20 @@ export function SharedVideoPlayer() {
         accompanimentAudioTrackIndex: nextAccompanimentAudioTrackIndex,
       });
     },
-    [accompanimentAudioTrackIndex, setAudioTrackIndexes, vocalAudioTrackIndex],
+    [accompanimentAudioTrackIndex, setAudioTrackIndexes, setPlaybackProgress, vocalAudioTrackIndex],
+  );
+
+  const handleVideoProgress = useCallback(
+    (payload: any) => {
+      const currentTime = typeof payload?.currentTime === 'number' ? payload.currentTime : 0;
+      const duration =
+        typeof payload?.seekableDuration === 'number' && payload.seekableDuration > 0
+          ? payload.seekableDuration
+          : 0;
+
+      setPlaybackProgress(currentTime, duration);
+    },
+    [setPlaybackProgress],
   );
 
   // const handleVideoEnd = () => {
@@ -626,7 +721,7 @@ export function SharedVideoPlayer() {
   // if (!playbackVideoUri || !activeMiniRect) {
   //   return null;
   // }
-  if (!videoSource || !activeMiniRect) {
+  if (!activeMiniRect) {
     return null;
   }
 
@@ -640,22 +735,26 @@ export function SharedVideoPlayer() {
       ]}
     >
       <Animated.View style={[styles.videoFrame, animatedStyle]}>
-        <Video
-          ref={videoRef}
-          key={currentPlaybackItem?.queueId ?? playbackVideoUri}
-          // source={{ uri: playbackVideoUri }}
-          source={videoSource}
-          style={styles.video}
-          resizeMode="contain"
-          controls={false}
-          repeat={isDefaultVideo}
-          paused={isPaused}
-          muted={false}
-          selectedAudioTrack={selectedAudioTrack}
-          onLoad={handleVideoLoad}
-          onEnd={handleVideoEnd}
-          onError={handleVideoError}
-        />
+        <View style={styles.videoBlackBackground} />
+
+        {videoSource ? (
+          <Video
+            ref={videoRef}
+            source={videoSource}
+            style={styles.video}
+            resizeMode="contain"
+            controls={false}
+            repeat={isDefaultVideo}
+            paused={isPaused || isPreparingSource}
+            muted={false}
+            selectedAudioTrack={selectedAudioTrack}
+            onLoad={handleVideoLoad}
+            onProgress={handleVideoProgress}
+            progressUpdateInterval={250}
+            onEnd={handleVideoEnd}
+            onError={handleVideoError}
+          />
+        ) : null}
 
         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
       </Animated.View>
@@ -674,6 +773,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#000000',
   },
+  
+  videoBlackBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    zIndex: 0,
+  },
 
   touchArea: {
     flex: 1,
@@ -685,9 +790,9 @@ const styles = StyleSheet.create({
   },
 
   video: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',
+    zIndex: 1,
   },
 
   hiddenLayer: {

@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react';
 
 import { APP_CONFIG } from '@/src/config/app-config';
 import { getAccessToken } from '@/src/services/auth/auth-token-store';
-import { connectSocket, disconnectSocket } from '@/src/services/socket/socket-client';
+import { connectSocket, disconnectSocket, getSocket } from '@/src/services/socket/socket-client';
 
 type UseSocketConnectionParams = {
   enabled?: boolean;
+  roomId?: string | null;
 };
 
-export function useSocketConnection({ enabled = true }: UseSocketConnectionParams = {}) {
+export function useSocketConnection({
+  enabled = true,
+  roomId = null,
+}: UseSocketConnectionParams = {}) {
   const [isSocketInitialized, setIsSocketInitialized] = useState(false);
 
   useEffect(() => {
@@ -37,11 +41,6 @@ export function useSocketConnection({ enabled = true }: UseSocketConnectionParam
         token,
       });
 
-      /**
-       * 這裡代表 socket instance 已經建立。
-       * 不代表一定 connected。
-       * 實際 connected 會由 socket-client.ts 裡的 [Socket] connected log 顯示。
-       */
       setIsSocketInitialized(true);
     }
 
@@ -49,10 +48,56 @@ export function useSocketConnection({ enabled = true }: UseSocketConnectionParam
 
     return () => {
       isMounted = false;
-      disconnectSocket();
-      setIsSocketInitialized(false);
+
+      /**
+       * 這裡只在 enabled 關閉或 RootLayout 卸載時才斷線。
+       * 如果只是 roomId 變更，不要重建 socket。
+       */
+      if (!enabled) {
+        disconnectSocket();
+        setIsSocketInitialized(false);
+      }
     };
   }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    const socket = getSocket();
+
+    if (!socket) {
+      return;
+    }
+
+    const joinCurrentRoom = () => {
+      if (!roomId) {
+        console.log('[SocketConnection] missing roomId, skip joinRoom.');
+        return;
+      }
+
+      console.log('[SocketConnection] joinRoom:', roomId);
+      socket.emit('joinRoom', roomId);
+    };
+
+    const handleJoinedRoom = (room: string) => {
+      console.log('[SocketConnection] joinedRoom:', room);
+    };
+
+    socket.on('joinedRoom', handleJoinedRoom);
+
+    if (socket.connected) {
+      joinCurrentRoom();
+    } else {
+      socket.once('connect', joinCurrentRoom);
+    }
+
+    return () => {
+      socket.off('joinedRoom', handleJoinedRoom);
+      socket.off('connect', joinCurrentRoom);
+    };
+  }, [enabled, roomId]);
 
   return {
     isSocketInitialized,

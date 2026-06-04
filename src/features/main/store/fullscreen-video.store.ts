@@ -9,6 +9,19 @@ export type VideoFrameRect = {
 
 type VideoDisplayMode = 'homeMini' | 'footerMini' | 'fullscreen';
 
+const FULLSCREEN_CHROME_AUTO_HIDE_DELAY_MS = 3000;
+
+let fullscreenChromeAutoHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearFullscreenChromeAutoHideTimer() {
+  if (!fullscreenChromeAutoHideTimer) {
+    return;
+  }
+
+  clearTimeout(fullscreenChromeAutoHideTimer);
+  fullscreenChromeAutoHideTimer = null;
+}
+
 type FullscreenVideoStore = {
   /**
    * 目前播放器顯示模式。
@@ -40,6 +53,10 @@ type FullscreenVideoStore = {
   isBlockedByPanel: boolean;
 
   isFullscreenChromeVisible: boolean;
+
+  playbackCurrentTime: number;
+  playbackDuration: number;
+  playbackProgress: number;
 
   /**
    * 打開全螢幕。
@@ -82,86 +99,168 @@ type FullscreenVideoStore = {
   showFullscreenChrome: () => void;
   hideFullscreenChrome: () => void;
   setFullscreenChromeVisible: (isVisible: boolean) => void;
+  restartFullscreenChromeAutoHideTimer: () => void;
+  clearFullscreenChromeAutoHideTimer: () => void;
+
+  setPlaybackProgress: (currentTime: number, duration: number) => void;
+  resetPlaybackProgress: () => void;
 };
 
-export const useFullscreenVideoStore = create<FullscreenVideoStore>((set) => ({
-  mode: 'homeMini',
+export const useFullscreenVideoStore = create<FullscreenVideoStore>((set, get) => {
+  const restartFullscreenChromeAutoHideTimer = () => {
+    clearFullscreenChromeAutoHideTimer();
 
-  homeMiniRect: null,
-  footerMiniRect: null,
+    if (get().mode !== 'fullscreen') {
+      return;
+    }
 
-  isBlockedByPanel: false,
-
-  openFullscreen: () => {
-    set({
-      mode: 'fullscreen',
-      isFullscreenChromeVisible: true,
-    });
-  },
-
-  closeFullscreen: () => {
-    set((state) => ({
-      mode: state.isBlockedByPanel ? 'footerMini' : 'homeMini',
-      isFullscreenChromeVisible: true,
-    }));
-  },
-
-  showHomeMini: () => {
-    set({
-      mode: 'homeMini',
-    });
-  },
-
-  showFooterMini: () => {
-    set({
-      mode: 'footerMini',
-    });
-  },
-
-  setHomeMiniRect: (rect) => {
-    set({
-      homeMiniRect: rect,
-    });
-  },
-
-  setFooterMiniRect: (rect) => {
-    set({
-      footerMiniRect: rect,
-    });
-  },
-
-  setBlockedByPanel: (isBlocked) => {
-    set((state) => {
-      if (state.mode === 'fullscreen') {
-        return {
-          isBlockedByPanel: isBlocked,
-        };
+    fullscreenChromeAutoHideTimer = setTimeout(() => {
+      if (get().mode !== 'fullscreen') {
+        return;
       }
 
-      return {
-        isBlockedByPanel: isBlocked,
-        mode: isBlocked ? 'footerMini' : 'homeMini',
-      };
-    });
-  },
+      set({
+        isFullscreenChromeVisible: false,
+      });
 
-  isFullscreenChromeVisible: true,
+      fullscreenChromeAutoHideTimer = null;
+    }, FULLSCREEN_CHROME_AUTO_HIDE_DELAY_MS);
+  };
 
-  showFullscreenChrome: () => {
-    set({
-      isFullscreenChromeVisible: true,
-    });
-  },
+  return {
+    mode: 'homeMini',
 
-  hideFullscreenChrome: () => {
-    set({
-      isFullscreenChromeVisible: false,
-    });
-  },
+    homeMiniRect: null,
+    footerMiniRect: null,
 
-  setFullscreenChromeVisible: (isVisible) => {
-    set({
-      isFullscreenChromeVisible: isVisible,
-    });
-  },
-}));
+    isBlockedByPanel: false,
+
+    playbackCurrentTime: 0,
+    playbackDuration: 0,
+    playbackProgress: 0,
+
+    openFullscreen: () => {
+      set({
+        mode: 'fullscreen',
+        isFullscreenChromeVisible: true,
+      });
+
+      restartFullscreenChromeAutoHideTimer();
+    },
+
+    closeFullscreen: () => {
+      clearFullscreenChromeAutoHideTimer();
+
+      set((state) => ({
+        mode: state.isBlockedByPanel ? 'footerMini' : 'homeMini',
+        isFullscreenChromeVisible: true,
+      }));
+    },
+
+    showHomeMini: () => {
+      clearFullscreenChromeAutoHideTimer();
+
+      set({
+        mode: 'homeMini',
+        isFullscreenChromeVisible: true,
+      });
+    },
+
+    showFooterMini: () => {
+      clearFullscreenChromeAutoHideTimer();
+
+      set({
+        mode: 'footerMini',
+        isFullscreenChromeVisible: true,
+      });
+    },
+
+    setHomeMiniRect: (rect) => {
+      set({
+        homeMiniRect: rect,
+      });
+    },
+
+    setFooterMiniRect: (rect) => {
+      set({
+        footerMiniRect: rect,
+      });
+    },
+
+    setBlockedByPanel: (isBlocked) => {
+      set((state) => {
+        if (state.mode === 'fullscreen') {
+          return {
+            isBlockedByPanel: isBlocked,
+          };
+        }
+
+        return {
+          isBlockedByPanel: isBlocked,
+          mode: isBlocked ? 'footerMini' : 'homeMini',
+        };
+      });
+    },
+
+    isFullscreenChromeVisible: true,
+
+    showFullscreenChrome: () => {
+      set({
+        isFullscreenChromeVisible: true,
+      });
+
+      restartFullscreenChromeAutoHideTimer();
+    },
+
+    hideFullscreenChrome: () => {
+      clearFullscreenChromeAutoHideTimer();
+
+      set({
+        isFullscreenChromeVisible: false,
+      });
+    },
+
+    setFullscreenChromeVisible: (isVisible) => {
+      if (isVisible) {
+        set({
+          isFullscreenChromeVisible: true,
+        });
+
+        restartFullscreenChromeAutoHideTimer();
+        return;
+      }
+
+      clearFullscreenChromeAutoHideTimer();
+
+      set({
+        isFullscreenChromeVisible: false,
+      });
+    },
+
+    restartFullscreenChromeAutoHideTimer,
+
+    clearFullscreenChromeAutoHideTimer,
+
+    setPlaybackProgress: (currentTime, duration) => {
+      const safeCurrentTime = Number.isFinite(currentTime) ? currentTime : 0;
+      const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+
+      const playbackProgress =
+        safeDuration > 0 ? Math.min(Math.max(safeCurrentTime / safeDuration, 0), 1) : 0;
+
+      set({
+        playbackCurrentTime: safeCurrentTime,
+        playbackDuration: safeDuration,
+        playbackProgress,
+      });
+    },
+
+    resetPlaybackProgress: () => {
+      set({
+        playbackCurrentTime: 0,
+        playbackDuration: 0,
+        playbackProgress: 0,
+      });
+    },
+  };
+});

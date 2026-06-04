@@ -78,8 +78,7 @@ function formatDebugData(data: unknown) {
 }
 
 function getLogTextStyle(log: DebugLogItem) {
-  const isHomeHealthLog =
-    log.scope === 'Home' && log.message.startsWith('health warm-up');
+  const isHomeHealthLog = log.scope === 'Home' && log.message.startsWith('health warm-up');
 
   if (!isHomeHealthLog) {
     return styles.textInfo;

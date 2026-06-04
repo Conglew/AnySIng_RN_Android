@@ -202,33 +202,33 @@ export default function HomeScreen() {
     let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let failureCount = 0;
     let isHealthChecking = false;
-  
+
     const clearRetryTimeout = () => {
       if (!retryTimeoutId) {
         return;
       }
-  
+
       clearTimeout(retryTimeoutId);
       retryTimeoutId = null;
     };
-  
+
     const getRetryDelayMs = () => {
       if (failureCount <= 1) {
         return 1000 * 15;
       }
-  
+
       if (failureCount === 2) {
         return 1000 * 30;
       }
-  
+
       return 1000 * 60;
     };
-  
+
     async function warmUpHealth(reason: 'initial' | 'interval' | 'foreground' | 'retry') {
       if (isCancelled) {
         return;
       }
-  
+
       if (isHealthChecking) {
         useDebugLogStore.getState().addLog(
           'Home',
@@ -240,9 +240,9 @@ export default function HomeScreen() {
         );
         return;
       }
-  
+
       const currentAppState = AppState.currentState;
-  
+
       if (currentAppState !== 'active') {
         useDebugLogStore.getState().addLog(
           'Home',
@@ -255,9 +255,9 @@ export default function HomeScreen() {
         );
         return;
       }
-  
+
       isHealthChecking = true;
-  
+
       try {
         useDebugLogStore.getState().addLog(
           'Home',
@@ -268,18 +268,18 @@ export default function HomeScreen() {
           },
           'info',
         );
-  
+
         const result = await pingHealth({
           timeoutMs: 15000,
         });
-  
+
         if (isCancelled) {
           return;
         }
-  
+
         failureCount = 0;
         clearRetryTimeout();
-  
+
         useDebugLogStore.getState().addLog(
           'Home',
           'health warm-up success',
@@ -294,11 +294,11 @@ export default function HomeScreen() {
         if (isCancelled) {
           return;
         }
-  
+
         failureCount += 1;
-  
+
         const retryDelayMs = getRetryDelayMs();
-  
+
         useDebugLogStore.getState().addLog(
           'Home',
           'health warm-up failed',
@@ -310,13 +310,13 @@ export default function HomeScreen() {
           },
           'error',
         );
-  
+
         clearRetryTimeout();
-  
+
         retryTimeoutId = setTimeout(() => {
           warmUpHealth('retry');
         }, retryDelayMs);
-  
+
         useDebugLogStore.getState().addLog(
           'Home',
           'health warm-up retry scheduled',
@@ -330,33 +330,36 @@ export default function HomeScreen() {
         isHealthChecking = false;
       }
     }
-  
+
     const startWarmUp = () => {
       if (intervalId) {
         return;
       }
-  
-      intervalId = setInterval(() => {
-        warmUpHealth('interval');
-      }, 1000 * 60 * 3);
+
+      intervalId = setInterval(
+        () => {
+          warmUpHealth('interval');
+        },
+        1000 * 60 * 3,
+      );
     };
-  
+
     const stopWarmUp = () => {
       if (!intervalId) {
         return;
       }
-  
+
       clearInterval(intervalId);
       intervalId = null;
     };
-  
+
     warmUpHealth('initial');
     startWarmUp();
-  
+
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       const previousAppState = appStateRef.current;
       appStateRef.current = nextAppState;
-  
+
       useDebugLogStore.getState().addLog(
         'Home',
         'app state changed',
@@ -366,21 +369,21 @@ export default function HomeScreen() {
         },
         'info',
       );
-  
+
       const didReturnToForeground = previousAppState !== 'active' && nextAppState === 'active';
-  
+
       if (didReturnToForeground) {
         warmUpHealth('foreground');
         startWarmUp();
         return;
       }
-  
+
       if (nextAppState !== 'active') {
         stopWarmUp();
         clearRetryTimeout();
       }
     });
-  
+
     return () => {
       isCancelled = true;
       stopWarmUp();
@@ -389,21 +392,20 @@ export default function HomeScreen() {
     };
   }, []);
 
-
   useEffect(() => {
     let isCancelled = false;
-  
+
     async function preloadHomeSongLists() {
       useDebugLogStore.getState().addLog('Home', 'preload song lists start');
-  
+
       try {
         const token = await getAccessToken();
-  
+
         if (!token) {
           useDebugLogStore.getState().addLog('Home', 'preload skipped: missing token');
           return;
         }
-  
+
         const [rankingResult, newSongsResult] = await Promise.allSettled([
           songClient.getSongs({
             token,
@@ -424,11 +426,11 @@ export default function HomeScreen() {
             },
           }),
         ]);
-  
+
         if (isCancelled) {
           return;
         }
-        
+
         const preloadStore = useSongListPreloadStore.getState();
 
         if (rankingResult.status === 'fulfilled') {
@@ -475,15 +477,15 @@ export default function HomeScreen() {
         if (isCancelled) {
           return;
         }
-  
+
         useDebugLogStore.getState().addLog('Home', 'preload song lists failed', {
           error: error instanceof Error ? error.message : String(error),
         });
       }
     }
-  
+
     preloadHomeSongLists();
-  
+
     return () => {
       isCancelled = true;
     };

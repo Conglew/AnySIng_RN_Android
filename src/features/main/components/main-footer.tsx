@@ -1,8 +1,17 @@
 import { usePlayerControlStore } from '@/src/features/main/store/player-control.store';
 import { Href, usePathname, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, View, findNodeHandle, UIManager } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  findNodeHandle,
+  UIManager,
+} from 'react-native';
 import type { SvgProps } from 'react-native-svg';
 
 import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
@@ -31,6 +40,9 @@ import FooterIcon6_2 from '@/assets/images/footer-icons-6-2.svg';
 import FooterIcon7 from '@/assets/images/footer-icons-7.svg';
 import FooterIcon8 from '@/assets/images/footer-icons-8.svg';
 import FooterIcon9 from '@/assets/images/footer-icons-9.svg';
+import ToolBarBg from '@/assets/images/footerBar/Tool-bar-BG.svg';
+import ToolBarProgressDefault from '@/assets/images/footerBar/Tool-bar-prosee-default.svg';
+import ToolBarProgress from '@/assets/images/footerBar/Tool-bar-prosee.svg';
 
 type FooterAction = 'navigate' | 'togglePause' | 'toggleAudioTrack' | 'skipSong' | 'restartSong';
 
@@ -169,6 +181,17 @@ const FOOTER_ITEMS: FooterItem[] = [
 export function MainFooter() {
   const pathname = usePathname();
 
+  const [isSkipping, setIsSkipping] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [isTogglingAudioTrack, setIsTogglingAudioTrack] = useState(false);
+  const [footerWidth, setFooterWidth] = useState(0);
+
+  const progressClipWidth = useRef(new Animated.Value(0)).current;
+
+  const isSkippingRef = useRef(false);
+  const isRestartingRef = useRef(false);
+  const isTogglingAudioTrackRef = useRef(false);
+
   const isPaused = usePlayerControlStore((state) => state.isPaused);
   const audioTrackMode = usePlayerControlStore((state) => state.audioTrackMode);
   const togglePause = usePlayerControlStore((state) => state.togglePause);
@@ -189,6 +212,14 @@ export function MainFooter() {
 
   const videoMode = useFullscreenVideoStore((state) => state.mode);
   const setFooterMiniRect = useFullscreenVideoStore((state) => state.setFooterMiniRect);
+  const playbackProgress = useFullscreenVideoStore((state) => state.playbackProgress);
+  const isFullscreenChromeVisible = useFullscreenVideoStore(
+    (state) => state.isFullscreenChromeVisible,
+  );
+  const showFullscreenChrome = useFullscreenVideoStore((state) => state.showFullscreenChrome);
+  const restartFullscreenChromeAutoHideTimer = useFullscreenVideoStore(
+    (state) => state.restartFullscreenChromeAutoHideTimer,
+  );
 
   const recordSlotRef = useRef<View>(null);
 
@@ -231,8 +262,73 @@ export function MainFooter() {
   const language = useAppLanguageStore((state) => state.language);
   const copy = MAIN_FOOTER_COPY[language];
 
+  const shouldShowFooterBar = videoMode === 'fullscreen' && isFullscreenChromeVisible;
+
+  const handleFooterTouchStart = useCallback(() => {
+    if (videoMode !== 'fullscreen') {
+      return;
+    }
+
+    if (!isFullscreenChromeVisible) {
+      showFullscreenChrome();
+      return;
+    }
+
+    restartFullscreenChromeAutoHideTimer();
+  }, [
+    isFullscreenChromeVisible,
+    restartFullscreenChromeAutoHideTimer,
+    showFullscreenChrome,
+    videoMode,
+  ]);
+
+  // const progressBarWidth = footerWidth * playbackProgress;
+
+  useEffect(() => {
+    if (footerWidth <= 0) {
+      progressClipWidth.setValue(0);
+      return;
+    }
+
+    Animated.timing(progressClipWidth, {
+      toValue: footerWidth * playbackProgress,
+      duration: 360,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [footerWidth, playbackProgress, progressClipWidth]);
+
   return (
-    <View style={styles.footer}>
+    <View
+      style={styles.footer}
+      onTouchStart={handleFooterTouchStart}
+      onLayout={(event) => {
+        setFooterWidth(event.nativeEvent.layout.width);
+      }}
+    >
+      {shouldShowFooterBar ? (
+        <View pointerEvents="none" style={styles.footerBarLayer}>
+          <ToolBarBg
+            width="100%"
+            height="100%"
+            preserveAspectRatio="none"
+            style={styles.footerBarBgLayer}
+          />
+
+          <ToolBarProgressDefault
+            width="100%"
+            height="100%"
+            preserveAspectRatio="none"
+            style={styles.footerBarProgressDefaultLayer}
+          />
+
+          {footerWidth > 0 ? (
+            <Animated.View style={[styles.footerProgressClip, { width: progressClipWidth }]}>
+              <ToolBarProgress width={footerWidth} height="100%" preserveAspectRatio="none" />
+            </Animated.View>
+          ) : null}
+        </View>
+      ) : null}
       {FOOTER_ITEMS.map((item) => {
         const isActive = pathname === item.route;
 
@@ -245,6 +341,9 @@ export function MainFooter() {
 
         const isRecordItem = item.labelKey === 'record';
         const shouldHideRecordItem = isRecordItem && videoMode === 'footerMini';
+
+        const shouldHideFooterItemContent =
+          videoMode === 'fullscreen' && !isFullscreenChromeVisible;
 
         const displayLabel = (() => {
           if (isRecordItem && videoMode === 'fullscreen') {
@@ -274,11 +373,29 @@ export function MainFooter() {
           return item.Icon;
         })();
 
+        const isItemDisabled =
+          shouldHideRecordItem ||
+          shouldHideFooterItemContent ||
+          (item.action === 'skipSong' && isSkipping) ||
+          (item.action === 'restartSong' && isRestarting) ||
+          (item.action === 'toggleAudioTrack' && isTogglingAudioTrack);
+
+        const iconColor = isItemDisabled
+          ? 'rgba(255, 255, 255, 0.32)'
+          : isActive
+            ? '#A78BFA'
+            : '#FFFFFF';
+
         return (
           <Pressable
             ref={isRecordItem ? (recordSlotRef as any) : undefined}
             key={String(item.route)}
-            style={({ pressed }) => [styles.footerItem, pressed && styles.footerItemPressed]}
+            disabled={isItemDisabled}
+            style={({ pressed }) => [
+              styles.footerItem,
+              pressed && !isItemDisabled && styles.footerItemPressed,
+              isItemDisabled && styles.footerItemDisabled,
+            ]}
             onLayout={() => {
               if (isRecordItem) {
                 measureRecordSlot();
@@ -321,15 +438,29 @@ export function MainFooter() {
               }
 
               if (item.action === 'toggleAudioTrack') {
-                const nextAudioTrackMode = audioTrackMode === 'vocal' ? 'accompaniment' : 'vocal';
+                if (isTogglingAudioTrackRef.current) {
+                  console.log('[MainFooter] toggle audio track ignored: already toggling');
+                  return;
+                }
 
-                console.log('[MainFooter] before toggle audioTrackMode:', audioTrackMode);
-                console.log(
-                  '[MainFooter] after toggle audioTrackMode should be:',
-                  nextAudioTrackMode,
-                );
+                isTogglingAudioTrackRef.current = true;
+                setIsTogglingAudioTrack(true);
+
+                // const nextAudioTrackMode = audioTrackMode === 'vocal' ? 'accompaniment' : 'vocal';
+
+                // console.log('[MainFooter] before toggle audioTrackMode:', audioTrackMode);
+                // console.log(
+                //   '[MainFooter] after toggle audioTrackMode should be:',
+                //   nextAudioTrackMode,
+                // );
 
                 toggleAudioTrackMode();
+
+                setTimeout(() => {
+                  isTogglingAudioTrackRef.current = false;
+                  setIsTogglingAudioTrack(false);
+                }, 500);
+
                 return;
               }
 
@@ -344,27 +475,54 @@ export function MainFooter() {
               // }
 
               if (item.action === 'skipSong') {
-                console.log('[MainFooter] skip current song:', {
-                  currentSongId: currentPlaybackItem?.songId,
-                  currentTitle: currentPlaybackItem?.title,
-                });
+                if (isSkippingRef.current) {
+                  console.log('[MainFooter] skip current song skipped: already skipping');
+                  return;
+                }
+
+                isSkippingRef.current = true;
+                setIsSkipping(true);
+
+                // console.log('[MainFooter] skip current song:', {
+                //   currentSongId: currentPlaybackItem?.songId,
+                //   currentTitle: currentPlaybackItem?.title,
+                // });
 
                 try {
                   await skipCurrent();
                 } catch (error) {
                   console.log('[MainFooter] skip current song failed:', error);
+                } finally {
+                  setTimeout(() => {
+                    isSkippingRef.current = false;
+                    setIsSkipping(false);
+                  }, 500);
                 }
 
                 return;
               }
 
               if (item.action === 'restartSong') {
-                console.log('[MainFooter] restart current song:', {
-                  currentSongId: currentPlaybackItem?.songId,
-                  currentTitle: currentPlaybackItem?.title,
-                });
+                if (isRestartingRef.current) {
+                  console.log('[MainFooter] restart ignored: already restarting');
+                  return;
+                }
+
+                isRestartingRef.current = true;
+                setIsRestarting(true);
+
+                // console.log('[MainFooter] restart current song:', {
+                //   currentSongId: currentPlaybackItem?.songId,
+                //   currentTitle: currentPlaybackItem?.title,
+                // });
 
                 restartCurrentSong();
+
+                setTimeout(() => {
+                  isRestartingRef.current = false;
+                  setIsRestarting(false);
+                }, 300);
+
                 return;
               }
 
@@ -383,18 +541,25 @@ export function MainFooter() {
             </Text> */}
 
             {!shouldHideRecordItem ? (
-              <>
-                <DisplayIcon
-                  width={28}
-                  height={28}
-                  color={isActive ? '#A78BFA' : '#FFFFFF'}
-                  fill={isActive ? '#A78BFA' : '#FFFFFF'}
-                />
+              <View
+                pointerEvents={shouldHideFooterItemContent ? 'none' : 'auto'}
+                style={[
+                  styles.footerItemContent,
+                  shouldHideFooterItemContent && styles.footerItemContentHidden,
+                ]}
+              >
+                <DisplayIcon width={28} height={28} color={iconColor} fill={iconColor} />
 
-                <Text style={[styles.footerLabel, isActive && styles.footerLabelActive]}>
+                <Text
+                  style={[
+                    styles.footerLabel,
+                    isActive && !isItemDisabled && styles.footerLabelActive,
+                    isItemDisabled && styles.footerLabelDisabled,
+                  ]}
+                >
                   {displayLabel}
                 </Text>
-              </>
+              </View>
             ) : null}
           </Pressable>
         );
@@ -404,6 +569,16 @@ export function MainFooter() {
 }
 
 const styles = StyleSheet.create({
+  // footer: {
+  //   height: 86,
+  //   paddingHorizontal: 30,
+  //   paddingVertical: 20,
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   justifyContent: 'space-between',
+  //   backgroundColor: 'transparent',
+  // },
+
   footer: {
     height: 86,
     paddingHorizontal: 30,
@@ -412,6 +587,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'transparent',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+
+  footerBarLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+
+  footerBarBgLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+
+  footerBarProgressDefaultLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
+
+  footerProgressClip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    overflow: 'hidden',
+    zIndex: 2,
   },
 
   footerItem: {
@@ -419,6 +620,7 @@ const styles = StyleSheet.create({
     height: 90,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 3,
     // backgroundColor: 'red',
   },
 
@@ -436,5 +638,23 @@ const styles = StyleSheet.create({
   footerLabelActive: {
     color: '#A78BFA',
     textDecorationLine: 'underline',
+  },
+
+  footerItemDisabled: {
+    opacity: 0.45,
+  },
+
+  footerLabelDisabled: {
+    color: 'rgba(255, 255, 255, 0.32)',
+    textDecorationLine: 'none',
+  },
+
+  footerItemContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  footerItemContentHidden: {
+    opacity: 0,
   },
 });

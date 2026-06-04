@@ -2,12 +2,74 @@ import { io, Socket } from 'socket.io-client';
 
 import type { PlaylistNowPlayingResponse } from '@/src/services/playlist/playlist.types';
 
+export type SongSelectedPayload = {
+  songId: string;
+  requestedAt?: number;
+  requestedBy?: string;
+};
+
+export type NowUpdatedPayload = {
+  current: {
+    id: string;
+    title?: string;
+    artists?: string[];
+    coverUrl?: string;
+  } | null;
+  index?: number;
+  next?: {
+    id: string;
+    title?: string;
+    artists?: string[];
+    coverUrl?: string;
+  } | null;
+  ts?: number;
+};
+
+type SocketPlaybackEventHandlers = {
+  onSongSelected?: (payload: SongSelectedPayload) => void;
+  onPauseSong?: () => void;
+  onPlaySong?: () => void;
+  onNextSong?: () => void;
+  onReplaySong?: () => void;
+  onAudioTrack?: (payload: AudioTrackPayload) => void;
+  onNowUpdated?: (payload: NowUpdatedPayload) => void;
+};
+
+const playbackEventHandlers = new Set<SocketPlaybackEventHandlers>();
+
+export function addSocketPlaybackEventHandler(handler: SocketPlaybackEventHandlers) {
+  playbackEventHandlers.add(handler);
+
+  return () => {
+    playbackEventHandlers.delete(handler);
+  };
+}
+
+function notifySocketPlaybackEvent<K extends keyof SocketPlaybackEventHandlers>(
+  key: K,
+  ...args: Parameters<NonNullable<SocketPlaybackEventHandlers[K]>>
+) {
+  playbackEventHandlers.forEach((handler) => {
+    const callback = handler[key];
+
+    if (!callback) {
+      return;
+    }
+
+    try {
+      (callback as (...callbackArgs: typeof args) => void)(...args);
+    } catch (error) {
+      console.log(`[Socket] playback handler failed: ${String(key)}`, error);
+    }
+  });
+}
+
 type ServerToClientEvents = {
   'server:hello': (payload: { id: string; now: number }) => void;
   joinedRoom: (room: string) => void;
   newMessage: (payload: { from: string; message: string }) => void;
 
-  songSelected: (payload: { songId: string }) => void;
+  songSelected: (payload: SongSelectedPayload) => void;
   pauseSong: () => void;
   playSong: () => void;
   nextSong: () => void;
@@ -146,6 +208,64 @@ export function connectSocket({ baseUrl, token, userId }: ConnectSocketParams): 
 
   socket.on('server:hello', (payload) => {
     console.log('[Socket] server hello:', payload);
+  });
+
+  socket.on('joinedRoom', (room) => {
+    console.log('[Socket] joinedRoom:', room);
+  });
+
+  socket.off('songSelected');
+  socket.off('pauseSong');
+  socket.off('playSong');
+  socket.off('nextSong');
+  socket.off('replaySong');
+  socket.off('audioTrack');
+  socket.off('nowPlaying');
+  socket.off('now:updated');
+
+  socket.on('songSelected', (payload) => {
+    console.log('[Socket] songSelected received:', payload);
+    notifySocketPlaybackEvent('onSongSelected', payload);
+  });
+
+  socket.on('pauseSong', () => {
+    console.log('[Socket] pauseSong received:', {
+      socketId: socket?.id,
+      time: Date.now(),
+    });
+    notifySocketPlaybackEvent('onPauseSong');
+  });
+
+  socket.on('playSong', () => {
+    console.log('[Socket] playSong received:', {
+      socketId: socket?.id,
+      time: Date.now(),
+    });
+    notifySocketPlaybackEvent('onPlaySong');
+  });
+
+  socket.on('nextSong', () => {
+    console.log('[Socket] nextSong received');
+    notifySocketPlaybackEvent('onNextSong');
+  });
+
+  socket.on('replaySong', () => {
+    console.log('[Socket] replaySong received');
+    notifySocketPlaybackEvent('onReplaySong');
+  });
+
+  socket.on('audioTrack', (payload) => {
+    console.log('[Socket] audioTrack received:', payload);
+    notifySocketPlaybackEvent('onAudioTrack', payload);
+  });
+
+  socket.on('nowPlaying', (payload) => {
+    console.log('[Socket] nowPlaying received:', payload);
+  });
+
+  socket.on('now:updated', (payload) => {
+    console.log('[Socket] now:updated received:', payload);
+    notifySocketPlaybackEvent('onNowUpdated', payload);
   });
 
   return socket;

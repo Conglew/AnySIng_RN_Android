@@ -2,7 +2,7 @@ export const ENDPOINTS = {
   health: {
     check: '/health',
   },
-  
+
   auth: {
     login: '/auth/login',
     refresh: '/auth/refresh',

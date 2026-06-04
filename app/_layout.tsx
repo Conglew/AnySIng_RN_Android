@@ -16,6 +16,8 @@ import { songCacheService } from '@/src/features/player/services/song-cache.serv
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { SocketPlaybackEventBridge } from '@/src/services/socket/socket-playback-event-bridge';
+
 import { useSocketConnection } from '@/src/services/socket/use-socket-connection';
 
 import { DebugLogOverlay } from '@/src/shared/debug/debug-log-overlay';
@@ -72,7 +74,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useKeepAwake();
-  
+
   const [loaded, error] = useFonts({
     SpaceMono: require('@/assets/fonts/SpaceMono-Regular.ttf'),
     ...FontAwesome.font,
@@ -109,8 +111,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <SocketConnectionGate />
+        <SocketPlaybackEventBridge />
         <RootLayoutNav />
-        <DebugLogOverlay />
+        {/* <DebugLogOverlay /> */}
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
