@@ -419,16 +419,16 @@ export function SharedVideoPlayer() {
 
   useEffect(() => {
     let isCancelled = false;
-  
+
     async function switchSourceSafely() {
       resetPlaybackProgress();
-  
+
       if (!playbackVideoUri) {
         setSafePlaybackVideoUri(null);
         setIsPreparingSource(false);
         return;
       }
-  
+
       /**
        * 不要先 setSafePlaybackVideoUri(null)。
        * 否則 Video 會短暫 unmount，Android decoder surface 容易閃綠屏。
@@ -436,19 +436,19 @@ export function SharedVideoPlayer() {
        * 保留上一個 source，等新 source 準備好後直接替換。
        */
       setIsPreparingSource(true);
-  
+
       await new Promise((resolve) => setTimeout(resolve, 80));
-  
+
       if (isCancelled) {
         return;
       }
-  
+
       setSafePlaybackVideoUri(playbackVideoUri);
       setIsPreparingSource(false);
     }
-  
+
     switchSourceSafely();
-  
+
     return () => {
       isCancelled = true;
     };
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#000000',
   },
-  
+
   videoBlackBackground: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',

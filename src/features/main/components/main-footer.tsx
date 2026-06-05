@@ -631,6 +631,7 @@ const styles = StyleSheet.create({
   footerLabel: {
     marginTop: 6,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 12,
     fontWeight: '500',
   },

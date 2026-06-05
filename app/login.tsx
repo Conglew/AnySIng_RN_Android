@@ -68,6 +68,12 @@ type LoginLanguageOption = {
 
 type LoginKeyboardTarget = 'email' | 'password' | null;
 
+type LoginFieldErrors = {
+  email?: string;
+  password?: string;
+  form?: string;
+};
+
 const LOGIN_LANGUAGE_OPTIONS: LoginLanguageOption[] = [
   {
     label: '簡體中文',
@@ -212,6 +218,8 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const [loginFieldErrors, setLoginFieldErrors] = useState<LoginFieldErrors>({});
+
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const [activeLoginKeyboardTarget, setActiveLoginKeyboardTarget] =
@@ -298,6 +306,31 @@ export default function LoginScreen() {
 
   const loginCopy = LOGIN_COPY[language];
 
+  const getLoginSubmitErrorMessage = (error: unknown) => {
+    const message = error instanceof Error ? error.message : 'Unknown login error.';
+    const lowerMessage = message.toLowerCase();
+
+    if (
+      lowerMessage.includes('timeout') ||
+      lowerMessage.includes('timed out') ||
+      lowerMessage.includes('request timeout')
+    ) {
+      return '請求逾時，請稍後再試。';
+    }
+
+    if (
+      lowerMessage.includes('invalid') ||
+      lowerMessage.includes('unauthorized') ||
+      lowerMessage.includes('401') ||
+      lowerMessage.includes('wrong') ||
+      lowerMessage.includes('incorrect')
+    ) {
+      return '您輸入的帳號或密碼錯誤，請再試一次';
+    }
+
+    return '登入失敗，請稍後再試。';
+  };
+
   // const secondaryCopy = REGISTER_COPY[language];
 
   const getBackButtonPositionStyle = () => {
@@ -323,11 +356,23 @@ export default function LoginScreen() {
 
     const normalizedEmail = email.trim();
 
-    if (!normalizedEmail || !password) {
+    const nextErrors: LoginFieldErrors = {};
+
+    if (!normalizedEmail) {
+      nextErrors.email = '必填';
+    }
+
+    if (!password) {
+      nextErrors.password = '必填';
+    }
+
+    if (nextErrors.email || nextErrors.password) {
+      setLoginFieldErrors(nextErrors);
       pushDebugLog('[LoginScreen] login failed: email or password is empty');
       return;
     }
 
+    setLoginFieldErrors({});
     setIsLoginSubmitting(true);
     pushDebugLog('[LoginScreen] login pressed');
 
@@ -373,6 +418,10 @@ export default function LoginScreen() {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown login error.';
+
+      setLoginFieldErrors({
+        form: getLoginSubmitErrorMessage(error),
+      });
 
       pushDebugLog(`[LoginScreen] login failed: ${message}`);
 
@@ -431,9 +480,19 @@ export default function LoginScreen() {
           visible={activeLoginKeyboardTarget === 'email'}
           onInput={(value) => {
             setEmail((current) => current + value);
+            setLoginFieldErrors((current) => ({
+              ...current,
+              email: undefined,
+              form: undefined,
+            }));
           }}
           onBackspace={() => {
             setEmail((current) => current.slice(0, -1));
+            setLoginFieldErrors((current) => ({
+              ...current,
+              email: undefined,
+              form: undefined,
+            }));
           }}
           onDone={() => {
             setActiveLoginKeyboardTarget(null);
@@ -445,9 +504,19 @@ export default function LoginScreen() {
           visible={activeLoginKeyboardTarget === 'password'}
           onInput={(value) => {
             setPassword((current) => current + value);
+            setLoginFieldErrors((current) => ({
+              ...current,
+              password: undefined,
+              form: undefined,
+            }));
           }}
           onBackspace={() => {
             setPassword((current) => current.slice(0, -1));
+            setLoginFieldErrors((current) => ({
+              ...current,
+              password: undefined,
+              form: undefined,
+            }));
           }}
           onDone={() => {
             setActiveLoginKeyboardTarget(null);
@@ -547,7 +616,7 @@ export default function LoginScreen() {
                 </View>
               </View>
 
-              <TextInput
+              {/* <TextInput
                 ref={emailInputRef}
                 value={email}
                 onChangeText={() => {
@@ -569,7 +638,47 @@ export default function LoginScreen() {
                 cursorColor="#FF7A00"
                 returnKeyType="next"
                 style={styles.input}
-              />
+              /> */}
+
+              <View style={styles.inputWithIconWrapper}>
+                <TextInput
+                  ref={emailInputRef}
+                  value={email}
+                  onChangeText={() => {
+                    // 不使用原生鍵盤輸入，所以這裡不用處理
+                  }}
+                  onPressIn={() => {
+                    pushDebugLog('[EmailInput] custom keyboard open');
+                    setActiveLoginKeyboardTarget('email');
+                  }}
+                  placeholder={loginCopy.emailPlaceholder}
+                  placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={true}
+                  showSoftInputOnFocus={false}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
+                  returnKeyType="next"
+                  style={[
+                    styles.input,
+                    styles.inputWithRightIcon,
+                    loginFieldErrors.email && styles.inputError,
+                  ]}
+                />
+
+                {loginFieldErrors.email ? (
+                  <View style={styles.inputErrorIcon}>
+                    <Ionicons name="information-circle-outline" size={18} color="#FF4D36" />
+                  </View>
+                ) : null}
+              </View>
+
+              {loginFieldErrors.email ? (
+                <Text style={styles.fieldErrorText}>{loginFieldErrors.email}</Text>
+              ) : null}
             </View>
 
             {/* <View style={styles.inputGroup}>
@@ -601,7 +710,7 @@ export default function LoginScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.passwordLabel}>{loginCopy.passwordLabel}</Text>
 
-              <View style={styles.passwordInputWrapper}>
+              {/* <View style={styles.passwordInputWrapper}>
                 <TextInput
                   ref={passwordInputRef}
                   value={password}
@@ -641,7 +750,61 @@ export default function LoginScreen() {
                     />
                   </Pressable>
                 ) : null}
+              </View> */}
+
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  ref={passwordInputRef}
+                  value={password}
+                  onChangeText={() => {
+                    // 不使用原生鍵盤輸入，所以這裡不用處理
+                  }}
+                  onPressIn={() => {
+                    pushDebugLog('[PasswordInput] custom keyboard open');
+                    setActiveLoginKeyboardTarget('password');
+                  }}
+                  placeholder={loginCopy.passwordPlaceholder}
+                  placeholderTextColor="rgba(255, 255, 255, 0.42)"
+                  secureTextEntry={!isPasswordVisible}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={true}
+                  showSoftInputOnFocus={false}
+                  caretHidden={false}
+                  selectionColor="#FF7A00"
+                  cursorColor="#FF7A00"
+                  returnKeyType="done"
+                  style={[
+                    styles.input,
+                    styles.passwordInput,
+                    loginFieldErrors.password && styles.inputError,
+                  ]}
+                />
+
+                {loginFieldErrors.password ? (
+                  <View style={styles.inputErrorIcon}>
+                    <Ionicons name="information-circle-outline" size={18} color="#FF4D36" />
+                  </View>
+                ) : password.length > 0 ? (
+                  <Pressable
+                    style={styles.passwordEyeButton}
+                    hitSlop={10}
+                    onPress={() => {
+                      setIsPasswordVisible((current) => !current);
+                    }}
+                  >
+                    <Ionicons
+                      name={isPasswordVisible ? 'eye-outline' : 'eye-off-outline'}
+                      size={24}
+                      color="rgba(255, 255, 255, 0.72)"
+                    />
+                  </Pressable>
+                ) : null}
               </View>
+
+              {loginFieldErrors.password ? (
+                <Text style={styles.fieldErrorText}>{loginFieldErrors.password}</Text>
+              ) : null}
             </View>
 
             <Pressable
@@ -654,6 +817,12 @@ export default function LoginScreen() {
 
               <Text style={styles.rememberText}>{loginCopy.rememberMe}</Text>
             </Pressable>
+
+            <View style={styles.loginFormErrorSlot}>
+              {loginFieldErrors.form ? (
+                <Text style={styles.loginFormErrorText}>{loginFieldErrors.form}</Text>
+              ) : null}
+            </View>
 
             <Pressable
               disabled={isLoginSubmitting}
@@ -766,6 +935,7 @@ const styles = StyleSheet.create({
   },
   welcomeTitle: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 32,
     fontWeight: '800',
     lineHeight: 42,
@@ -773,6 +943,7 @@ const styles = StyleSheet.create({
   welcomeSubtitle: {
     marginTop: 4,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 32,
     fontWeight: '800',
     lineHeight: 42,
@@ -797,12 +968,14 @@ const styles = StyleSheet.create({
   },
   label: {
     color: 'rgba(255, 255, 255, 0.62)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 22,
     fontWeight: '600',
   },
   passwordLabel: {
     marginBottom: 10,
     color: 'rgba(255, 255, 255, 0.62)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 22,
     fontWeight: '600',
   },
@@ -814,6 +987,7 @@ const styles = StyleSheet.create({
   },
   registerText: {
     color: '#FF7A00',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -849,6 +1023,7 @@ const styles = StyleSheet.create({
   },
   languagePanelText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -858,6 +1033,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.32)',
     borderRadius: 29,
     paddingHorizontal: 26,
+    // fontFamily: 'NotoSansTCVariable',
     color: '#FFFFFF',
     fontSize: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.08)',
@@ -886,6 +1062,7 @@ const styles = StyleSheet.create({
   },
   checkboxMark: {
     color: '#6F6F6F',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 14,
@@ -897,6 +1074,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     alignSelf: 'center',
+    // fontFamily: 'NotoSansTCVariable',
     width: 306,
     height: 58,
     alignItems: 'center',
@@ -919,6 +1097,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     marginTop: 24,
+    // fontFamily: 'NotoSansTCVariable',
     color: 'rgba(255, 255, 255, 0.76)',
     fontSize: 18,
     fontWeight: '500',
@@ -970,6 +1149,7 @@ const styles = StyleSheet.create({
   },
   secondaryTitle: {
     width: 720,
+    // fontFamily: 'NotoSansTCVariable',
     color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '600',
@@ -978,6 +1158,7 @@ const styles = StyleSheet.create({
   secondaryDescription: {
     width: 720,
     color: 'rgba(255, 255, 255, 0.42)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '500',
     lineHeight: 24,
@@ -989,6 +1170,7 @@ const styles = StyleSheet.create({
   secondaryLabel: {
     marginBottom: 10,
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '600',
   },
@@ -999,6 +1181,7 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     paddingHorizontal: 24,
     color: '#FFFFFF',
+    fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     backgroundColor: 'rgba(0, 0, 0, 0.08)',
   },
@@ -1021,6 +1204,7 @@ const styles = StyleSheet.create({
   },
   secondarySubmitButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -1040,11 +1224,13 @@ const styles = StyleSheet.create({
   debugTitle: {
     marginBottom: 6,
     color: '#FF7A00',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 14,
     fontWeight: '800',
   },
   debugText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 11,
     lineHeight: 16,
   },
@@ -1077,6 +1263,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -1092,6 +1279,7 @@ const styles = StyleSheet.create({
 
   forgotNoticeText: {
     color: '#FF7A00',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 24,
@@ -1145,6 +1333,7 @@ const styles = StyleSheet.create({
 
   verificationLabel: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '600',
   },
@@ -1152,6 +1341,7 @@ const styles = StyleSheet.create({
   verificationHint: {
     marginLeft: 8,
     color: 'rgba(255, 255, 255, 0.42)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '500',
   },
@@ -1159,6 +1349,7 @@ const styles = StyleSheet.create({
   verificationErrorText: {
     marginBottom: 8,
     color: '#FF4D36',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1192,6 +1383,7 @@ const styles = StyleSheet.create({
 
   verificationCodeDigitText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '600',
   },
@@ -1208,6 +1400,7 @@ const styles = StyleSheet.create({
 
   resetPasswordTitle: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
@@ -1218,6 +1411,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
     marginBottom: 36,
     color: '#7C8287',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '500',
     lineHeight: 22,
@@ -1248,8 +1442,43 @@ const styles = StyleSheet.create({
   fieldErrorText: {
     marginTop: 8,
     color: '#FF4D36',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  inputWithIconWrapper: {
+    position: 'relative',
+  },
+
+  inputWithRightIcon: {
+    paddingRight: 62,
+  },
+
+  inputErrorIcon: {
+    position: 'absolute',
+    right: 20,
+    top: 0,
+    bottom: 0,
+    width: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loginFormErrorSlot: {
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -24,
+    marginBottom: 8,
+  },
+
+  loginFormErrorText: {
+    color: '#FF4D36',
+    // fontFamily: 'NotoSansTCVariable',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 
   forgotSuccessContent: {
@@ -1260,6 +1489,7 @@ const styles = StyleSheet.create({
 
   forgotSuccessText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -1281,6 +1511,7 @@ const styles = StyleSheet.create({
 
   confirmModalTitle: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
@@ -1289,6 +1520,7 @@ const styles = StyleSheet.create({
   confirmModalDescription: {
     marginTop: 10,
     color: 'rgba(255, 255, 255, 0.62)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 14,
     textAlign: 'center',
   },
@@ -1310,6 +1542,7 @@ const styles = StyleSheet.create({
 
   confirmModalGhostButtonText: {
     color: '#FFFFFF',
+    fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1325,6 +1558,7 @@ const styles = StyleSheet.create({
 
   confirmModalPrimaryButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '700',
   },

@@ -550,6 +550,7 @@ const styles = StyleSheet.create({
 
   tabText: {
     color: 'rgba(255, 255, 255, 0.55)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 22,
     fontWeight: '900',
   },
@@ -570,6 +571,7 @@ const styles = StyleSheet.create({
 
   downloadCountText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 12,
     fontWeight: '900',
   },
@@ -585,6 +587,7 @@ const styles = StyleSheet.create({
 
   title: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 20,
@@ -598,6 +601,7 @@ const styles = StyleSheet.create({
 
   emptyText: {
     color: 'rgba(255, 255, 255, 0.72)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -671,12 +675,14 @@ const styles = StyleSheet.create({
   downloadSpeedText: {
     marginTop: 6,
     color: 'rgba(255, 255, 255, 0.62)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 12,
     fontWeight: '700',
   },
 
   songTitle: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
     includeFontPadding: false,
@@ -684,6 +690,7 @@ const styles = StyleSheet.create({
 
   artistText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '600',
     opacity: 0.92,
@@ -695,6 +702,7 @@ const styles = StyleSheet.create({
     width: 64,
     textAlign: 'right',
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '800',
   },
@@ -715,6 +723,7 @@ const styles = StyleSheet.create({
 
   interjectButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '900',
   },
@@ -731,6 +740,7 @@ const styles = StyleSheet.create({
 
   currentBadgeText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 13,
     fontWeight: '900',
   },
@@ -780,6 +790,7 @@ const styles = StyleSheet.create({
 
   cancelDownloadButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 28,
     fontWeight: '300',
     lineHeight: 32,

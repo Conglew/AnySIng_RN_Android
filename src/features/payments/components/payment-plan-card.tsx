@@ -145,6 +145,7 @@ const styles = StyleSheet.create({
 
   priceText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 36,
     fontWeight: '800',
   },
@@ -152,6 +153,7 @@ const styles = StyleSheet.create({
   originalPriceText: {
     marginLeft: 6,
     color: 'rgba(255, 255, 255, 0.28)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 36,
     fontWeight: '700',
     textDecorationLine: 'line-through',
@@ -161,6 +163,7 @@ const styles = StyleSheet.create({
     marginLeft: 2,
     marginBottom: 2,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '600',
   },
@@ -171,6 +174,7 @@ const styles = StyleSheet.create({
 
   planBenefitText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     lineHeight: 48,
   },
@@ -186,6 +190,7 @@ const styles = StyleSheet.create({
 
   discountLabel: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '600',
     lineHeight: 24,

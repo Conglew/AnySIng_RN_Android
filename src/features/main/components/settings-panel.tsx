@@ -2443,12 +2443,14 @@ const styles = StyleSheet.create({
 
   cardTitle: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '800',
   },
 
   cardDescription: {
     color: 'rgba(255, 255, 255, 0.72)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -2474,6 +2476,7 @@ const styles = StyleSheet.create({
 
   backButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 17,
     fontWeight: '800',
   },
@@ -2569,6 +2572,7 @@ const styles = StyleSheet.create({
 
   cancelSubscriptionText: {
     color: '#FF3B5C',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -2591,6 +2595,7 @@ const styles = StyleSheet.create({
     width: 200,
     paddingLeft: 50,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
   },
@@ -2606,6 +2611,7 @@ const styles = StyleSheet.create({
 
   planRowValue: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -2618,6 +2624,7 @@ const styles = StyleSheet.create({
 
   planRowMutedValue: {
     color: 'rgba(255, 255, 255, 0.46)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
     textDecorationLine: 'line-through',
@@ -2625,6 +2632,7 @@ const styles = StyleSheet.create({
 
   planRowRightValue: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '900',
   },
@@ -2637,6 +2645,7 @@ const styles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 22,
     color: 'rgba(255, 255, 255, 0.64)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -2664,6 +2673,7 @@ const styles = StyleSheet.create({
 
   paymentCardBrand: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '900',
     fontStyle: 'italic',
@@ -2671,6 +2681,7 @@ const styles = StyleSheet.create({
 
   paymentCardMore: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '900',
     lineHeight: 17,
@@ -2684,6 +2695,7 @@ const styles = StyleSheet.create({
 
   paymentCardNumber: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: 1,
@@ -2701,6 +2713,7 @@ const styles = StyleSheet.create({
 
   defaultCardBadgeText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
   },
@@ -2739,6 +2752,7 @@ const styles = StyleSheet.create({
 
   logoutConfirmTitle: {
     color: 'rgba(255, 255, 255, 0.78)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
     textAlign: 'center',
@@ -2761,6 +2775,7 @@ const styles = StyleSheet.create({
 
   logoutCancelText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '800',
   },
@@ -2778,6 +2793,7 @@ const styles = StyleSheet.create({
 
   logoutConfirmButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
   },
@@ -2829,6 +2845,7 @@ const styles = StyleSheet.create({
 
   languageOptionText: {
     color: '#7C8287',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '800',
   },
@@ -2861,6 +2878,7 @@ const styles = StyleSheet.create({
 
   addSongQrTitle: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 22,
@@ -2938,6 +2956,7 @@ const styles = StyleSheet.create({
 
   qrModalTitle: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 26,
     fontWeight: '800',
     marginBottom: 22,
@@ -2954,12 +2973,14 @@ const styles = StyleSheet.create({
 
   planStatusText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '700',
   },
 
   planErrorText: {
     color: '#FF5C7A',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -2991,6 +3012,7 @@ const styles = StyleSheet.create({
 
   paymentMethodMenuText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
   },
@@ -3001,6 +3023,7 @@ const styles = StyleSheet.create({
 
   paymentMethodMenuDeleteText: {
     color: '#FF5C5C',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
   },
@@ -3027,6 +3050,7 @@ const styles = StyleSheet.create({
 
   passwordBackButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 36,
     fontWeight: '300',
     lineHeight: 38,
@@ -3035,6 +3059,7 @@ const styles = StyleSheet.create({
 
   passwordChangeTitle: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
     textAlign: 'center',
@@ -3043,6 +3068,7 @@ const styles = StyleSheet.create({
 
   passwordRuleText: {
     color: '#7C8287',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
@@ -3070,6 +3096,7 @@ const styles = StyleSheet.create({
 
   passwordInputLabel: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '800',
     marginBottom: 14,
@@ -3096,6 +3123,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '700',
     padding: 0,
@@ -3110,6 +3138,7 @@ const styles = StyleSheet.create({
 
   passwordEyeText: {
     color: 'rgba(255, 255, 255, 0.72)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -3120,6 +3149,7 @@ const styles = StyleSheet.create({
     top: 130,
 
     color: '#FF3B5C',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
   },
@@ -3161,12 +3191,14 @@ const styles = StyleSheet.create({
 
   passwordConfirmButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '900',
   },
 
   forgotPasswordText: {
     color: 'rgba(255, 255, 255, 0.64)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -3213,6 +3245,7 @@ const styles = StyleSheet.create({
 
   passwordLeaveConfirmTitle: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
     textAlign: 'center',
@@ -3221,6 +3254,7 @@ const styles = StyleSheet.create({
 
   passwordLeaveConfirmDescription: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
@@ -3243,6 +3277,7 @@ const styles = StyleSheet.create({
 
   passwordLeaveButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
   },
 
@@ -3259,6 +3294,7 @@ const styles = StyleSheet.create({
 
   passwordContinueButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
   },
 
@@ -3278,6 +3314,7 @@ const styles = StyleSheet.create({
 
   deleteAccountDescription: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
@@ -3287,6 +3324,7 @@ const styles = StyleSheet.create({
   deleteAccountInstruction: {
     width: 685,
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     marginBottom: 22,
   },
@@ -3326,6 +3364,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
     padding: 0,
@@ -3342,6 +3381,7 @@ const styles = StyleSheet.create({
 
   deleteAccountButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
   },
@@ -3351,6 +3391,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingLeft: 8,
     color: '#FF3B5C',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '800',
   },
@@ -3363,6 +3404,7 @@ const styles = StyleSheet.create({
 
   emailChangeTitle: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
     textAlign: 'center',
@@ -3371,6 +3413,7 @@ const styles = StyleSheet.create({
 
   emailChangeDescription: {
     color: '#7C8287',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
@@ -3384,6 +3427,7 @@ const styles = StyleSheet.create({
 
   emailChangeSentText: {
     color: '#FF7802',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '900',
     textAlign: 'center',
@@ -3398,6 +3442,7 @@ const styles = StyleSheet.create({
   emailChangeLabel: {
     width: 475,
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '800',
     marginBottom: 18,
@@ -3435,6 +3480,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
     padding: 0,
@@ -3453,6 +3499,7 @@ const styles = StyleSheet.create({
 
   emailChangeButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
   },
@@ -3462,6 +3509,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingLeft: 26,
     color: '#FF3B5C',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '800',
   },
@@ -3471,6 +3519,7 @@ const styles = StyleSheet.create({
     left: 500,
     top: 24,
     color: '#3DA8FF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '800',
   },
@@ -3489,6 +3538,7 @@ const styles = StyleSheet.create({
 
   emailCodeLabel: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
     marginRight: 8,
@@ -3496,12 +3546,14 @@ const styles = StyleSheet.create({
 
   emailCodeHintText: {
     color: '#7C8287',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
   },
 
   emailCodeErrorText: {
     color: '#FF3B5C',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '800',
   },
@@ -3519,6 +3571,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#7C8287',
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '800',
     textAlign: 'center',
@@ -3541,6 +3594,7 @@ const styles = StyleSheet.create({
 
   emailVerifyButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
   },
@@ -3555,6 +3609,7 @@ const styles = StyleSheet.create({
 
   emailResendButtonText: {
     color: '#3DA8FF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '800',
   },

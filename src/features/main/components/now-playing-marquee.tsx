@@ -129,6 +129,7 @@ const styles = StyleSheet.create({
 
   marqueeText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '800',
     includeFontPadding: false,

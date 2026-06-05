@@ -694,6 +694,7 @@ const styles = StyleSheet.create({
     width: 360,
     minWidth: 0,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -702,6 +703,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 17,
     fontWeight: '700',
     marginRight: 16,
@@ -724,6 +726,7 @@ const styles = StyleSheet.create({
   insertText: {
     width: 90,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '800',
     includeFontPadding: false,
@@ -740,6 +743,7 @@ const styles = StyleSheet.create({
 
   pageText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -757,6 +761,7 @@ const styles = StyleSheet.create({
 
   backButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '800',
   },
@@ -764,6 +769,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#FF7A7A',
     marginBottom: 8,
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -778,11 +784,13 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 14,
   },
 
   emptyText: {
     color: 'rgba(255, 255, 255, 0.72)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '700',
   },

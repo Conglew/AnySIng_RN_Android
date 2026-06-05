@@ -184,6 +184,7 @@ const styles = StyleSheet.create({
 
   successText: {
     color: '#B2B6BA',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '500',
   },

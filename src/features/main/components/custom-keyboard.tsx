@@ -222,6 +222,7 @@ const styles = StyleSheet.create({
 
   keyboardModeText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 25,
     fontWeight: '700',
   },
@@ -253,6 +254,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     paddingHorizontal: 10,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 10,
@@ -286,6 +288,7 @@ const styles = StyleSheet.create({
 
   clearButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '800',
   },

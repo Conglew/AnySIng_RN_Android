@@ -592,6 +592,7 @@ const styles = StyleSheet.create({
 
   title: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '500',
     textAlign: 'center',
@@ -632,6 +633,7 @@ const styles = StyleSheet.create({
 
   planSelectText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '600',
     marginRight: 8,
@@ -658,6 +660,7 @@ const styles = StyleSheet.create({
 
   currentPricePreview: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -675,6 +678,7 @@ const styles = StyleSheet.create({
   couponLabel: {
     width: 96,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '500',
   },
@@ -726,6 +730,7 @@ const styles = StyleSheet.create({
     paddingRight: 20,
     paddingVertical: 0,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '500',
     textAlign: 'left',
@@ -747,6 +752,7 @@ const styles = StyleSheet.create({
   invalidCouponText: {
     marginLeft: 10,
     color: '#FF4D4F',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '500',
   },
@@ -754,6 +760,7 @@ const styles = StyleSheet.create({
   validCouponText: {
     marginLeft: 10,
     color: 'rgba(255, 255, 255, 0.72)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '500',
   },
@@ -761,6 +768,7 @@ const styles = StyleSheet.create({
   discountedPriceText: {
     marginLeft: 'auto',
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -782,12 +790,14 @@ const styles = StyleSheet.create({
 
   totalLabel: {
     color: 'rgba(255, 255, 255, 0.72)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     marginBottom: 12,
   },
 
   totalPrice: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -812,6 +822,7 @@ const styles = StyleSheet.create({
 
   payButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 15,
     fontWeight: '500',
   },
@@ -839,6 +850,7 @@ const styles = StyleSheet.create({
   qrCodeHintText: {
     marginTop: 24,
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 18,
     fontWeight: '500',
   },
@@ -866,6 +878,7 @@ const styles = StyleSheet.create({
 
   mockSuccessButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 14,
     fontWeight: '500',
   },

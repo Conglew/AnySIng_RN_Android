@@ -325,6 +325,7 @@ const styles = StyleSheet.create({
   },
   languageText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 19,
     fontWeight: '500',
     lineHeight: 27,
@@ -350,6 +351,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',

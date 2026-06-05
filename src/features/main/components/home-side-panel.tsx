@@ -228,6 +228,7 @@ const styles = StyleSheet.create({
 
   sideButtonText: {
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '700',
   },

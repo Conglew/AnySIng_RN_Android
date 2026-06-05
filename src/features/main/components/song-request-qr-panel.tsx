@@ -309,6 +309,7 @@ const styles = StyleSheet.create({
   title: {
     alignSelf: 'flex-start',
     color: '#FFFFFF',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 24,
     fontWeight: '900',
   },
@@ -319,6 +320,7 @@ const styles = StyleSheet.create({
     marginLeft: 28,
     marginRight: 28,
     color: 'rgba(255, 255, 255, 0.82)',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -357,6 +359,7 @@ const styles = StyleSheet.create({
 
   qrLoadingText: {
     color: '#111111',
+    // fontFamily: 'NotoSansTCVariable',
     fontSize: 16,
     fontWeight: '700',
   },

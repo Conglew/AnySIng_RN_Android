@@ -77,6 +77,14 @@ export default function RootLayout() {
 
   const [loaded, error] = useFonts({
     SpaceMono: require('@/assets/fonts/SpaceMono-Regular.ttf'),
+
+    HemiHeadBdIt: require('@/assets/fonts/HemiHeadBdIt.otf'),
+
+    NotoSansItalic: require('@/assets/fonts/NotoSans-Italic-VariableFont_wdth,wght.ttf'),
+    NotoSansVariable: require('@/assets/fonts/NotoSans-VariableFont_wdth,wght.ttf'),
+    NotoSansSCVariable: require('@/assets/fonts/NotoSansSC-VariableFont_wght.ttf'),
+    NotoSansTCVariable: require('@/assets/fonts/NotoSansTC-VariableFont_wght.ttf'),
+
     ...FontAwesome.font,
   });
 
