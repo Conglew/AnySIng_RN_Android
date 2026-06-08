@@ -11,7 +11,7 @@
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Dimensions, Pressable, StyleSheet, View } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, View } from 'react-native';
 import Video, { SelectedTrackType, type SelectedTrack } from 'react-native-video';
 
 import type { VideoFrameRect } from '@/src/features/main/store/fullscreen-video.store';
@@ -54,14 +54,17 @@ const DEFAULT_VOCAL_TRACK_INDEX = 0;
 const DEFAULT_ACCOMPANIMENT_TRACK_INDEX = 1;
 
 export function SharedVideoPlayer() {
-  const progress = useRef(new Animated.Value(0)).current;
+  // const progress = useRef(new Animated.Value(0)).current;
   const videoRef = useRef<any>(null);
   const isHandlingVideoEndRef = useRef(false);
 
+  const lastPlaybackProgressUpdateTimeRef = useRef(0);
+
   const isFullscreenTransitioningRef = useRef(false);
-  const hasMountedTransitionRef = useRef(false);
+  // const hasMountedTransitionRef = useRef(false);
 
   const [isVideoTransitionMaskVisible, setIsVideoTransitionMaskVisible] = useState(false);
+  const [isWaitingForFirstFrame, setIsWaitingForFirstFrame] = useState(false);
 
   const [safePlaybackVideoUri, setSafePlaybackVideoUri] = useState<string | null>(null);
   const [isPreparingSource, setIsPreparingSource] = useState(false);
@@ -210,44 +213,37 @@ export function SharedVideoPlayer() {
    * mini 模式時，播放器顯示在 miniRect。
    * fullscreen 模式時，播放器放大到整個螢幕。
    */
-  const animatedStyle = useMemo(() => {
+  const videoFrameStyle = useMemo(() => {
     const fallbackRect = {
       x: SCREEN.width - 378,
       y: 280,
       width: 358,
       height: 200,
     };
-
-    // const rect = activeMiniRect ?? fallbackRect;
-
+  
     const baseRect = activeMiniRect ?? fallbackRect;
-
+  
     const rect =
       mode === 'footerMini' && activeMiniRect ? getFooterMiniDisplayRect(activeMiniRect) : baseRect;
-
+  
+    if (isFullscreen) {
+      return {
+        left: 0,
+        top: 0,
+        width: SCREEN.width,
+        height: SCREEN.height,
+        borderRadius: 0,
+      };
+    }
+  
     return {
-      left: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [rect.x, 0],
-      }),
-      top: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [rect.y, 0],
-      }),
-      width: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [rect.width, SCREEN.width],
-      }),
-      height: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [rect.height, SCREEN.height],
-      }),
-      borderRadius: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [10, 0],
-      }),
+      left: rect.x,
+      top: rect.y,
+      width: rect.width,
+      height: rect.height,
+      borderRadius: 10,
     };
-  }, [activeMiniRect, mode, progress]);
+  }, [activeMiniRect, isFullscreen, mode]);
 
   /**
    * 載入預設影片。
@@ -327,35 +323,21 @@ export function SharedVideoPlayer() {
    * 所以切換顯示模式不會重頭播放。
    */
   useEffect(() => {
-    if (!hasMountedTransitionRef.current) {
-      hasMountedTransitionRef.current = true;
-      progress.setValue(isFullscreen ? 1 : 0);
-      return;
-    }
-
     isFullscreenTransitioningRef.current = true;
     setIsVideoTransitionMaskVisible(true);
-
-    const animation = Animated.timing(progress, {
-      toValue: isFullscreen ? 1 : 0,
-      duration: isFullscreen ? 320 : 260,
-      useNativeDriver: false,
-    });
-
-    animation.start(() => {
-      isFullscreenTransitioningRef.current = false;
-
+  
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        isFullscreenTransitioningRef.current = false;
         setIsVideoTransitionMaskVisible(false);
       });
     });
-
+  
     return () => {
-      animation.stop();
       isFullscreenTransitioningRef.current = false;
       setIsVideoTransitionMaskVisible(false);
     };
-  }, [isFullscreen, progress]);
+  }, [isFullscreen]);
 
   /**
    * 換歌或 restartToken 改變時重播。
@@ -441,6 +423,8 @@ export function SharedVideoPlayer() {
       if (!playbackVideoUri) {
         setSafePlaybackVideoUri(null);
         setIsPreparingSource(false);
+        setIsWaitingForFirstFrame(false);
+        setIsVideoTransitionMaskVisible(false);
         return;
       }
 
@@ -449,8 +433,12 @@ export function SharedVideoPlayer() {
        * 否則 Video 會短暫 unmount，Android decoder surface 容易閃綠屏。
        *
        * 保留上一個 source，等新 source 準備好後直接替換。
+       * 黑色遮罩不要在 setSafePlaybackVideoUri 後立刻關閉，
+       * 必須等 onReadyForDisplay 確認第一幀已經可顯示後再關。
        */
       setIsPreparingSource(true);
+      setIsWaitingForFirstFrame(true);
+      setIsVideoTransitionMaskVisible(true);
 
       await new Promise((resolve) => setTimeout(resolve, 80));
 
@@ -459,7 +447,7 @@ export function SharedVideoPlayer() {
       }
 
       setSafePlaybackVideoUri(playbackVideoUri);
-      setIsPreparingSource(false);
+      // setIsPreparingSource(false);
     }
 
     switchSourceSafely();
@@ -468,6 +456,20 @@ export function SharedVideoPlayer() {
       isCancelled = true;
     };
   }, [playbackVideoUri, resetPlaybackProgress]);
+
+  const handleVideoReadyForDisplay = useCallback(() => {
+    if (!isWaitingForFirstFrame) {
+      return;
+    }
+  
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setIsWaitingForFirstFrame(false);
+        setIsPreparingSource(false);
+        setIsVideoTransitionMaskVisible(false);
+      });
+    });
+  }, [isWaitingForFirstFrame]);
 
   const handleVideoLoad = useCallback(
     (payload: any) => {
@@ -507,7 +509,14 @@ export function SharedVideoPlayer() {
         typeof payload?.seekableDuration === 'number' && payload.seekableDuration > 0
           ? payload.seekableDuration
           : 0;
-
+  
+      const now = Date.now();
+  
+      if (now - lastPlaybackProgressUpdateTimeRef.current < 1000) {
+        return;
+      }
+  
+      lastPlaybackProgressUpdateTimeRef.current = now;
       setPlaybackProgress(currentTime, duration);
     },
     [setPlaybackProgress],
@@ -624,6 +633,10 @@ export function SharedVideoPlayer() {
   const currentLocalVideoUri = currentPlaybackItem?.localVideoUri;
   const handleVideoError = useCallback(
     (event: unknown) => {
+      setIsPreparingSource(false);
+      setIsWaitingForFirstFrame(false);
+      setIsVideoTransitionMaskVisible(false);
+
       const errorKey =
         currentQueueId ?? currentSongId ?? playbackVideoUri ?? 'unknown-playback-error';
 
@@ -749,7 +762,7 @@ export function SharedVideoPlayer() {
         shouldHideVideoPlayer && styles.hiddenLayer,
       ]}
     >
-      <Animated.View style={[styles.videoFrame, animatedStyle]}>
+      {/* <Animated.View style={[styles.videoFrame, animatedStyle]}>
         <View style={styles.videoBlackBackground} />
 
         {videoSource ? (
@@ -760,10 +773,11 @@ export function SharedVideoPlayer() {
             resizeMode="contain"
             controls={false}
             repeat={isDefaultVideo}
-            paused={isPaused || isPreparingSource || isVideoTransitionMaskVisible}
+            paused={isPaused || isPreparingSource}
             muted={false}
             selectedAudioTrack={selectedAudioTrack}
             onLoad={handleVideoLoad}
+            onReadyForDisplay={handleVideoReadyForDisplay}
             onProgress={handleVideoProgress}
             progressUpdateInterval={250}
             onEnd={handleVideoEnd}
@@ -774,7 +788,35 @@ export function SharedVideoPlayer() {
         {isVideoTransitionMaskVisible ? <View style={styles.videoTransitionMask} /> : null}
 
         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
-      </Animated.View>
+      </Animated.View> */}
+
+      <View style={[styles.videoFrame, videoFrameStyle]}>
+        <View style={styles.videoBlackBackground} />
+
+        {videoSource ? (
+          <Video
+            ref={videoRef}
+            source={videoSource}
+            style={styles.video}
+            resizeMode="contain"
+            controls={false}
+            repeat={isDefaultVideo}
+            paused={isPaused || isPreparingSource}
+            muted={false}
+            selectedAudioTrack={selectedAudioTrack}
+            onLoad={handleVideoLoad}
+            onReadyForDisplay={handleVideoReadyForDisplay}
+            onProgress={handleVideoProgress}
+            progressUpdateInterval={1000}
+            onEnd={handleVideoEnd}
+            onError={handleVideoError}
+          />
+        ) : null}
+
+        {isVideoTransitionMaskVisible ? <View style={styles.videoTransitionMask} /> : null}
+
+        <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
+      </View>
     </View>
   );
 }
