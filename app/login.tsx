@@ -279,7 +279,7 @@ export default function LoginScreen() {
         const rememberedLogin = await getRememberedLogin();
 
         if (!rememberedLogin) {
-          pushDebugLog('[RememberLogin] no remembered login');
+          // pushDebugLog('[RememberLogin] no remembered login');
           return;
         }
 
@@ -301,7 +301,7 @@ export default function LoginScreen() {
   }, [pushDebugLog]);
 
   useEffect(() => {
-    pushDebugLog(`[Canvas] mode=${canvasMode}, language=${language}`);
+    // pushDebugLog(`[Canvas] mode=${canvasMode}, language=${language}`);
   }, [canvasMode, language, pushDebugLog]);
 
   const loginCopy = LOGIN_COPY[language];
@@ -368,13 +368,13 @@ export default function LoginScreen() {
 
     if (nextErrors.email || nextErrors.password) {
       setLoginFieldErrors(nextErrors);
-      pushDebugLog('[LoginScreen] login failed: email or password is empty');
+      // pushDebugLog('[LoginScreen] login failed: email or password is empty');
       return;
     }
 
     setLoginFieldErrors({});
     setIsLoginSubmitting(true);
-    pushDebugLog('[LoginScreen] login pressed');
+    // pushDebugLog('[LoginScreen] login pressed');
 
     try {
       const session = await authClient.login({
@@ -382,10 +382,10 @@ export default function LoginScreen() {
         password,
       });
 
-      console.log('[LoginScreen] login session token check:', {
-        hasToken: Boolean(session.token),
-        hasRefreshToken: Boolean((session as any).refreshToken ?? (session as any).refresh_token),
-      });
+      // console.log('[LoginScreen] login session token check:', {
+      //   hasToken: Boolean(session.token),
+      //   hasRefreshToken: Boolean((session as any).refreshToken ?? (session as any).refresh_token),
+      // });
 
       await saveAuthSession(session);
 
@@ -402,10 +402,10 @@ export default function LoginScreen() {
         pushDebugLog('[RememberLogin] cleared remembered login');
       }
 
-      pushDebugLog('[LoginScreen] login success');
+      // pushDebugLog('[LoginScreen] login success');
 
-      console.log('[LoginScreen] login success');
-      console.log('[LoginScreen] login session:', session);
+      // console.log('[LoginScreen] login success');
+      // console.log('[LoginScreen] login session:', session);
 
       InteractionManager.runAfterInteractions(() => {
         setTimeout(() => {
@@ -423,9 +423,9 @@ export default function LoginScreen() {
         form: getLoginSubmitErrorMessage(error),
       });
 
-      pushDebugLog(`[LoginScreen] login failed: ${message}`);
+      // pushDebugLog(`[LoginScreen] login failed: ${message}`);
 
-      console.log('[LoginScreen] login error:', error);
+      // console.log('[LoginScreen] login error:', error);
     } finally {
       setIsLoginSubmitting(false);
     }
@@ -648,7 +648,7 @@ export default function LoginScreen() {
                     // 不使用原生鍵盤輸入，所以這裡不用處理
                   }}
                   onPressIn={() => {
-                    pushDebugLog('[EmailInput] custom keyboard open');
+                    // pushDebugLog('[EmailInput] custom keyboard open');
                     setActiveLoginKeyboardTarget('email');
                   }}
                   placeholder={loginCopy.emailPlaceholder}
@@ -760,7 +760,7 @@ export default function LoginScreen() {
                     // 不使用原生鍵盤輸入，所以這裡不用處理
                   }}
                   onPressIn={() => {
-                    pushDebugLog('[PasswordInput] custom keyboard open');
+                    // pushDebugLog('[PasswordInput] custom keyboard open');
                     setActiveLoginKeyboardTarget('password');
                   }}
                   placeholder={loginCopy.passwordPlaceholder}

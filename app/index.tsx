@@ -118,7 +118,7 @@ export default function LanguageSelectScreen() {
         const password = rememberedLogin?.password;
 
         if (!email || !password) {
-          console.log('[LanguageSelectScreen] no remembered login');
+          // console.log('[LanguageSelectScreen] no remembered login');
           return;
         }
 
@@ -172,7 +172,7 @@ export default function LanguageSelectScreen() {
       return;
     }
 
-    console.log('[LanguageSelectScreen] confirmed language:', selectedLanguage.value);
+    // console.log('[LanguageSelectScreen] confirmed language:', selectedLanguage.value);
 
     router.replace({
       pathname: '/login',
