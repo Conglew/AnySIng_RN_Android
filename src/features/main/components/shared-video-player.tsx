@@ -59,6 +59,9 @@ export function SharedVideoPlayer() {
   const isHandlingVideoEndRef = useRef(false);
 
   const isFullscreenTransitioningRef = useRef(false);
+  const hasMountedTransitionRef = useRef(false);
+
+  const [isVideoTransitionMaskVisible, setIsVideoTransitionMaskVisible] = useState(false);
 
   const [safePlaybackVideoUri, setSafePlaybackVideoUri] = useState<string | null>(null);
   const [isPreparingSource, setIsPreparingSource] = useState(false);
@@ -324,7 +327,14 @@ export function SharedVideoPlayer() {
    * 所以切換顯示模式不會重頭播放。
    */
   useEffect(() => {
+    if (!hasMountedTransitionRef.current) {
+      hasMountedTransitionRef.current = true;
+      progress.setValue(isFullscreen ? 1 : 0);
+      return;
+    }
+
     isFullscreenTransitioningRef.current = true;
+    setIsVideoTransitionMaskVisible(true);
 
     const animation = Animated.timing(progress, {
       toValue: isFullscreen ? 1 : 0,
@@ -334,11 +344,16 @@ export function SharedVideoPlayer() {
 
     animation.start(() => {
       isFullscreenTransitioningRef.current = false;
+
+      requestAnimationFrame(() => {
+        setIsVideoTransitionMaskVisible(false);
+      });
     });
 
     return () => {
       animation.stop();
       isFullscreenTransitioningRef.current = false;
+      setIsVideoTransitionMaskVisible(false);
     };
   }, [isFullscreen, progress]);
 
@@ -745,7 +760,7 @@ export function SharedVideoPlayer() {
             resizeMode="contain"
             controls={false}
             repeat={isDefaultVideo}
-            paused={isPaused || isPreparingSource}
+            paused={isPaused || isPreparingSource || isVideoTransitionMaskVisible}
             muted={false}
             selectedAudioTrack={selectedAudioTrack}
             onLoad={handleVideoLoad}
@@ -755,6 +770,8 @@ export function SharedVideoPlayer() {
             onError={handleVideoError}
           />
         ) : null}
+
+        {isVideoTransitionMaskVisible ? <View style={styles.videoTransitionMask} /> : null}
 
         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
       </Animated.View>
@@ -793,6 +810,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',
     zIndex: 1,
+  },
+
+  videoTransitionMask: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    zIndex: 2,
   },
 
   hiddenLayer: {
