@@ -53,6 +53,8 @@ const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/defaut_loop.mp4');
 const DEFAULT_VOCAL_TRACK_INDEX = 0;
 const DEFAULT_ACCOMPANIMENT_TRACK_INDEX = 1;
 
+const SOURCE_READY_FALLBACK_MS = 1200;
+
 export function SharedVideoPlayer() {
   // const progress = useRef(new Animated.Value(0)).current;
   const videoRef = useRef<any>(null);
@@ -62,6 +64,8 @@ export function SharedVideoPlayer() {
 
   const isFullscreenTransitioningRef = useRef(false);
   // const hasMountedTransitionRef = useRef(false);
+
+  const sourceReadyFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isVideoTransitionMaskVisible, setIsVideoTransitionMaskVisible] = useState(false);
   const [isWaitingForFirstFrame, setIsWaitingForFirstFrame] = useState(false);
@@ -220,12 +224,12 @@ export function SharedVideoPlayer() {
       width: 358,
       height: 200,
     };
-  
+
     const baseRect = activeMiniRect ?? fallbackRect;
-  
+
     const rect =
       mode === 'footerMini' && activeMiniRect ? getFooterMiniDisplayRect(activeMiniRect) : baseRect;
-  
+
     if (isFullscreen) {
       return {
         left: 0,
@@ -235,7 +239,7 @@ export function SharedVideoPlayer() {
         borderRadius: 0,
       };
     }
-  
+
     return {
       left: rect.x,
       top: rect.y,
@@ -325,15 +329,14 @@ export function SharedVideoPlayer() {
   useEffect(() => {
     isFullscreenTransitioningRef.current = true;
     setIsVideoTransitionMaskVisible(true);
-  
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        isFullscreenTransitioningRef.current = false;
-        setIsVideoTransitionMaskVisible(false);
-      });
-    });
-  
+
+    const timer = setTimeout(() => {
+      isFullscreenTransitioningRef.current = false;
+      setIsVideoTransitionMaskVisible(false);
+    }, 220);
+
     return () => {
+      clearTimeout(timer);
       isFullscreenTransitioningRef.current = false;
       setIsVideoTransitionMaskVisible(false);
     };
@@ -440,6 +443,17 @@ export function SharedVideoPlayer() {
       setIsWaitingForFirstFrame(true);
       setIsVideoTransitionMaskVisible(true);
 
+      if (sourceReadyFallbackTimerRef.current) {
+        clearTimeout(sourceReadyFallbackTimerRef.current);
+      }
+
+      sourceReadyFallbackTimerRef.current = setTimeout(() => {
+        setIsWaitingForFirstFrame(false);
+        setIsPreparingSource(false);
+        setIsVideoTransitionMaskVisible(false);
+        sourceReadyFallbackTimerRef.current = null;
+      }, SOURCE_READY_FALLBACK_MS);
+
       await new Promise((resolve) => setTimeout(resolve, 80));
 
       if (isCancelled) {
@@ -461,7 +475,12 @@ export function SharedVideoPlayer() {
     if (!isWaitingForFirstFrame) {
       return;
     }
-  
+
+    if (sourceReadyFallbackTimerRef.current) {
+      clearTimeout(sourceReadyFallbackTimerRef.current);
+      sourceReadyFallbackTimerRef.current = null;
+    }
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setIsWaitingForFirstFrame(false);
@@ -476,6 +495,15 @@ export function SharedVideoPlayer() {
       const duration = typeof payload?.duration === 'number' ? payload.duration : 0;
 
       setPlaybackProgress(0, duration);
+
+      if (sourceReadyFallbackTimerRef.current) {
+        clearTimeout(sourceReadyFallbackTimerRef.current);
+        sourceReadyFallbackTimerRef.current = null;
+      }
+
+      setIsWaitingForFirstFrame(false);
+      setIsPreparingSource(false);
+      setIsVideoTransitionMaskVisible(false);
 
       const audioTracks = payload?.audioTracks ?? [];
 
@@ -509,13 +537,13 @@ export function SharedVideoPlayer() {
         typeof payload?.seekableDuration === 'number' && payload.seekableDuration > 0
           ? payload.seekableDuration
           : 0;
-  
+
       const now = Date.now();
-  
+
       if (now - lastPlaybackProgressUpdateTimeRef.current < 1000) {
         return;
       }
-  
+
       lastPlaybackProgressUpdateTimeRef.current = now;
       setPlaybackProgress(currentTime, duration);
     },
@@ -642,8 +670,10 @@ export function SharedVideoPlayer() {
 
       console.log('[SharedVideoPlayer] onError:', {
         errorKey,
+        event,
         isDefaultVideo,
         playbackVideoUri,
+        safePlaybackVideoUri,
         currentPlaybackItem: currentQueueId
           ? {
               queueId: currentQueueId,
@@ -749,9 +779,9 @@ export function SharedVideoPlayer() {
   // if (!playbackVideoUri || !activeMiniRect) {
   //   return null;
   // }
-  if (!activeMiniRect) {
-    return null;
-  }
+  // if (!activeMiniRect) {
+  //   return null;
+  // }
 
   return (
     <View
@@ -759,7 +789,7 @@ export function SharedVideoPlayer() {
       style={[
         styles.layer,
         mode === 'footerMini' && styles.footerMiniLayer,
-        shouldHideVideoPlayer && styles.hiddenLayer,
+        // shouldHideVideoPlayer && styles.hiddenLayer,
       ]}
     >
       {/* <Animated.View style={[styles.videoFrame, animatedStyle]}>
@@ -795,13 +825,15 @@ export function SharedVideoPlayer() {
 
         {videoSource ? (
           <Video
+            key={safePlaybackVideoUri}
             ref={videoRef}
             source={videoSource}
             style={styles.video}
+            // renderToHardwareTextureAndroid
             resizeMode="contain"
             controls={false}
             repeat={isDefaultVideo}
-            paused={isPaused || isPreparingSource}
+            paused={isDefaultVideo ? false : isPaused}
             muted={false}
             selectedAudioTrack={selectedAudioTrack}
             onLoad={handleVideoLoad}
