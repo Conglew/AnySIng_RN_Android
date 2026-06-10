@@ -328,17 +328,17 @@ export function SharedVideoPlayer() {
    */
   useEffect(() => {
     isFullscreenTransitioningRef.current = true;
-    setIsVideoTransitionMaskVisible(true);
+    // setIsVideoTransitionMaskVisible(true);
 
     const timer = setTimeout(() => {
       isFullscreenTransitioningRef.current = false;
-      setIsVideoTransitionMaskVisible(false);
-    }, 220);
+      // setIsVideoTransitionMaskVisible(false);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
       isFullscreenTransitioningRef.current = false;
-      setIsVideoTransitionMaskVisible(false);
+      // setIsVideoTransitionMaskVisible(false);
     };
   }, [isFullscreen]);
 
@@ -789,36 +789,9 @@ export function SharedVideoPlayer() {
       style={[
         styles.layer,
         mode === 'footerMini' && styles.footerMiniLayer,
-        // shouldHideVideoPlayer && styles.hiddenLayer,
       ]}
     >
-      {/* <Animated.View style={[styles.videoFrame, animatedStyle]}>
-        <View style={styles.videoBlackBackground} />
-
-        {videoSource ? (
-          <Video
-            ref={videoRef}
-            source={videoSource}
-            style={styles.video}
-            resizeMode="contain"
-            controls={false}
-            repeat={isDefaultVideo}
-            paused={isPaused || isPreparingSource}
-            muted={false}
-            selectedAudioTrack={selectedAudioTrack}
-            onLoad={handleVideoLoad}
-            onReadyForDisplay={handleVideoReadyForDisplay}
-            onProgress={handleVideoProgress}
-            progressUpdateInterval={250}
-            onEnd={handleVideoEnd}
-            onError={handleVideoError}
-          />
-        ) : null}
-
-        {isVideoTransitionMaskVisible ? <View style={styles.videoTransitionMask} /> : null}
-
-        <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
-      </Animated.View> */}
+      {/* 💡 【優化】原本這裡覆蓋全螢幕的黑遮罩已經完全刪除了 */}
 
       <View style={[styles.videoFrame, videoFrameStyle]}>
         <View style={styles.videoBlackBackground} />
@@ -829,7 +802,6 @@ export function SharedVideoPlayer() {
             ref={videoRef}
             source={videoSource}
             style={styles.video}
-            // renderToHardwareTextureAndroid
             resizeMode="contain"
             controls={false}
             repeat={isDefaultVideo}
@@ -842,10 +814,16 @@ export function SharedVideoPlayer() {
             progressUpdateInterval={1000}
             onEnd={handleVideoEnd}
             onError={handleVideoError}
+            useTextureView={true} // 保持開啟
           />
         ) : null}
 
-        {isVideoTransitionMaskVisible ? <View style={styles.videoTransitionMask} /> : null}
+        {/* 💡 【優化】把遮罩放回這裡！
+            只有在 switchSourceSafely（換歌載入第一幀）時才會觸發，
+            而且範圍會被限制在當前的 videoFrame 尺寸內，絕不外漏蓋住全螢幕！ */}
+        {isVideoTransitionMaskVisible && (
+          <View style={styles.videoTransitionMask} />
+        )}
 
         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
       </View>
