@@ -106,6 +106,19 @@ type FullscreenVideoStore = {
   resetPlaybackProgress: () => void;
 };
 
+function isSameRect(a: VideoFrameRect | null, b: VideoFrameRect) {
+  if (!a) {
+    return false;
+  }
+
+  return (
+    Math.round(a.x) === Math.round(b.x) &&
+    Math.round(a.y) === Math.round(b.y) &&
+    Math.round(a.width) === Math.round(b.width) &&
+    Math.round(a.height) === Math.round(b.height)
+  );
+}
+
 export const useFullscreenVideoStore = create<FullscreenVideoStore>((set, get) => {
   const restartFullscreenChromeAutoHideTimer = () => {
     clearFullscreenChromeAutoHideTimer();
@@ -176,17 +189,29 @@ export const useFullscreenVideoStore = create<FullscreenVideoStore>((set, get) =
     },
 
     setHomeMiniRect: (rect) => {
-      set({
-        homeMiniRect: rect,
+      set((state) => {
+        if (isSameRect(state.homeMiniRect, rect)) {
+          return state;
+        }
+    
+        return {
+          homeMiniRect: rect,
+        };
       });
     },
-
+    
     setFooterMiniRect: (rect) => {
-      set({
-        footerMiniRect: rect,
+      set((state) => {
+        if (isSameRect(state.footerMiniRect, rect)) {
+          return state;
+        }
+    
+        return {
+          footerMiniRect: rect,
+        };
       });
     },
-
+    
     setBlockedByPanel: (isBlocked) => {
       set((state) => {
         if (state.mode === 'fullscreen') {

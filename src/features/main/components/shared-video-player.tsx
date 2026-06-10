@@ -328,17 +328,16 @@ export function SharedVideoPlayer() {
    */
   useEffect(() => {
     isFullscreenTransitioningRef.current = true;
-    // setIsVideoTransitionMaskVisible(true);
-
+    setIsVideoTransitionMaskVisible(true);
+  
     const timer = setTimeout(() => {
       isFullscreenTransitioningRef.current = false;
-      // setIsVideoTransitionMaskVisible(false);
-    }, 100);
-
+      setIsVideoTransitionMaskVisible(false);
+    }, 180);
+  
     return () => {
       clearTimeout(timer);
       isFullscreenTransitioningRef.current = false;
-      // setIsVideoTransitionMaskVisible(false);
     };
   }, [isFullscreen]);
 
@@ -475,12 +474,12 @@ export function SharedVideoPlayer() {
     if (!isWaitingForFirstFrame) {
       return;
     }
-
+  
     if (sourceReadyFallbackTimerRef.current) {
       clearTimeout(sourceReadyFallbackTimerRef.current);
       sourceReadyFallbackTimerRef.current = null;
     }
-
+  
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setIsWaitingForFirstFrame(false);
@@ -493,35 +492,26 @@ export function SharedVideoPlayer() {
   const handleVideoLoad = useCallback(
     (payload: any) => {
       const duration = typeof payload?.duration === 'number' ? payload.duration : 0;
-
+  
       setPlaybackProgress(0, duration);
-
-      if (sourceReadyFallbackTimerRef.current) {
-        clearTimeout(sourceReadyFallbackTimerRef.current);
-        sourceReadyFallbackTimerRef.current = null;
-      }
-
-      setIsWaitingForFirstFrame(false);
-      setIsPreparingSource(false);
-      setIsVideoTransitionMaskVisible(false);
-
+  
       const audioTracks = payload?.audioTracks ?? [];
-
+  
       const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
       const accompanimentTrack = audioTracks[DEFAULT_ACCOMPANIMENT_TRACK_INDEX];
-
+  
       const nextVocalAudioTrackIndex = vocalTrack ? DEFAULT_VOCAL_TRACK_INDEX : null;
       const nextAccompanimentAudioTrackIndex = accompanimentTrack
         ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX
         : null;
-
+  
       if (
         vocalAudioTrackIndex === nextVocalAudioTrackIndex &&
         accompanimentAudioTrackIndex === nextAccompanimentAudioTrackIndex
       ) {
         return;
       }
-
+  
       setAudioTrackIndexes({
         vocalAudioTrackIndex: nextVocalAudioTrackIndex,
         accompanimentAudioTrackIndex: nextAccompanimentAudioTrackIndex,
@@ -798,7 +788,7 @@ export function SharedVideoPlayer() {
 
         {videoSource ? (
           <Video
-            key={safePlaybackVideoUri}
+            // key={safePlaybackVideoUri}
             ref={videoRef}
             source={videoSource}
             style={styles.video}
