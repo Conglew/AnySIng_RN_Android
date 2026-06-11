@@ -320,26 +320,51 @@ export function SharedVideoPlayer() {
     };
   }, [resetAudioTrackIndexes]);
 
+  // /**
+  //  * mini / fullscreen 動畫。
+  //  *
+  //  * 因為同一顆 Video 沒有 unmount，
+  //  * 所以切換顯示模式不會重頭播放。
+  //  */
+  // useEffect(() => {
+  //   isFullscreenTransitioningRef.current = true;
+  //   setIsVideoTransitionMaskVisible(true);
+  
+  //   const timer = setTimeout(() => {
+  //     isFullscreenTransitioningRef.current = false;
+  //     setIsVideoTransitionMaskVisible(false);
+  //   }, 180);
+  
+  //   return () => {
+  //     clearTimeout(timer);
+  //     isFullscreenTransitioningRef.current = false;
+  //   };
+  // }, [isFullscreen]);
+
   /**
-   * mini / fullscreen 動畫。
-   *
-   * 因為同一顆 Video 沒有 unmount，
-   * 所以切換顯示模式不會重頭播放。
+   * mini / fullscreen / Layout 切換時的遮罩優化
+   * 專門捕捉並擋住 Android 底層 YUV 緩衝區尺寸重算時的綠屏
    */
   useEffect(() => {
     isFullscreenTransitioningRef.current = true;
+    
+    // 1. 只要 Layout 模式一改，立刻在影片格子內拉起黑遮罩，把硬體綠屏死死擋住
     setIsVideoTransitionMaskVisible(true);
-  
+
     const timer = setTimeout(() => {
       isFullscreenTransitioningRef.current = false;
+      
+      // 2. 將時間適度調大至 220ms ~ 250ms
+      // 確保各類 Android 晶片與硬體解碼器都已經完全適應新尺寸，並成功渲染出第一幀新畫面後，再解開遮罩
       setIsVideoTransitionMaskVisible(false);
-    }, 180);
-  
+    }, 220); 
+
     return () => {
       clearTimeout(timer);
       isFullscreenTransitioningRef.current = false;
+      setIsVideoTransitionMaskVisible(false);
     };
-  }, [isFullscreen]);
+  }, [mode]);
 
   /**
    * 換歌或 restartToken 改變時重播。
