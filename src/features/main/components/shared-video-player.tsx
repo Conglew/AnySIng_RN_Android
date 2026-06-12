@@ -1,5 +1,5 @@
 /**
- *  1. 全 App 唯一 Video
+ * 1. 全 App 唯一 Video
     2. mini / fullscreen 動畫
     3. default video 載入
     4. currentPlaybackItem 播放
@@ -27,7 +27,7 @@ const SCREEN = Dimensions.get('window');
 const FOOTER_MINI_WIDTH = 120;
 const FOOTER_MINI_HEIGHT = 68;
 const FOOTER_MINI_OFFSET_X = 0;
-const FOOTER_MINI_OFFSET_Y = -30;
+const FOOTER_MINI_OFFSET_Y = 15;
 
 function getFooterMiniDisplayRect(rect: VideoFrameRect): VideoFrameRect {
   const centerX = rect.x + rect.width / 2;
@@ -41,38 +41,24 @@ function getFooterMiniDisplayRect(rect: VideoFrameRect): VideoFrameRect {
   };
 }
 
-// const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/demo/video/Test.mkv');
 const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/defaut_loop.mp4');
 
-/**
- * 依照你的 MKV 音軌順序調整。
- *
- * 注意：
- * 這裡是 react-native-video onLoad 回傳的 audioTracks 陣列 index。
- */
 const DEFAULT_VOCAL_TRACK_INDEX = 0;
 const DEFAULT_ACCOMPANIMENT_TRACK_INDEX = 1;
 
 const SOURCE_READY_FALLBACK_MS = 1200;
 
 export function SharedVideoPlayer() {
-  // const progress = useRef(new Animated.Value(0)).current;
   const videoRef = useRef<any>(null);
   const isHandlingVideoEndRef = useRef(false);
-
   const lastPlaybackProgressUpdateTimeRef = useRef(0);
-
   const isFullscreenTransitioningRef = useRef(false);
-  // const hasMountedTransitionRef = useRef(false);
-
   const sourceReadyFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isVideoTransitionMaskVisible, setIsVideoTransitionMaskVisible] = useState(false);
   const [isWaitingForFirstFrame, setIsWaitingForFirstFrame] = useState(false);
-
   const [safePlaybackVideoUri, setSafePlaybackVideoUri] = useState<string | null>(null);
   const [isPreparingSource, setIsPreparingSource] = useState(false);
-
   const [resolvedDefaultVideoUri, setResolvedDefaultVideoUri] = useState<string | null>(null);
 
   const mode = useFullscreenVideoStore((state) => state.mode);
@@ -108,39 +94,6 @@ export function SharedVideoPlayer() {
   const isFullscreen = mode === 'fullscreen';
   const activeMiniRect = mode === 'footerMini' ? footerMiniRect : homeMiniRect;
 
-  // const handleToggleFullscreen = () => {
-  //   console.log('[SharedVideoPlayer] press video:', {
-  //     mode,
-  //     activeMiniRect,
-  //     isFullscreenChromeVisible,
-  //   });
-
-  //   if (!activeMiniRect) {
-  //     console.log('[SharedVideoPlayer] toggle ignored: missing activeMiniRect');
-  //     return;
-  //   }
-
-  //   if (isFullscreen) {
-  //     /**
-  //      * fullscreen 且 Header/Footer 已隱藏：
-  //      * 第一次點擊只顯示 Header/Footer，不退出 fullscreen。
-  //      */
-  //     if (!isFullscreenChromeVisible) {
-  //       showFullscreenChrome();
-  //       return;
-  //     }
-
-  //     /**
-  //      * fullscreen 且 Header/Footer 顯示中：
-  //      * 再次點擊才退出 fullscreen，回到 mini。
-  //      */
-  //     closeFullscreen();
-  //     return;
-  //   }
-
-  //   openFullscreen();
-  // };
-
   const handleToggleFullscreen = useCallback(() => {
     if (isFullscreenTransitioningRef.current) {
       return;
@@ -172,28 +125,13 @@ export function SharedVideoPlayer() {
     showFullscreenChrome,
   ]);
 
-  /**
-   * 有 currentPlaybackItem 時播放目前歌曲。
-   * 沒有 currentPlaybackItem 時播放預設影片。
-   */
   const playbackVideoUri = currentPlaybackItem?.localVideoUri ?? resolvedDefaultVideoUri;
   const isDefaultVideo = !currentPlaybackItem;
-
-  // const videoSource = useMemo(() => {
-  //   if (!playbackVideoUri) {
-  //     return undefined;
-  //   }
-
-  //   return {
-  //     uri: playbackVideoUri,
-  //   };
-  // }, [playbackVideoUri]);
 
   const videoSource = useMemo(() => {
     if (!safePlaybackVideoUri) {
       return undefined;
     }
-
     return {
       uri: safePlaybackVideoUri,
     };
@@ -213,10 +151,6 @@ export function SharedVideoPlayer() {
     };
   }, [accompanimentAudioTrackIndex, audioTrackMode, vocalAudioTrackIndex]);
 
-  /**
-   * mini 模式時，播放器顯示在 miniRect。
-   * fullscreen 模式時，播放器放大到整個螢幕。
-   */
   const videoFrameStyle = useMemo(() => {
     const fallbackRect = {
       x: SCREEN.width - 378,
@@ -249,12 +183,11 @@ export function SharedVideoPlayer() {
     };
   }, [activeMiniRect, isFullscreen, mode]);
 
-  /**
-   * 載入預設影片。
-   *
-   * 原本這段在 home-side-panel.tsx。
-   * 單一播放器架構下，預設影片也應該由 SharedVideoPlayer 管理。
-   */
+  // 💡 【優化】動態控制影片組件的透明度，當遮罩顯示時（換歌/未就緒），直接讓 Video 透明，露出下方的純黑底 View，物理隔絕硬體綠屏
+  const videoComponentStyle = useMemo(() => {
+    return [styles.video, { opacity: isVideoTransitionMaskVisible ? 0 : 1 }];
+  }, [isVideoTransitionMaskVisible]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -266,17 +199,14 @@ export function SharedVideoPlayer() {
         await asset.downloadAsync();
 
         const sourceUri = asset.localUri ?? asset.uri;
-
         if (!sourceUri) {
           throw new Error('Default video sourceUri is empty.');
         }
 
         const videoCacheDirectory = `${FileSystem.cacheDirectory}video-media/`;
-        // const targetUri = `${videoCacheDirectory}Test.mkv`;
         const targetUri = `${videoCacheDirectory}defaut_loop.mp4`;
 
         const directoryInfo = await FileSystem.getInfoAsync(videoCacheDirectory);
-
         if (!directoryInfo.exists) {
           await FileSystem.makeDirectoryAsync(videoCacheDirectory, {
             intermediates: true,
@@ -284,80 +214,38 @@ export function SharedVideoPlayer() {
         }
 
         const targetInfo = await FileSystem.getInfoAsync(targetUri);
-
         if (!targetInfo.exists) {
           if (sourceUri.startsWith('file://')) {
-            await FileSystem.copyAsync({
-              from: sourceUri,
-              to: targetUri,
-            });
+            await FileSystem.copyAsync({ from: sourceUri, to: targetUri });
           } else {
             await FileSystem.downloadAsync(sourceUri, targetUri);
           }
         }
 
-        const copiedFileInfo = await FileSystem.getInfoAsync(targetUri);
-
-        if (!copiedFileInfo.exists) {
-          throw new Error('Copied default MKV file does not exist.');
-        }
-
         if (!isMounted) {
           return;
         }
-
         setResolvedDefaultVideoUri(targetUri);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.log('[SharedVideoPlayer] resolve default video error:', message);
+        console.log('[SharedVideoPlayer] resolve default video error:', error);
       }
     }
 
     resolveDefaultVideoSource();
-
     return () => {
       isMounted = false;
     };
   }, [resetAudioTrackIndexes]);
 
-  // /**
-  //  * mini / fullscreen 動畫。
-  //  *
-  //  * 因為同一顆 Video 沒有 unmount，
-  //  * 所以切換顯示模式不會重頭播放。
-  //  */
-  // useEffect(() => {
-  //   isFullscreenTransitioningRef.current = true;
-  //   setIsVideoTransitionMaskVisible(true);
-  
-  //   const timer = setTimeout(() => {
-  //     isFullscreenTransitioningRef.current = false;
-  //     setIsVideoTransitionMaskVisible(false);
-  //   }, 180);
-  
-  //   return () => {
-  //     clearTimeout(timer);
-  //     isFullscreenTransitioningRef.current = false;
-  //   };
-  // }, [isFullscreen]);
-
-  /**
-   * mini / fullscreen / Layout 切換時的遮罩優化
-   * 專門捕捉並擋住 Android 底層 YUV 緩衝區尺寸重算時的綠屏
-   */
+  // 💡 【修正】監聽整個佈局模式（mode）的切換。當變更佈局尺寸時，Android 重新分配解碼緩衝區需要短暫時間，立刻拉起遮罩防止殘影
   useEffect(() => {
     isFullscreenTransitioningRef.current = true;
-    
-    // 1. 只要 Layout 模式一改，立刻在影片格子內拉起黑遮罩，把硬體綠屏死死擋住
     setIsVideoTransitionMaskVisible(true);
 
     const timer = setTimeout(() => {
       isFullscreenTransitioningRef.current = false;
-      
-      // 2. 將時間適度調大至 220ms ~ 250ms
-      // 確保各類 Android 晶片與硬體解碼器都已經完全適應新尺寸，並成功渲染出第一幀新畫面後，再解開遮罩
       setIsVideoTransitionMaskVisible(false);
-    }, 220); 
+    }, 220); // 220ms 安全時間，給解碼器平滑緩衝
 
     return () => {
       clearTimeout(timer);
@@ -366,80 +254,14 @@ export function SharedVideoPlayer() {
     };
   }, [mode]);
 
-  /**
-   * 換歌或 restartToken 改變時重播。
-   *
-   * 注意：
-   * 這裡只在 source 換掉時自然 remount。
-   * mini/fullscreen 切換不會改 key，所以不會重播。
-   */
   const restartToken = usePlayerControlStore((state) => state.restartToken);
 
   useEffect(() => {
     if (!safePlaybackVideoUri || isPreparingSource) {
       return;
     }
-
     videoRef.current?.seek?.(0);
   }, [currentPlaybackItem?.queueId, safePlaybackVideoUri, restartToken, isPreparingSource]);
-
-  // const handleVideoLoad = (payload: any) => {
-  //   console.log('[SharedVideoPlayer] onLoad:', {
-  //     playbackVideoUri,
-  //     currentPlaybackItem: currentPlaybackItem
-  //       ? {
-  //           queueId: currentPlaybackItem.queueId,
-  //           songId: currentPlaybackItem.songId,
-  //           title: currentPlaybackItem.title,
-  //           artistText: currentPlaybackItem.artistText,
-  //           localVideoUri: currentPlaybackItem.localVideoUri,
-  //         }
-  //       : null,
-  //     isDefaultVideo,
-  //     isPaused,
-  //     audioTracks: payload?.audioTracks,
-  //   });
-
-  //   const audioTracks = payload?.audioTracks ?? [];
-
-  //   const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
-  //   const accompanimentTrack = audioTracks[DEFAULT_ACCOMPANIMENT_TRACK_INDEX];
-
-  //   setAudioTrackIndexes({
-  //     vocalAudioTrackIndex: vocalTrack ? DEFAULT_VOCAL_TRACK_INDEX : null,
-  //     accompanimentAudioTrackIndex: accompanimentTrack ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX : null,
-  //   });
-  // };
-
-  // useEffect(() => {
-  //   let isCancelled = false;
-
-  //   async function switchSourceSafely() {
-  //     if (!playbackVideoUri) {
-  //       setSafePlaybackVideoUri(null);
-  //       setIsPreparingSource(false);
-  //       return;
-  //     }
-
-  //     setIsPreparingSource(true);
-  //     setSafePlaybackVideoUri(null);
-
-  //     await new Promise((resolve) => setTimeout(resolve, 180));
-
-  //     if (isCancelled) {
-  //       return;
-  //     }
-
-  //     setSafePlaybackVideoUri(playbackVideoUri);
-  //     setIsPreparingSource(false);
-  //   }
-
-  //   switchSourceSafely();
-
-  //   return () => {
-  //     isCancelled = true;
-  //   };
-  // }, [playbackVideoUri]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -455,14 +277,6 @@ export function SharedVideoPlayer() {
         return;
       }
 
-      /**
-       * 不要先 setSafePlaybackVideoUri(null)。
-       * 否則 Video 會短暫 unmount，Android decoder surface 容易閃綠屏。
-       *
-       * 保留上一個 source，等新 source 準備好後直接替換。
-       * 黑色遮罩不要在 setSafePlaybackVideoUri 後立刻關閉，
-       * 必須等 onReadyForDisplay 確認第一幀已經可顯示後再關。
-       */
       setIsPreparingSource(true);
       setIsWaitingForFirstFrame(true);
       setIsVideoTransitionMaskVisible(true);
@@ -485,7 +299,6 @@ export function SharedVideoPlayer() {
       }
 
       setSafePlaybackVideoUri(playbackVideoUri);
-      // setIsPreparingSource(false);
     }
 
     switchSourceSafely();
@@ -499,12 +312,12 @@ export function SharedVideoPlayer() {
     if (!isWaitingForFirstFrame) {
       return;
     }
-  
+
     if (sourceReadyFallbackTimerRef.current) {
       clearTimeout(sourceReadyFallbackTimerRef.current);
       sourceReadyFallbackTimerRef.current = null;
     }
-  
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setIsWaitingForFirstFrame(false);
@@ -517,26 +330,33 @@ export function SharedVideoPlayer() {
   const handleVideoLoad = useCallback(
     (payload: any) => {
       const duration = typeof payload?.duration === 'number' ? payload.duration : 0;
-  
       setPlaybackProgress(0, duration);
-  
+
+      if (sourceReadyFallbackTimerRef.current) {
+        clearTimeout(sourceReadyFallbackTimerRef.current);
+        sourceReadyFallbackTimerRef.current = null;
+      }
+
+      setIsWaitingForFirstFrame(false);
+      setIsPreparingSource(false);
+      setIsVideoTransitionMaskVisible(false);
+
       const audioTracks = payload?.audioTracks ?? [];
-  
       const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
       const accompanimentTrack = audioTracks[DEFAULT_ACCOMPANIMENT_TRACK_INDEX];
-  
+
       const nextVocalAudioTrackIndex = vocalTrack ? DEFAULT_VOCAL_TRACK_INDEX : null;
       const nextAccompanimentAudioTrackIndex = accompanimentTrack
         ? DEFAULT_ACCOMPANIMENT_TRACK_INDEX
         : null;
-  
+
       if (
         vocalAudioTrackIndex === nextVocalAudioTrackIndex &&
         accompanimentAudioTrackIndex === nextAccompanimentAudioTrackIndex
       ) {
         return;
       }
-  
+
       setAudioTrackIndexes({
         vocalAudioTrackIndex: nextVocalAudioTrackIndex,
         accompanimentAudioTrackIndex: nextAccompanimentAudioTrackIndex,
@@ -554,7 +374,6 @@ export function SharedVideoPlayer() {
           : 0;
 
       const now = Date.now();
-
       if (now - lastPlaybackProgressUpdateTimeRef.current < 1000) {
         return;
       }
@@ -564,34 +383,6 @@ export function SharedVideoPlayer() {
     },
     [setPlaybackProgress],
   );
-
-  // const handleVideoEnd = () => {
-  //   // console.log('[SharedVideoPlayer] playback ended:', {
-  //   //   isDefaultVideo,
-  //   //   songId: currentPlaybackItem?.songId,
-  //   //   song: currentPlaybackItem?.song,
-  //   // });
-
-  //   if (isDefaultVideo) {
-  //     videoRef.current?.seek?.(0);
-  //     return;
-  //   }
-
-  //   if (isHandlingVideoEndRef.current) {
-  //     return;
-  //   }
-
-  //   isHandlingVideoEndRef.current = true;
-
-  //   skipCurrent()
-  //     .catch((error) => {
-  //       console.log('[SharedVideoPlayer] sync skipCurrent onEnd failed:', error);
-  //       finishCurrentPlaybackItem();
-  //     })
-  //     .finally(() => {
-  //       isHandlingVideoEndRef.current = false;
-  //     });
-  // };
 
   const handleVideoEnd = useCallback(() => {
     if (isDefaultVideo) {
@@ -621,59 +412,11 @@ export function SharedVideoPlayer() {
     handlingPlaybackErrorKeysRef.current.clear();
   }, [currentPlaybackItem?.queueId, playbackVideoUri]);
 
-  // const handleVideoError = (event: unknown) => {
-  //   const errorKey =
-  //     currentPlaybackItem?.queueId ??
-  //     currentPlaybackItem?.songId ??
-  //     playbackVideoUri ??
-  //     'unknown-playback-error';
-
-  //   console.log('[SharedVideoPlayer] onError:', {
-  //     errorKey,
-  //     event,
-  //     isDefaultVideo,
-  //     playbackVideoUri,
-  //     currentPlaybackItem: currentPlaybackItem
-  //       ? {
-  //           queueId: currentPlaybackItem.queueId,
-  //           songId: currentPlaybackItem.songId,
-  //           title: currentPlaybackItem.title,
-  //           artistText: currentPlaybackItem.artistText,
-  //           localVideoUri: currentPlaybackItem.localVideoUri,
-  //         }
-  //       : null,
-  //   });
-
-  //   if (isDefaultVideo) {
-  //     console.log('[SharedVideoPlayer] onError ignored: default video error');
-  //     return;
-  //   }
-
-  //   if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
-  //     console.log('[SharedVideoPlayer] onError ignored: same item already handled', {
-  //       errorKey,
-  //     });
-  //     return;
-  //   }
-
-  //   handlingPlaybackErrorKeysRef.current.add(errorKey);
-
-  //   skipCurrentAfterPlaybackError({
-  //     reason: 'video-error',
-  //     source: 'SharedVideoPlayer',
-  //     error: event,
-  //   }).catch((error) => {
-  //     console.log('[SharedVideoPlayer] skipCurrentAfterPlaybackError failed:', {
-  //       errorKey,
-  //       error,
-  //     });
-  //   });
-  // };
-
   const currentQueueId = currentPlaybackItem?.queueId;
   const currentSongId = currentPlaybackItem?.songId;
   const currentTitle = currentPlaybackItem?.title;
   const currentLocalVideoUri = currentPlaybackItem?.localVideoUri;
+
   const handleVideoError = useCallback(
     (event: unknown) => {
       setIsPreparingSource(false);
@@ -683,31 +426,12 @@ export function SharedVideoPlayer() {
       const errorKey =
         currentQueueId ?? currentSongId ?? playbackVideoUri ?? 'unknown-playback-error';
 
-      console.log('[SharedVideoPlayer] onError:', {
-        errorKey,
-        event,
-        isDefaultVideo,
-        playbackVideoUri,
-        safePlaybackVideoUri,
-        currentPlaybackItem: currentQueueId
-          ? {
-              queueId: currentQueueId,
-              songId: currentSongId,
-              title: currentTitle,
-              localVideoUri: currentLocalVideoUri,
-            }
-          : null,
-      });
-
       if (isDefaultVideo) {
         console.log('[SharedVideoPlayer] onError ignored: default video error');
         return;
       }
 
       if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
-        console.log('[SharedVideoPlayer] onError ignored: same item already handled', {
-          errorKey,
-        });
         return;
       }
 
@@ -718,10 +442,7 @@ export function SharedVideoPlayer() {
         source: 'SharedVideoPlayer',
         error: event,
       }).catch((error) => {
-        console.log('[SharedVideoPlayer] skipCurrentAfterPlaybackError failed:', {
-          errorKey,
-          error,
-        });
+        console.log('[SharedVideoPlayer] skipCurrentAfterPlaybackError failed:', error);
       });
     },
     [
@@ -736,15 +457,7 @@ export function SharedVideoPlayer() {
   );
 
   useEffect(() => {
-    if (!currentPlaybackItem) {
-      return;
-    }
-
-    if (currentPlaybackItem.localVideoUri) {
-      return;
-    }
-
-    if (isDefaultVideo) {
+    if (!currentPlaybackItem || currentPlaybackItem.localVideoUri || isDefaultVideo) {
       return;
     }
 
@@ -752,9 +465,6 @@ export function SharedVideoPlayer() {
       currentPlaybackItem.queueId ?? currentPlaybackItem.songId ?? 'missing-uri-playback-error';
 
     if (handlingPlaybackErrorKeysRef.current.has(errorKey)) {
-      console.log('[SharedVideoPlayer] missing-uri ignored: same item already handled', {
-        errorKey,
-      });
       return;
     }
 
@@ -770,53 +480,29 @@ export function SharedVideoPlayer() {
         title: currentPlaybackItem.title,
       },
     }).catch((error) => {
-      console.log('[SharedVideoPlayer] skip missing-uri item failed:', {
-        errorKey,
-        error,
-      });
+      console.log('[SharedVideoPlayer] skip missing-uri item failed:', error);
     });
   }, [currentPlaybackItem, isDefaultVideo, skipCurrentAfterPlaybackError]);
 
   const backgroundMode = useMainBackgroundStore((state) => state.mode);
-  // const isBlockedByPanel = useFullscreenVideoStore((state) => state.isBlockedByPanel);
-
-  // const shouldHideVideoPlayer = backgroundMode !== 'home' || isBlockedByPanel;
   const shouldHideVideoPlayer =
     backgroundMode !== 'home' && mode !== 'footerMini' && mode !== 'fullscreen';
-
-  //   if (shouldHideVideoPlayer) {
-  //     return null;
-  //   }
-
-  /**
-   * 預設影片還沒準備好時，不渲染 Video。
-   */
-  // if (!playbackVideoUri || !activeMiniRect) {
-  //   return null;
-  // }
-  // if (!activeMiniRect) {
-  //   return null;
-  // }
 
   return (
     <View
       pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
-      style={[
-        styles.layer,
-        mode === 'footerMini' && styles.footerMiniLayer,
-      ]}
+      style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
     >
-      {/* 💡 【優化】原本這裡覆蓋全螢幕的黑遮罩已經完全刪除了 */}
-
       <View style={[styles.videoFrame, videoFrameStyle]}>
+        {/* 💡 【關鍵】這層純黑底色永遠都在 zIndex: 0。當 Video 組件透明時，會完美露出這個乾淨的黑底 */}
         <View style={styles.videoBlackBackground} />
 
         {videoSource ? (
           <Video
-            // key={safePlaybackVideoUri}
+            key="global-shared-video-player" // 💡 【核心修正】固定金鑰！不准 React 重新 Unmount/Remount 組件，從此告別點歌全 App 卡死
             ref={videoRef}
             source={videoSource}
-            style={styles.video}
+            style={videoComponentStyle} // 💡 【核心修正】套用包含動態透明度的樣式
             resizeMode="contain"
             controls={false}
             repeat={isDefaultVideo}
@@ -829,16 +515,11 @@ export function SharedVideoPlayer() {
             progressUpdateInterval={1000}
             onEnd={handleVideoEnd}
             onError={handleVideoError}
-            useTextureView={true} // 保持開啟
+            useTextureView={false}
           />
         ) : null}
 
-        {/* 💡 【優化】把遮罩放回這裡！
-            只有在 switchSourceSafely（換歌載入第一幀）時才會觸發，
-            而且範圍會被限制在當前的 videoFrame 尺寸內，絕不外漏蓋住全螢幕！ */}
-        {isVideoTransitionMaskVisible && (
-          <View style={styles.videoTransitionMask} />
-        )}
+        {isVideoTransitionMaskVisible && <View style={styles.videoTransitionMask} />}
 
         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
       </View>
@@ -851,45 +532,30 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 20,
   },
-
   videoFrame: {
     position: 'absolute',
     overflow: 'hidden',
     backgroundColor: '#000000',
   },
-
   videoBlackBackground: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',
     zIndex: 0,
   },
-
-  touchArea: {
-    flex: 1,
-  },
-
   videoPressOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
   },
-
   video: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',
     zIndex: 1,
   },
-
   videoTransitionMask: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',
     zIndex: 2,
   },
-
-  hiddenLayer: {
-    opacity: 0,
-    pointerEvents: 'none',
-  },
-
   footerMiniLayer: {
     zIndex: 50,
   },

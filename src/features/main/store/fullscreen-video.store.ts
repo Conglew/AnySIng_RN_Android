@@ -193,25 +193,25 @@ export const useFullscreenVideoStore = create<FullscreenVideoStore>((set, get) =
         if (isSameRect(state.homeMiniRect, rect)) {
           return state;
         }
-    
+
         return {
           homeMiniRect: rect,
         };
       });
     },
-    
+
     setFooterMiniRect: (rect) => {
       set((state) => {
         if (isSameRect(state.footerMiniRect, rect)) {
           return state;
         }
-    
+
         return {
           footerMiniRect: rect,
         };
       });
     },
-    
+
     setBlockedByPanel: (isBlocked) => {
       set((state) => {
         if (state.mode === 'fullscreen') {
