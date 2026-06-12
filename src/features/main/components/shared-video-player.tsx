@@ -640,74 +640,51 @@ export function SharedVideoPlayer() {
 //   );
 
 
-  return (
-    <View
-      pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
-      style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
-    >
-      {!isFullscreen && (
-        <View style={[styles.videoFrame, videoFrameStyle]}>
-          <View style={styles.miniPlaceholder} />
-          <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
-        </View>
-      )}
+return (
+  <View
+    pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
+    style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
+  >
+    {!isFullscreen && (
+      <View style={[styles.videoFrame, videoFrameStyle]}>
+        <View style={styles.miniPlaceholder} />
+        <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
+      </View>
+    )}
 
-      {isFullscreen && (
-        // <View style={[styles.fullscreenFrame, videoFrameStyle]}>
-        <View style={styles.fullscreenFrame}>
-          <View style={styles.videoBlackBackground} />
+    {isFullscreen && <View style={styles.videoBlackBackground} />}
 
-          {videoSource ? (
-            <Video
-              key="global-shared-video-player"
-              ref={videoRef}
-              source={videoSource}
-              style={styles.video}
-              resizeMode="contain"
-              controls={false}
-              repeat={isDefaultVideo}
-              paused={isDefaultVideo ? false : isPaused}
-              muted={false}
-              selectedAudioTrack={selectedAudioTrack}
-              onLoad={handleVideoLoad}
-              onReadyForDisplay={handleVideoReadyForDisplay}
-              onProgress={handleVideoProgress}
-              progressUpdateInterval={1000}
-              onEnd={handleVideoEnd}
-              onError={handleVideoError}
-              useTextureView={true}
-            />
-          ) : null}
+    {videoSource ? (
+      <Video
+        key="global-shared-video-player"
+        ref={videoRef}
+        source={videoSource}
+        style={isFullscreen ? styles.fullscreenVideo : styles.hiddenVideo}
+        resizeMode="contain"
+        controls={false}
+        repeat={isDefaultVideo}
+        paused={isDefaultVideo ? false : isPaused}
+        muted={false}
+        selectedAudioTrack={selectedAudioTrack}
+        onLoad={handleVideoLoad}
+        onReadyForDisplay={handleVideoReadyForDisplay}
+        onProgress={handleVideoProgress}
+        progressUpdateInterval={1000}
+        onEnd={handleVideoEnd}
+        onError={handleVideoError}
+        useTextureView={true}
+      />
+    ) : null}
 
-          {isVideoTransitionMaskVisible && <View style={styles.videoTransitionMask} />}
+    {isFullscreen && isVideoTransitionMaskVisible && (
+      <View pointerEvents="none" style={styles.videoTransitionMask} />
+    )}
 
-          <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
-        </View>
-      )}
-
-      {!isFullscreen && videoSource ? (
-        <Video
-          key="global-shared-video-player-hidden"
-          ref={videoRef}
-          source={videoSource}
-          style={styles.hiddenVideo}
-          resizeMode="contain"
-          controls={false}
-          repeat={isDefaultVideo}
-          paused={isDefaultVideo ? false : isPaused}
-          muted={false}
-          selectedAudioTrack={selectedAudioTrack}
-          onLoad={handleVideoLoad}
-          onReadyForDisplay={handleVideoReadyForDisplay}
-          onProgress={handleVideoProgress}
-          progressUpdateInterval={1000}
-          onEnd={handleVideoEnd}
-          onError={handleVideoError}
-          useTextureView={true}
-        />
-      ) : null}
-    </View>
-  );
+    {isFullscreen && (
+      <Pressable style={styles.fullscreenPressOverlay} onPress={handleToggleFullscreen} />
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
