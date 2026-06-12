@@ -27,7 +27,7 @@ const SCREEN = Dimensions.get('window');
 const FOOTER_MINI_WIDTH = 120;
 const FOOTER_MINI_HEIGHT = 68;
 const FOOTER_MINI_OFFSET_X = 0;
-const FOOTER_MINI_OFFSET_Y = 15;
+const FOOTER_MINI_OFFSET_Y = -15;
 
 function getFooterMiniDisplayRect(rect: VideoFrameRect): VideoFrameRect {
   const centerX = rect.x + rect.width / 2;
@@ -94,6 +94,9 @@ export function SharedVideoPlayer() {
   const isFullscreen = mode === 'fullscreen';
   const activeMiniRect = mode === 'footerMini' ? footerMiniRect : homeMiniRect;
 
+  const [stableMiniRect, setStableMiniRect] = useState<VideoFrameRect | null>(null);
+
+
   const handleToggleFullscreen = useCallback(() => {
     if (isFullscreenTransitioningRef.current) {
       return;
@@ -151,6 +154,109 @@ export function SharedVideoPlayer() {
     };
   }, [accompanimentAudioTrackIndex, audioTrackMode, vocalAudioTrackIndex]);
 
+
+  // useEffect(() => {
+  //   if (isFullscreen) {
+  //     return;
+  //   }
+  
+  //   if (!activeMiniRect) {
+  //     return;
+  //   }
+  
+  //   setIsVideoTransitionMaskVisible(true);
+  
+  //   const timer = setTimeout(() => {
+  //     setStableMiniRect(activeMiniRect);
+  
+  //     setTimeout(() => {
+  //       setIsVideoTransitionMaskVisible(false);
+  //     }, 300);
+  //   }, 120);
+  
+  //   return () => {
+  //     clearTimeout(timer);
+  //   };
+  // }, [activeMiniRect, isFullscreen]);
+
+  const miniRectApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const miniRectMaskTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isFullscreen) {
+      return;
+    }
+
+    if (!activeMiniRect) {
+      return;
+    }
+
+    setIsVideoTransitionMaskVisible(true);
+
+    if (miniRectApplyTimerRef.current) {
+      clearTimeout(miniRectApplyTimerRef.current);
+    }
+
+    if (miniRectMaskTimerRef.current) {
+      clearTimeout(miniRectMaskTimerRef.current);
+    }
+
+    miniRectApplyTimerRef.current = setTimeout(() => {
+      setStableMiniRect(activeMiniRect);
+
+      miniRectMaskTimerRef.current = setTimeout(() => {
+        setIsVideoTransitionMaskVisible(false);
+        miniRectMaskTimerRef.current = null;
+      }, 300);
+
+      miniRectApplyTimerRef.current = null;
+    }, 120);
+
+    return () => {
+      if (miniRectApplyTimerRef.current) {
+        clearTimeout(miniRectApplyTimerRef.current);
+        miniRectApplyTimerRef.current = null;
+      }
+
+      if (miniRectMaskTimerRef.current) {
+        clearTimeout(miniRectMaskTimerRef.current);
+        miniRectMaskTimerRef.current = null;
+      }
+    };
+  }, [activeMiniRect, isFullscreen]);
+
+  // const videoFrameStyle = useMemo(() => {
+  //   const fallbackRect = {
+  //     x: SCREEN.width - 378,
+  //     y: 280,
+  //     width: 358,
+  //     height: 200,
+  //   };
+
+  //   const baseRect = activeMiniRect ?? fallbackRect;
+
+  //   const rect =
+  //     mode === 'footerMini' && activeMiniRect ? getFooterMiniDisplayRect(activeMiniRect) : baseRect;
+
+  //   if (isFullscreen) {
+  //     return {
+  //       left: 0,
+  //       top: 0,
+  //       width: SCREEN.width,
+  //       height: SCREEN.height,
+  //       borderRadius: 0,
+  //     };
+  //   }
+
+  //   return {
+  //     left: rect.x,
+  //     top: rect.y,
+  //     width: rect.width,
+  //     height: rect.height,
+  //     borderRadius: 10,
+  //   };
+  // }, [activeMiniRect, isFullscreen, mode]);
+
   const videoFrameStyle = useMemo(() => {
     const fallbackRect = {
       x: SCREEN.width - 378,
@@ -158,12 +264,12 @@ export function SharedVideoPlayer() {
       width: 358,
       height: 200,
     };
-
-    const baseRect = activeMiniRect ?? fallbackRect;
-
+  
+    const baseRect = stableMiniRect ?? activeMiniRect ?? fallbackRect;
+  
     const rect =
-      mode === 'footerMini' && activeMiniRect ? getFooterMiniDisplayRect(activeMiniRect) : baseRect;
-
+      mode === 'footerMini' && baseRect ? getFooterMiniDisplayRect(baseRect) : baseRect;
+  
     if (isFullscreen) {
       return {
         left: 0,
@@ -173,7 +279,7 @@ export function SharedVideoPlayer() {
         borderRadius: 0,
       };
     }
-
+  
     return {
       left: rect.x,
       top: rect.y,
@@ -181,12 +287,13 @@ export function SharedVideoPlayer() {
       height: rect.height,
       borderRadius: 10,
     };
-  }, [activeMiniRect, isFullscreen, mode]);
+  }, [activeMiniRect, isFullscreen, mode, stableMiniRect]);
 
   // 💡 【優化】動態控制影片組件的透明度，當遮罩顯示時（換歌/未就緒），直接讓 Video 透明，露出下方的純黑底 View，物理隔絕硬體綠屏
-  const videoComponentStyle = useMemo(() => {
-    return [styles.video, { opacity: isVideoTransitionMaskVisible ? 0 : 1 }];
-  }, [isVideoTransitionMaskVisible]);
+  // const videoComponentStyle = useMemo(() => {
+  //   return [styles.video, { opacity: isVideoTransitionMaskVisible ? 0 : 1 }];
+  // }, [isVideoTransitionMaskVisible]);
+  const videoComponentStyle = styles.video;
 
   useEffect(() => {
     let isMounted = true;
@@ -245,12 +352,12 @@ export function SharedVideoPlayer() {
     const timer = setTimeout(() => {
       isFullscreenTransitioningRef.current = false;
       setIsVideoTransitionMaskVisible(false);
-    }, 220); // 220ms 安全時間，給解碼器平滑緩衝
+    }, 500); // 220ms 安全時間，給解碼器平滑緩衝
 
     return () => {
       clearTimeout(timer);
       isFullscreenTransitioningRef.current = false;
-      setIsVideoTransitionMaskVisible(false);
+      // setIsVideoTransitionMaskVisible(false);
     };
   }, [mode]);
 
@@ -332,14 +439,14 @@ export function SharedVideoPlayer() {
       const duration = typeof payload?.duration === 'number' ? payload.duration : 0;
       setPlaybackProgress(0, duration);
 
-      if (sourceReadyFallbackTimerRef.current) {
-        clearTimeout(sourceReadyFallbackTimerRef.current);
-        sourceReadyFallbackTimerRef.current = null;
-      }
+      // if (sourceReadyFallbackTimerRef.current) {
+      //   clearTimeout(sourceReadyFallbackTimerRef.current);
+      //   sourceReadyFallbackTimerRef.current = null;
+      // }
 
-      setIsWaitingForFirstFrame(false);
-      setIsPreparingSource(false);
-      setIsVideoTransitionMaskVisible(false);
+      // setIsWaitingForFirstFrame(false);
+      // setIsPreparingSource(false);
+      // setIsVideoTransitionMaskVisible(false);
 
       const audioTracks = payload?.audioTracks ?? [];
       const vocalTrack = audioTracks[DEFAULT_VOCAL_TRACK_INDEX];
@@ -515,7 +622,7 @@ export function SharedVideoPlayer() {
             progressUpdateInterval={1000}
             onEnd={handleVideoEnd}
             onError={handleVideoError}
-            useTextureView={false}
+            useTextureView={true}
           />
         ) : null}
 
