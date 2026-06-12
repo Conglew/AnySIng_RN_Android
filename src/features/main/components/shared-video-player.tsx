@@ -270,15 +270,15 @@ export function SharedVideoPlayer() {
     const rect =
       mode === 'footerMini' && baseRect ? getFooterMiniDisplayRect(baseRect) : baseRect;
   
-    if (isFullscreen) {
-      return {
-        left: 0,
-        top: 0,
-        width: SCREEN.width,
-        height: SCREEN.height,
-        borderRadius: 0,
-      };
-    }
+    // if (isFullscreen) {
+    //   return {
+    //     left: 0,
+    //     top: 0,
+    //     width: SCREEN.width,
+    //     height: SCREEN.height,
+    //     borderRadius: 0,
+    //   };
+    // }
   
     return {
       left: rect.x,
@@ -595,41 +595,117 @@ export function SharedVideoPlayer() {
   const shouldHideVideoPlayer =
     backgroundMode !== 'home' && mode !== 'footerMini' && mode !== 'fullscreen';
 
+
+  const shouldShowLiveVideo = isFullscreen;
+
+
+//   return (
+//     <View
+//       pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
+//       style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
+//     >
+//       <View style={[styles.videoFrame, videoFrameStyle]}>
+//         {/* 💡 【關鍵】這層純黑底色永遠都在 zIndex: 0。當 Video 組件透明時，會完美露出這個乾淨的黑底 */}
+//         <View style={styles.videoBlackBackground} />
+
+//         {videoSource ? (
+//           <Video
+//             key="global-shared-video-player" // 💡 【核心修正】固定金鑰！不准 React 重新 Unmount/Remount 組件，從此告別點歌全 App 卡死
+//             ref={videoRef}
+//             source={videoSource}
+//             style={shouldShowLiveVideo ? styles.video : styles.hiddenVideo}
+//             resizeMode="contain"
+//             controls={false}
+//             repeat={isDefaultVideo}
+//             paused={isDefaultVideo ? false : isPaused}
+//             muted={false}
+//             selectedAudioTrack={selectedAudioTrack}
+//             onLoad={handleVideoLoad}
+//             onReadyForDisplay={handleVideoReadyForDisplay}
+//             onProgress={handleVideoProgress}
+//             progressUpdateInterval={1000}
+//             onEnd={handleVideoEnd}
+//             onError={handleVideoError}
+//             useTextureView={true}
+//           />
+//         ) : null}
+// {/* 
+//         {!shouldShowLiveVideo && <View pointerEvents="none" style={styles.miniPlaceholder} />} */}
+
+//         {isVideoTransitionMaskVisible && <View style={styles.videoTransitionMask} />}
+
+//         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
+//       </View>
+//     </View>
+//   );
+
+
   return (
     <View
       pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
       style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
     >
-      <View style={[styles.videoFrame, videoFrameStyle]}>
-        {/* 💡 【關鍵】這層純黑底色永遠都在 zIndex: 0。當 Video 組件透明時，會完美露出這個乾淨的黑底 */}
-        <View style={styles.videoBlackBackground} />
+      {!isFullscreen && (
+        <View style={[styles.videoFrame, videoFrameStyle]}>
+          <View style={styles.miniPlaceholder} />
+          <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
+        </View>
+      )}
 
-        {videoSource ? (
-          <Video
-            key="global-shared-video-player" // 💡 【核心修正】固定金鑰！不准 React 重新 Unmount/Remount 組件，從此告別點歌全 App 卡死
-            ref={videoRef}
-            source={videoSource}
-            style={videoComponentStyle} // 💡 【核心修正】套用包含動態透明度的樣式
-            resizeMode="contain"
-            controls={false}
-            repeat={isDefaultVideo}
-            paused={isDefaultVideo ? false : isPaused}
-            muted={false}
-            selectedAudioTrack={selectedAudioTrack}
-            onLoad={handleVideoLoad}
-            onReadyForDisplay={handleVideoReadyForDisplay}
-            onProgress={handleVideoProgress}
-            progressUpdateInterval={1000}
-            onEnd={handleVideoEnd}
-            onError={handleVideoError}
-            useTextureView={true}
-          />
-        ) : null}
+      {isFullscreen && (
+        // <View style={[styles.fullscreenFrame, videoFrameStyle]}>
+        <View style={styles.fullscreenFrame}>
+          <View style={styles.videoBlackBackground} />
 
-        {isVideoTransitionMaskVisible && <View style={styles.videoTransitionMask} />}
+          {videoSource ? (
+            <Video
+              key="global-shared-video-player"
+              ref={videoRef}
+              source={videoSource}
+              style={styles.video}
+              resizeMode="contain"
+              controls={false}
+              repeat={isDefaultVideo}
+              paused={isDefaultVideo ? false : isPaused}
+              muted={false}
+              selectedAudioTrack={selectedAudioTrack}
+              onLoad={handleVideoLoad}
+              onReadyForDisplay={handleVideoReadyForDisplay}
+              onProgress={handleVideoProgress}
+              progressUpdateInterval={1000}
+              onEnd={handleVideoEnd}
+              onError={handleVideoError}
+              useTextureView={true}
+            />
+          ) : null}
 
-        <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
-      </View>
+          {isVideoTransitionMaskVisible && <View style={styles.videoTransitionMask} />}
+
+          <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
+        </View>
+      )}
+
+      {!isFullscreen && videoSource ? (
+        <Video
+          key="global-shared-video-player-hidden"
+          ref={videoRef}
+          source={videoSource}
+          style={styles.hiddenVideo}
+          resizeMode="contain"
+          controls={false}
+          repeat={isDefaultVideo}
+          paused={isDefaultVideo ? false : isPaused}
+          muted={false}
+          selectedAudioTrack={selectedAudioTrack}
+          onLoad={handleVideoLoad}
+          onReadyForDisplay={handleVideoReadyForDisplay}
+          onProgress={handleVideoProgress}
+          progressUpdateInterval={1000}
+          onEnd={handleVideoEnd}
+          onError={handleVideoError}
+          useTextureView={true}
+        />
+      ) : null}
     </View>
   );
 }
@@ -666,4 +742,43 @@ const styles = StyleSheet.create({
   footerMiniLayer: {
     zIndex: 50,
   },
+
+  fullscreenVideo: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: SCREEN.width,
+    height: SCREEN.height,
+    backgroundColor: '#000000',
+    zIndex: 1,
+  },
+
+  fullscreenFrame: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    overflow: 'hidden',
+  },
+  
+  hiddenVideo: {
+    position: 'absolute',
+    left: -10000,
+    top: -10000,
+    width: 2,
+    height: 2,
+    backgroundColor: '#000000',
+    zIndex: 1,
+  },
+  
+  fullscreenPressOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
+  
+  miniPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    zIndex: 3,
+  },
+
+  
 });
