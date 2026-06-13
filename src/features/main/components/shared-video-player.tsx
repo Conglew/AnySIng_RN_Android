@@ -96,7 +96,6 @@ export function SharedVideoPlayer() {
 
   const [stableMiniRect, setStableMiniRect] = useState<VideoFrameRect | null>(null);
 
-
   const handleToggleFullscreen = useCallback(() => {
     if (isFullscreenTransitioningRef.current) {
       return;
@@ -154,26 +153,25 @@ export function SharedVideoPlayer() {
     };
   }, [accompanimentAudioTrackIndex, audioTrackMode, vocalAudioTrackIndex]);
 
-
   // useEffect(() => {
   //   if (isFullscreen) {
   //     return;
   //   }
-  
+
   //   if (!activeMiniRect) {
   //     return;
   //   }
-  
+
   //   setIsVideoTransitionMaskVisible(true);
-  
+
   //   const timer = setTimeout(() => {
   //     setStableMiniRect(activeMiniRect);
-  
+
   //     setTimeout(() => {
   //       setIsVideoTransitionMaskVisible(false);
   //     }, 300);
   //   }, 120);
-  
+
   //   return () => {
   //     clearTimeout(timer);
   //   };
@@ -264,28 +262,34 @@ export function SharedVideoPlayer() {
       width: 358,
       height: 200,
     };
-  
+
+    // 1. 取得當前模式應該要有的目標矩陣大小
     const baseRect = stableMiniRect ?? activeMiniRect ?? fallbackRect;
-  
-    const rect =
-      mode === 'footerMini' && baseRect ? getFooterMiniDisplayRect(baseRect) : baseRect;
-  
-    // if (isFullscreen) {
-    //   return {
-    //     left: 0,
-    //     top: 0,
-    //     width: SCREEN.width,
-    //     height: SCREEN.height,
-    //     borderRadius: 0,
-    //   };
-    // }
-  
+    const rect = mode === 'footerMini' && baseRect ? getFooterMiniDisplayRect(baseRect) : baseRect;
+
+    // 💡 【核心邏輯】：計算全螢幕與目標 Mini 視窗的比例
+    const scaleX = isFullscreen ? 1 : rect.width / SCREEN.width;
+    const scaleY = isFullscreen ? 1 : rect.height / SCREEN.height;
+
+    // 💡 計算中心點位移量（因為 React Native 的 transform 是以中心點為基準縮放）
+    const screenCenterX = SCREEN.width / 2;
+    const screenCenterY = SCREEN.height / 2;
+    const targetCenterX = isFullscreen ? SCREEN.width / 2 : rect.x + rect.width / 2;
+    const targetCenterY = isFullscreen ? SCREEN.height / 2 : rect.y + rect.height / 2;
+
+    const translateX = targetCenterX - screenCenterX;
+    const translateY = targetCenterY - screenCenterY;
+
     return {
-      left: rect.x,
-      top: rect.y,
-      width: rect.width,
-      height: rect.height,
-      borderRadius: 10,
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      width: SCREEN.width, // 👈 佈局寬度永遠是全螢幕，底層解碼器永遠不變形
+      height: SCREEN.height, // 👈 佈局高度永遠是全螢幕
+      backgroundColor: '#000000',
+      borderRadius: isFullscreen ? 0 : 10,
+      overflow: 'hidden',
+      transform: [{ translateX }, { translateY }, { scaleX }, { scaleY }],
     };
   }, [activeMiniRect, isFullscreen, mode, stableMiniRect]);
 
@@ -595,96 +599,116 @@ export function SharedVideoPlayer() {
   const shouldHideVideoPlayer =
     backgroundMode !== 'home' && mode !== 'footerMini' && mode !== 'fullscreen';
 
-
   const shouldShowLiveVideo = isFullscreen;
 
+  //   return (
+  //     <View
+  //       pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
+  //       style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
+  //     >
+  //       <View style={[styles.videoFrame, videoFrameStyle]}>
+  //         {/* 💡 【關鍵】這層純黑底色永遠都在 zIndex: 0。當 Video 組件透明時，會完美露出這個乾淨的黑底 */}
+  //         <View style={styles.videoBlackBackground} />
 
-//   return (
-//     <View
-//       pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
-//       style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
-//     >
-//       <View style={[styles.videoFrame, videoFrameStyle]}>
-//         {/* 💡 【關鍵】這層純黑底色永遠都在 zIndex: 0。當 Video 組件透明時，會完美露出這個乾淨的黑底 */}
-//         <View style={styles.videoBlackBackground} />
+  //         {videoSource ? (
+  //           <Video
+  //             key="global-shared-video-player" // 💡 【核心修正】固定金鑰！不准 React 重新 Unmount/Remount 組件，從此告別點歌全 App 卡死
+  //             ref={videoRef}
+  //             source={videoSource}
+  //             style={shouldShowLiveVideo ? styles.video : styles.hiddenVideo}
+  //             resizeMode="contain"
+  //             controls={false}
+  //             repeat={isDefaultVideo}
+  //             paused={isDefaultVideo ? false : isPaused}
+  //             muted={false}
+  //             selectedAudioTrack={selectedAudioTrack}
+  //             onLoad={handleVideoLoad}
+  //             onReadyForDisplay={handleVideoReadyForDisplay}
+  //             onProgress={handleVideoProgress}
+  //             progressUpdateInterval={1000}
+  //             onEnd={handleVideoEnd}
+  //             onError={handleVideoError}
+  //             useTextureView={true}
+  //           />
+  //         ) : null}
+  // {/*
+  //         {!shouldShowLiveVideo && <View pointerEvents="none" style={styles.miniPlaceholder} />} */}
 
-//         {videoSource ? (
-//           <Video
-//             key="global-shared-video-player" // 💡 【核心修正】固定金鑰！不准 React 重新 Unmount/Remount 組件，從此告別點歌全 App 卡死
-//             ref={videoRef}
-//             source={videoSource}
-//             style={shouldShowLiveVideo ? styles.video : styles.hiddenVideo}
-//             resizeMode="contain"
-//             controls={false}
-//             repeat={isDefaultVideo}
-//             paused={isDefaultVideo ? false : isPaused}
-//             muted={false}
-//             selectedAudioTrack={selectedAudioTrack}
-//             onLoad={handleVideoLoad}
-//             onReadyForDisplay={handleVideoReadyForDisplay}
-//             onProgress={handleVideoProgress}
-//             progressUpdateInterval={1000}
-//             onEnd={handleVideoEnd}
-//             onError={handleVideoError}
-//             useTextureView={true}
-//           />
-//         ) : null}
-// {/* 
-//         {!shouldShowLiveVideo && <View pointerEvents="none" style={styles.miniPlaceholder} />} */}
+  //         {isVideoTransitionMaskVisible && <View style={styles.videoTransitionMask} />}
 
-//         {isVideoTransitionMaskVisible && <View style={styles.videoTransitionMask} />}
+  //         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
+  //       </View>
+  //     </View>
+  //   );
 
-//         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
-//       </View>
-//     </View>
-//   );
+  // 1. 修改 layoutStyle，確保它只控制外層容器
+  const containerStyle = useMemo(() => {
+    if (mode === 'fullscreen') {
+      return {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width: SCREEN.width,
+        height: SCREEN.height,
+        zIndex: 999,
+        overflow: 'hidden', // 💡 靠外層剪裁，內層 Video 核心就不動
+      };
+    }
 
+    // mini 或 footerMini 狀態
+    const rect = mode === 'footerMini' ? footerMiniRect : homeMiniRect;
+    return {
+      position: 'absolute',
+      left: rect?.x ?? 0,
+      top: rect?.y ?? 0,
+      width: rect?.width ?? 120,
+      height: rect?.height ?? 68,
+      zIndex: 50,
+      overflow: 'hidden', // 💡 靠外層剪裁
+    };
+  }, [mode, homeMiniRect, footerMiniRect]);
 
-return (
-  <View
-    pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
-    style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
-  >
-    {!isFullscreen && (
-      <View style={[styles.videoFrame, videoFrameStyle]}>
-        <View style={styles.miniPlaceholder} />
+  return (
+    <View
+      pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
+      style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
+    >
+      {/* 💡 這裡可以使用 Animated.View，這個 View 本身雖然是全螢幕佈局，但被 GPU 縮小壓在 Mini 視窗的位置 */}
+      <View style={videoFrameStyle}>
+        <View style={styles.videoBlackBackground} />
+
+        {videoSource ? (
+          <Video
+            key="global-shared-video-player" // 固定 Key，確保換歌換狀態絕不 Unmount
+            ref={videoRef}
+            source={videoSource}
+            style={styles.video} // 👈 永遠使用 StyleSheet.absoluteFillObject 撐滿
+            resizeMode="contain"
+            controls={false}
+            repeat={isDefaultVideo}
+            paused={isDefaultVideo ? false : isPaused}
+            muted={false}
+            selectedAudioTrack={selectedAudioTrack}
+            onLoad={handleVideoLoad}
+            onReadyForDisplay={handleVideoReadyForDisplay}
+            onProgress={handleVideoProgress}
+            progressUpdateInterval={1000}
+            onEnd={handleVideoEnd}
+            onError={handleVideoError}
+            useTextureView={true}
+          />
+        ) : null}
+
+        {/* 當換歌或切換尺寸未就緒時，這層遮罩會擋在最上面 */}
+        {isVideoTransitionMaskVisible && (
+          <View pointerEvents="none" style={styles.videoTransitionMask} />
+        )}
+
+        {/* 點擊熱區 */}
         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
       </View>
-    )}
-
-    {isFullscreen && <View style={styles.videoBlackBackground} />}
-
-    {videoSource ? (
-      <Video
-        key="global-shared-video-player"
-        ref={videoRef}
-        source={videoSource}
-        style={isFullscreen ? styles.fullscreenVideo : styles.hiddenVideo}
-        resizeMode="contain"
-        controls={false}
-        repeat={isDefaultVideo}
-        paused={isDefaultVideo ? false : isPaused}
-        muted={false}
-        selectedAudioTrack={selectedAudioTrack}
-        onLoad={handleVideoLoad}
-        onReadyForDisplay={handleVideoReadyForDisplay}
-        onProgress={handleVideoProgress}
-        progressUpdateInterval={1000}
-        onEnd={handleVideoEnd}
-        onError={handleVideoError}
-        useTextureView={true}
-      />
-    ) : null}
-
-    {isFullscreen && isVideoTransitionMaskVisible && (
-      <View pointerEvents="none" style={styles.videoTransitionMask} />
-    )}
-
-    {isFullscreen && (
-      <Pressable style={styles.fullscreenPressOverlay} onPress={handleToggleFullscreen} />
-    )}
-  </View>
-);
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -707,7 +731,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   video: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFillObject, // 👈 確保影片鋪滿全螢幕基底
     backgroundColor: '#000000',
     zIndex: 1,
   },
@@ -719,43 +743,4 @@ const styles = StyleSheet.create({
   footerMiniLayer: {
     zIndex: 50,
   },
-
-  fullscreenVideo: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: SCREEN.width,
-    height: SCREEN.height,
-    backgroundColor: '#000000',
-    zIndex: 1,
-  },
-
-  fullscreenFrame: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
-    overflow: 'hidden',
-  },
-  
-  hiddenVideo: {
-    position: 'absolute',
-    left: -10000,
-    top: -10000,
-    width: 2,
-    height: 2,
-    backgroundColor: '#000000',
-    zIndex: 1,
-  },
-  
-  fullscreenPressOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
-  },
-  
-  miniPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
-    zIndex: 3,
-  },
-
-  
 });

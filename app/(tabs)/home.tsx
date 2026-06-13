@@ -20,7 +20,7 @@ import { useSongListPreloadStore } from '@/src/features/song/store/song-list-pre
 
 import { songClient } from '@/src/services/song/song-client';
 import { pingHealth } from '@/src/services/health/health-client';
-import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+// import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 import { HOME_COPY } from '@/src/features/main/i18n/home-copy';
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
@@ -188,6 +188,8 @@ export default function HomeScreen() {
 
   const appStateRef = useRef(AppState.currentState);
 
+  const NORMAL_POLLING_INTERVAL = 1000 * 60 * 4.5;
+
   useEffect(() => {
     setVideoBlockedByPanel(shouldHideHomeContent);
 
@@ -336,12 +338,9 @@ export default function HomeScreen() {
         return;
       }
 
-      intervalId = setInterval(
-        () => {
-          warmUpHealth('interval');
-        },
-        1000 * 60 * 3,
-      );
+      intervalId = setInterval(() => {
+        warmUpHealth('interval');
+      }, NORMAL_POLLING_INTERVAL);
     };
 
     const stopWarmUp = () => {

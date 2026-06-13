@@ -30,10 +30,14 @@ export async function pingHealth({
       signal: controller.signal,
     });
 
-    const data = (await response.json()) as HealthResponse;
+    // const data = (await response.json()) as HealthResponse;
 
-    if (!response.ok) {
-      throw new Error(`Health check failed with status ${response.status}`);
+    // if (!response.ok) {
+    //   throw new Error(`Health check failed with status ${response.status}`);
+    // }
+
+    if (response.ok) {
+      return { ok: true };
     }
 
     return data;
