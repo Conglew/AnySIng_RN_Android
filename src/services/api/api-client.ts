@@ -8,7 +8,7 @@ import {
   setAuthTokens,
 } from '@/src/services/auth/auth-token-store';
 
-import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+// import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -54,7 +54,7 @@ function safeStringify(value: unknown) {
 }
 
 function addApiDebugLog(message: string, data?: unknown) {
-  useDebugLogStore.getState().addLog('ApiClient', message, data);
+  // useDebugLogStore.getState().addLog('ApiClient', message, data);
 }
 
 async function parseResponse(response: Response) {

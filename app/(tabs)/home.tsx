@@ -19,7 +19,7 @@ import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { useSongListPreloadStore } from '@/src/features/song/store/song-list-preload.store';
 
 import { songClient } from '@/src/services/song/song-client';
-import { pingHealth } from '@/src/services/health/health-client';
+// import { pingHealth } from '@/src/services/health/health-client';
 // import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 import { HOME_COPY } from '@/src/features/main/i18n/home-copy';
@@ -232,48 +232,48 @@ export default function HomeScreen() {
       }
 
       if (isHealthChecking) {
-        useDebugLogStore.getState().addLog(
-          'Home',
-          'health warm-up skipped: already running',
-          {
-            reason,
-          },
-          'warning',
-        );
+        // useDebugLogStore.getState().addLog(
+        //   'Home',
+        //   'health warm-up skipped: already running',
+        //   {
+        //     reason,
+        //   },
+        //   'warning',
+        // );
         return;
       }
 
       const currentAppState = AppState.currentState;
 
       if (currentAppState !== 'active') {
-        useDebugLogStore.getState().addLog(
-          'Home',
-          'health warm-up skipped: app not active',
-          {
-            reason,
-            appState: currentAppState,
-          },
-          'warning',
-        );
+        // useDebugLogStore.getState().addLog(
+        //   'Home',
+        //   'health warm-up skipped: app not active',
+        //   {
+        //     reason,
+        //     appState: currentAppState,
+        //   },
+        //   'warning',
+        // );
         return;
       }
 
       isHealthChecking = true;
 
       try {
-        useDebugLogStore.getState().addLog(
-          'Home',
-          'health warm-up start',
-          {
-            reason,
-            failureCount,
-          },
-          'info',
-        );
+        // useDebugLogStore.getState().addLog(
+        //   'Home',
+        //   'health warm-up start',
+        //   {
+        //     reason,
+        //     failureCount,
+        //   },
+        //   'info',
+        // );
 
-        const result = await pingHealth({
-          timeoutMs: 15000,
-        });
+        // const result = await pingHealth({
+        //   timeoutMs: 15000,
+        // });
 
         if (isCancelled) {
           return;
@@ -282,16 +282,16 @@ export default function HomeScreen() {
         failureCount = 0;
         clearRetryTimeout();
 
-        useDebugLogStore.getState().addLog(
-          'Home',
-          'health warm-up success',
-          {
-            reason,
-            ok: result.ok,
-            now: result.now ?? result.t,
-          },
-          'success',
-        );
+        // useDebugLogStore.getState().addLog(
+        //   'Home',
+        //   'health warm-up success',
+        //   {
+        //     reason,
+        //     ok: result.ok,
+        //     now: result.now ?? result.t,
+        //   },
+        //   'success',
+        // );
       } catch (error) {
         if (isCancelled) {
           return;
@@ -301,17 +301,17 @@ export default function HomeScreen() {
 
         const retryDelayMs = getRetryDelayMs();
 
-        useDebugLogStore.getState().addLog(
-          'Home',
-          'health warm-up failed',
-          {
-            reason,
-            failureCount,
-            retryDelayMs,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          'error',
-        );
+        // useDebugLogStore.getState().addLog(
+        //   'Home',
+        //   'health warm-up failed',
+        //   {
+        //     reason,
+        //     failureCount,
+        //     retryDelayMs,
+        //     error: error instanceof Error ? error.message : String(error),
+        //   },
+        //   'error',
+        // );
 
         clearRetryTimeout();
 
@@ -319,15 +319,15 @@ export default function HomeScreen() {
           warmUpHealth('retry');
         }, retryDelayMs);
 
-        useDebugLogStore.getState().addLog(
-          'Home',
-          'health warm-up retry scheduled',
-          {
-            failureCount,
-            retryDelayMs,
-          },
-          'warning',
-        );
+        // useDebugLogStore.getState().addLog(
+        //   'Home',
+        //   'health warm-up retry scheduled',
+        //   {
+        //     failureCount,
+        //     retryDelayMs,
+        //   },
+        //   'warning',
+        // );
       } finally {
         isHealthChecking = false;
       }
@@ -359,15 +359,15 @@ export default function HomeScreen() {
       const previousAppState = appStateRef.current;
       appStateRef.current = nextAppState;
 
-      useDebugLogStore.getState().addLog(
-        'Home',
-        'app state changed',
-        {
-          previousAppState,
-          appState: nextAppState,
-        },
-        'info',
-      );
+      // useDebugLogStore.getState().addLog(
+      //   'Home',
+      //   'app state changed',
+      //   {
+      //     previousAppState,
+      //     appState: nextAppState,
+      //   },
+      //   'info',
+      // );
 
       const didReturnToForeground = previousAppState !== 'active' && nextAppState === 'active';
 
@@ -395,13 +395,13 @@ export default function HomeScreen() {
     let isCancelled = false;
 
     async function preloadHomeSongLists() {
-      useDebugLogStore.getState().addLog('Home', 'preload song lists start');
+      // useDebugLogStore.getState().addLog('Home', 'preload song lists start');
 
       try {
         const token = await getAccessToken();
 
         if (!token) {
-          useDebugLogStore.getState().addLog('Home', 'preload skipped: missing token');
+          // useDebugLogStore.getState().addLog('Home', 'preload skipped: missing token');
           return;
         }
 
@@ -452,34 +452,34 @@ export default function HomeScreen() {
           });
         }
 
-        useDebugLogStore.getState().addLog('Home', 'preload song lists finished', {
-          rankingStatus: rankingResult.status,
-          rankingCount:
-            rankingResult.status === 'fulfilled' ? rankingResult.value.songs.length : undefined,
-          rankingError:
-            rankingResult.status === 'rejected'
-              ? rankingResult.reason instanceof Error
-                ? rankingResult.reason.message
-                : String(rankingResult.reason)
-              : undefined,
-          newSongsStatus: newSongsResult.status,
-          newSongsCount:
-            newSongsResult.status === 'fulfilled' ? newSongsResult.value.songs.length : undefined,
-          newSongsError:
-            newSongsResult.status === 'rejected'
-              ? newSongsResult.reason instanceof Error
-                ? newSongsResult.reason.message
-                : String(newSongsResult.reason)
-              : undefined,
-        });
+        // useDebugLogStore.getState().addLog('Home', 'preload song lists finished', {
+        //   rankingStatus: rankingResult.status,
+        //   rankingCount:
+        //     rankingResult.status === 'fulfilled' ? rankingResult.value.songs.length : undefined,
+        //   rankingError:
+        //     rankingResult.status === 'rejected'
+        //       ? rankingResult.reason instanceof Error
+        //         ? rankingResult.reason.message
+        //         : String(rankingResult.reason)
+        //       : undefined,
+        //   newSongsStatus: newSongsResult.status,
+        //   newSongsCount:
+        //     newSongsResult.status === 'fulfilled' ? newSongsResult.value.songs.length : undefined,
+        //   newSongsError:
+        //     newSongsResult.status === 'rejected'
+        //       ? newSongsResult.reason instanceof Error
+        //         ? newSongsResult.reason.message
+        //         : String(newSongsResult.reason)
+        //       : undefined,
+        // });
       } catch (error) {
         if (isCancelled) {
           return;
         }
 
-        useDebugLogStore.getState().addLog('Home', 'preload song lists failed', {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        // useDebugLogStore.getState().addLog('Home', 'preload song lists failed', {
+        //   error: error instanceof Error ? error.message : String(error),
+        // });
       }
     }
 

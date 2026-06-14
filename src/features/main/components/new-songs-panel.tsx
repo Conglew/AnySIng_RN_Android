@@ -36,7 +36,7 @@ import { CustomKeyboard } from '@/src/features/main/components/custom-keyboard';
 import { useNewSongsCache } from '@/src/features/song/hook/use-new-songs-cache';
 import { SongDto } from '@/src/services/song/song.types';
 
-import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+// import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
 import { NEW_PANEL_COPY, NewSongsPanelCopy } from '@/src/features/main/i18n/new-songs-panel-copy';
@@ -847,18 +847,18 @@ export function NewSongsPanel({ visible, onClose }: Props) {
     });
 
     if (lastLoadKeyRef.current === loadKey) {
-      useDebugLogStore.getState().addLog('NewSongsPanel', 'skip duplicate first page load', {
-        loadKey,
-      });
+      // useDebugLogStore.getState().addLog('NewSongsPanel', 'skip duplicate first page load', {
+      //   loadKey,
+      // });
       return;
     }
 
     lastLoadKeyRef.current = loadKey;
 
-    useDebugLogStore.getState().addLog('NewSongsPanel', 'visible: load first page start', {
-      languageValue: isSearchMode ? undefined : selectedLanguage.value,
-      searchKeyword: debouncedSearchKeyword,
-    });
+    // useDebugLogStore.getState().addLog('NewSongsPanel', 'visible: load first page start', {
+    //   languageValue: isSearchMode ? undefined : selectedLanguage.value,
+    //   searchKeyword: debouncedSearchKeyword,
+    // });
 
     loadFirstPage();
   }, [debouncedSearchKeyword, isSearchMode, loadFirstPage, selectedLanguage.value, visible]);
@@ -876,15 +876,15 @@ export function NewSongsPanel({ visible, onClose }: Props) {
       return;
     }
 
-    useDebugLogStore.getState().addLog('NewSongsPanel', 'state changed', {
-      songsCount: songs.length,
-      displaySongsCount: displaySongs.length,
-      page,
-      totalPages,
-      isInitialLoading,
-      isLoadingMore,
-      errorMessage,
-    });
+    // useDebugLogStore.getState().addLog('NewSongsPanel', 'state changed', {
+    //   songsCount: songs.length,
+    //   displaySongsCount: displaySongs.length,
+    //   page,
+    //   totalPages,
+    //   isInitialLoading,
+    //   isLoadingMore,
+    //   errorMessage,
+    // });
   }, [
     displaySongs.length,
     errorMessage,
@@ -927,30 +927,30 @@ export function NewSongsPanel({ visible, onClose }: Props) {
 
   const handleEndReached = useCallback(() => {
     if (!canLoadMoreRef.current) {
-      useDebugLogStore.getState().addLog('NewSongsPanel', 'skip load more: momentum not started', {
-        page,
-        totalPages,
-      });
+      // useDebugLogStore.getState().addLog('NewSongsPanel', 'skip load more: momentum not started', {
+      //   page,
+      //   totalPages,
+      // });
       return;
     }
 
     if (isInitialLoading || isLoadingMore || page >= totalPages) {
-      useDebugLogStore.getState().addLog('NewSongsPanel', 'skip load more: blocked', {
-        page,
-        totalPages,
-        isInitialLoading,
-        isLoadingMore,
-      });
+      // useDebugLogStore.getState().addLog('NewSongsPanel', 'skip load more: blocked', {
+      //   page,
+      //   totalPages,
+      //   isInitialLoading,
+      //   isLoadingMore,
+      // });
       return;
     }
 
     canLoadMoreRef.current = false;
 
-    useDebugLogStore.getState().addLog('NewSongsPanel', 'load next page', {
-      nextPage: page + 1,
-      currentPage: page,
-      totalPages,
-    });
+    // useDebugLogStore.getState().addLog('NewSongsPanel', 'load next page', {
+    //   nextPage: page + 1,
+    //   currentPage: page,
+    //   totalPages,
+    // });
 
     loadNextPage();
   }, [isInitialLoading, isLoadingMore, loadNextPage, page, totalPages]);

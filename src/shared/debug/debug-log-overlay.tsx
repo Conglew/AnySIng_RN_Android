@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { DebugLogItem, useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+// import { DebugLogItem, useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 function formatUrl(value: unknown) {
   if (typeof value !== 'string') {
@@ -96,10 +96,10 @@ function getLogTextStyle(log: DebugLogItem) {
 }
 
 export function DebugLogOverlay() {
-  const logs = useDebugLogStore((state) => state.logs);
+  // const logs = useDebugLogStore((state) => state.logs);
 
   useEffect(() => {
-    useDebugLogStore.getState().addLog('DebugLogOverlay', 'mounted');
+    // useDebugLogStore.getState().addLog('DebugLogOverlay', 'mounted');
   }, []);
 
   if (logs.length === 0) {

@@ -263,33 +263,44 @@ export function SharedVideoPlayer() {
       height: 200,
     };
 
-    // 1. 取得當前模式應該要有的目標矩陣大小
     const baseRect = stableMiniRect ?? activeMiniRect ?? fallbackRect;
+
     const rect = mode === 'footerMini' && baseRect ? getFooterMiniDisplayRect(baseRect) : baseRect;
 
-    // 💡 【核心邏輯】：計算全螢幕與目標 Mini 視窗的比例
-    const scaleX = isFullscreen ? 1 : rect.width / SCREEN.width;
-    const scaleY = isFullscreen ? 1 : rect.height / SCREEN.height;
+    if (isFullscreen) {
+      return {
+        position: 'absolute' as const,
+        left: 0,
+        top: 0,
+        width: SCREEN.width,
+        height: SCREEN.height,
+        borderRadius: 0,
+        transform: [],
+      };
+    }
 
-    // 💡 計算中心點位移量（因為 React Native 的 transform 是以中心點為基準縮放）
+    const scaleX = rect.width / SCREEN.width;
+    const scaleY = rect.height / SCREEN.height;
+
     const screenCenterX = SCREEN.width / 2;
     const screenCenterY = SCREEN.height / 2;
-    const targetCenterX = isFullscreen ? SCREEN.width / 2 : rect.x + rect.width / 2;
-    const targetCenterY = isFullscreen ? SCREEN.height / 2 : rect.y + rect.height / 2;
 
-    const translateX = targetCenterX - screenCenterX;
-    const translateY = targetCenterY - screenCenterY;
+    const targetCenterX = rect.x + rect.width / 2;
+    const targetCenterY = rect.y + rect.height / 2;
 
     return {
-      position: 'absolute',
+      position: 'absolute' as const,
       left: 0,
       top: 0,
-      width: SCREEN.width, // 👈 佈局寬度永遠是全螢幕，底層解碼器永遠不變形
-      height: SCREEN.height, // 👈 佈局高度永遠是全螢幕
-      backgroundColor: '#000000',
-      borderRadius: isFullscreen ? 0 : 10,
-      overflow: 'hidden',
-      transform: [{ translateX }, { translateY }, { scaleX }, { scaleY }],
+      width: SCREEN.width,
+      height: SCREEN.height,
+      borderRadius: 10,
+      transform: [
+        { translateX: targetCenterX - screenCenterX },
+        { translateY: targetCenterY - screenCenterY },
+        { scaleX },
+        { scaleY },
+      ],
     };
   }, [activeMiniRect, isFullscreen, mode, stableMiniRect]);
 
@@ -599,6 +610,10 @@ export function SharedVideoPlayer() {
   const shouldHideVideoPlayer =
     backgroundMode !== 'home' && mode !== 'footerMini' && mode !== 'fullscreen';
 
+  const isHomeMini = mode === 'homeMini';
+  const isFooterMini = mode === 'footerMini';
+  const shouldShowRealVideo = mode !== 'footerMini';
+
   const shouldShowLiveVideo = isFullscreen;
 
   //   return (
@@ -682,7 +697,7 @@ export function SharedVideoPlayer() {
             key="global-shared-video-player" // 固定 Key，確保換歌換狀態絕不 Unmount
             ref={videoRef}
             source={videoSource}
-            style={styles.video} // 👈 永遠使用 StyleSheet.absoluteFillObject 撐滿
+            style={styles.video}
             resizeMode="contain"
             controls={false}
             repeat={isDefaultVideo}
@@ -692,7 +707,7 @@ export function SharedVideoPlayer() {
             onLoad={handleVideoLoad}
             onReadyForDisplay={handleVideoReadyForDisplay}
             onProgress={handleVideoProgress}
-            progressUpdateInterval={1000}
+            progressUpdateInterval={isFullscreen ? 1000 : 2500}
             onEnd={handleVideoEnd}
             onError={handleVideoError}
             useTextureView={true}
@@ -726,20 +741,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     zIndex: 0,
   },
+  video: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    zIndex: 1,
+  },
+
+  videoTransitionMask: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    zIndex: 4,
+  },
+
   videoPressOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
   },
-  video: {
-    ...StyleSheet.absoluteFillObject, // 👈 確保影片鋪滿全螢幕基底
-    backgroundColor: '#000000',
-    zIndex: 1,
-  },
-  videoTransitionMask: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
-    zIndex: 2,
-  },
+
   footerMiniLayer: {
     zIndex: 50,
   },

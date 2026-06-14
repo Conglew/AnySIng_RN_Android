@@ -223,27 +223,73 @@ export function MainFooter() {
 
   const recordSlotRef = useRef<View>(null);
 
-  const measureRecordSlot = useCallback(() => {
-    const nodeHandle = findNodeHandle(recordSlotRef.current);
+  const measureFooterMiniTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFooterMiniRectRef = useRef<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
-    if (!nodeHandle) {
-      console.log('[MainFooter] measure footer mini ignored: missing nodeHandle');
-      return;
+  const isSameMeasuredRect = useCallback(
+    (
+      a: { x: number; y: number; width: number; height: number } | null,
+      b: { x: number; y: number; width: number; height: number },
+    ) => {
+      if (!a) {
+        return false;
+      }
+
+      return (
+        Math.round(a.x) === Math.round(b.x) &&
+        Math.round(a.y) === Math.round(b.y) &&
+        Math.round(a.width) === Math.round(b.width) &&
+        Math.round(a.height) === Math.round(b.height)
+      );
+    },
+    [],
+  );
+
+  const measureRecordSlot = useCallback(() => {
+    if (measureFooterMiniTimerRef.current) {
+      clearTimeout(measureFooterMiniTimerRef.current);
     }
 
-    UIManager.measureInWindow(nodeHandle, (x, y, width, height) => {
-      const rect = {
-        x,
-        y,
-        width,
-        height,
-      };
+    measureFooterMiniTimerRef.current = setTimeout(() => {
+      const nodeHandle = findNodeHandle(recordSlotRef.current);
 
-      console.log('[MainFooter] measured footerMiniRect:', rect);
+      if (!nodeHandle) {
+        return;
+      }
 
-      setFooterMiniRect(rect);
-    });
-  }, [setFooterMiniRect]);
+      UIManager.measureInWindow(nodeHandle, (x, y, width, height) => {
+        const rect = {
+          x,
+          y,
+          width,
+          height,
+        };
+
+        if (isSameMeasuredRect(lastFooterMiniRectRef.current, rect)) {
+          return;
+        }
+
+        lastFooterMiniRectRef.current = rect;
+        setFooterMiniRect(rect);
+      });
+
+      measureFooterMiniTimerRef.current = null;
+    }, 120);
+  }, [isSameMeasuredRect, setFooterMiniRect]);
+
+  useEffect(() => {
+    return () => {
+      if (measureFooterMiniTimerRef.current) {
+        clearTimeout(measureFooterMiniTimerRef.current);
+        measureFooterMiniTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -285,6 +331,10 @@ export function MainFooter() {
   // const progressBarWidth = footerWidth * playbackProgress;
 
   useEffect(() => {
+    if (!shouldShowFooterBar) {
+      return;
+    }
+
     if (footerWidth <= 0) {
       progressClipWidth.setValue(0);
       return;
@@ -292,18 +342,26 @@ export function MainFooter() {
 
     Animated.timing(progressClipWidth, {
       toValue: footerWidth * playbackProgress,
-      duration: 360,
+      duration: 240,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
-  }, [footerWidth, playbackProgress, progressClipWidth]);
+  }, [footerWidth, playbackProgress, progressClipWidth, shouldShowFooterBar]);
 
   return (
     <View
       style={styles.footer}
       onTouchStart={handleFooterTouchStart}
       onLayout={(event) => {
-        setFooterWidth(event.nativeEvent.layout.width);
+        const nextWidth = Math.round(event.nativeEvent.layout.width);
+
+        setFooterWidth((currentWidth) => {
+          if (Math.round(currentWidth) === nextWidth) {
+            return currentWidth;
+          }
+
+          return nextWidth;
+        });
       }}
     >
       {shouldShowFooterBar ? (

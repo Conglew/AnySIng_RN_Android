@@ -30,7 +30,7 @@ import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-for
 
 import { SongDto } from '@/src/services/song/song.types';
 
-import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
+// import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 import { useAppLanguageStore } from '@/src/shared/i18n/language.store';
 import {
@@ -774,19 +774,19 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
     });
 
     if (lastLoadKeyRef.current === loadKey) {
-      useDebugLogStore.getState().addLog('RankingSongsPanel', 'skip duplicate first page load', {
-        loadKey,
-      });
+      // useDebugLogStore.getState().addLog('RankingSongsPanel', 'skip duplicate first page load', {
+      //   loadKey,
+      // });
       return;
     }
 
     lastLoadKeyRef.current = loadKey;
 
-    useDebugLogStore.getState().addLog('RankingSongsPanel', 'visible: load first page start', {
-      languageValue: isSearchMode ? undefined : selectedLanguage.value,
-      searchKeyword: debouncedSearchKeyword,
-      searchMode: songSearchMode,
-    });
+    // useDebugLogStore.getState().addLog('RankingSongsPanel', 'visible: load first page start', {
+    //   languageValue: isSearchMode ? undefined : selectedLanguage.value,
+    //   searchKeyword: debouncedSearchKeyword,
+    //   searchMode: songSearchMode,
+    // });
 
     loadFirstPage();
   }, [
@@ -819,15 +819,15 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
       return;
     }
 
-    useDebugLogStore.getState().addLog('RankingSongsPanel', 'state changed', {
-      songsCount: songs.length,
-      displaySongsCount: displaySongs.length,
-      page,
-      totalPages,
-      isInitialLoading,
-      isLoadingMore,
-      errorMessage,
-    });
+    // useDebugLogStore.getState().addLog('RankingSongsPanel', 'state changed', {
+    //   songsCount: songs.length,
+    //   displaySongsCount: displaySongs.length,
+    //   page,
+    //   totalPages,
+    //   isInitialLoading,
+    //   isLoadingMore,
+    //   errorMessage,
+    // });
   }, [
     displaySongs.length,
     errorMessage,
@@ -870,32 +870,32 @@ export function RankingSongsPanel({ visible, onClose }: Props) {
 
   const handleEndReached = useCallback(() => {
     if (!canLoadMoreRef.current) {
-      useDebugLogStore
-        .getState()
-        .addLog('RankingSongsPanel', 'skip load more: momentum not started', {
-          page,
-          totalPages,
-        });
+      // useDebugLogStore
+      //   .getState()
+      //   .addLog('RankingSongsPanel', 'skip load more: momentum not started', {
+      //     page,
+      //     totalPages,
+      //   });
       return;
     }
 
     if (isInitialLoading || isLoadingMore || page >= totalPages) {
-      useDebugLogStore.getState().addLog('RankingSongsPanel', 'skip load more: blocked', {
-        page,
-        totalPages,
-        isInitialLoading,
-        isLoadingMore,
-      });
+      // useDebugLogStore.getState().addLog('RankingSongsPanel', 'skip load more: blocked', {
+      //   page,
+      //   totalPages,
+      //   isInitialLoading,
+      //   isLoadingMore,
+      // });
       return;
     }
 
     canLoadMoreRef.current = false;
 
-    useDebugLogStore.getState().addLog('RankingSongsPanel', 'load next page', {
-      nextPage: page + 1,
-      currentPage: page,
-      totalPages,
-    });
+    // useDebugLogStore.getState().addLog('RankingSongsPanel', 'load next page', {
+    //   nextPage: page + 1,
+    //   currentPage: page,
+    //   totalPages,
+    // });
 
     loadNextPage();
   }, [isInitialLoading, isLoadingMore, loadNextPage, page, totalPages]);
