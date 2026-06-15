@@ -46,7 +46,8 @@ const DEFAULT_LOCAL_VIDEO_ASSET = require('@/assets/defaut_loop.mp4');
 const DEFAULT_VOCAL_TRACK_INDEX = 0;
 const DEFAULT_ACCOMPANIMENT_TRACK_INDEX = 1;
 
-const SOURCE_READY_FALLBACK_MS = 1200;
+const SOURCE_READY_FALLBACK_MS = 3000;
+const MODE_SWITCH_MASK_MS = 700;
 
 export function SharedVideoPlayer() {
   const videoRef = useRef<any>(null);
@@ -94,7 +95,7 @@ export function SharedVideoPlayer() {
   const isFullscreen = mode === 'fullscreen';
   const activeMiniRect = mode === 'footerMini' ? footerMiniRect : homeMiniRect;
 
-  const [stableMiniRect, setStableMiniRect] = useState<VideoFrameRect | null>(null);
+  // const [stableMiniRect, setStableMiniRect] = useState<VideoFrameRect | null>(null);
 
   const handleToggleFullscreen = useCallback(() => {
     if (isFullscreenTransitioningRef.current) {
@@ -177,51 +178,51 @@ export function SharedVideoPlayer() {
   //   };
   // }, [activeMiniRect, isFullscreen]);
 
-  const miniRectApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const miniRectMaskTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // const miniRectApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // const miniRectMaskTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (isFullscreen) {
-      return;
-    }
+  // useEffect(() => {
+  //   if (isFullscreen) {
+  //     return;
+  //   }
 
-    if (!activeMiniRect) {
-      return;
-    }
+  //   if (!activeMiniRect) {
+  //     return;
+  //   }
 
-    setIsVideoTransitionMaskVisible(true);
+  //   setIsVideoTransitionMaskVisible(true);
 
-    if (miniRectApplyTimerRef.current) {
-      clearTimeout(miniRectApplyTimerRef.current);
-    }
+  //   if (miniRectApplyTimerRef.current) {
+  //     clearTimeout(miniRectApplyTimerRef.current);
+  //   }
 
-    if (miniRectMaskTimerRef.current) {
-      clearTimeout(miniRectMaskTimerRef.current);
-    }
+  //   if (miniRectMaskTimerRef.current) {
+  //     clearTimeout(miniRectMaskTimerRef.current);
+  //   }
 
-    miniRectApplyTimerRef.current = setTimeout(() => {
-      setStableMiniRect(activeMiniRect);
+  //   miniRectApplyTimerRef.current = setTimeout(() => {
+  //     setStableMiniRect(activeMiniRect);
 
-      miniRectMaskTimerRef.current = setTimeout(() => {
-        setIsVideoTransitionMaskVisible(false);
-        miniRectMaskTimerRef.current = null;
-      }, 300);
+  //     miniRectMaskTimerRef.current = setTimeout(() => {
+  //       setIsVideoTransitionMaskVisible(false);
+  //       miniRectMaskTimerRef.current = null;
+  //     }, 300);
 
-      miniRectApplyTimerRef.current = null;
-    }, 120);
+  //     miniRectApplyTimerRef.current = null;
+  //   }, 120);
 
-    return () => {
-      if (miniRectApplyTimerRef.current) {
-        clearTimeout(miniRectApplyTimerRef.current);
-        miniRectApplyTimerRef.current = null;
-      }
+  //   return () => {
+  //     if (miniRectApplyTimerRef.current) {
+  //       clearTimeout(miniRectApplyTimerRef.current);
+  //       miniRectApplyTimerRef.current = null;
+  //     }
 
-      if (miniRectMaskTimerRef.current) {
-        clearTimeout(miniRectMaskTimerRef.current);
-        miniRectMaskTimerRef.current = null;
-      }
-    };
-  }, [activeMiniRect, isFullscreen]);
+  //     if (miniRectMaskTimerRef.current) {
+  //       clearTimeout(miniRectMaskTimerRef.current);
+  //       miniRectMaskTimerRef.current = null;
+  //     }
+  //   };
+  // }, [activeMiniRect, isFullscreen]);
 
   // const videoFrameStyle = useMemo(() => {
   //   const fallbackRect = {
@@ -256,17 +257,20 @@ export function SharedVideoPlayer() {
   // }, [activeMiniRect, isFullscreen, mode]);
 
   const videoFrameStyle = useMemo(() => {
-    const fallbackRect = {
+    const homeFallbackRect: VideoFrameRect = {
       x: SCREEN.width - 378,
       y: 280,
       width: 358,
       height: 200,
     };
-
-    const baseRect = stableMiniRect ?? activeMiniRect ?? fallbackRect;
-
-    const rect = mode === 'footerMini' && baseRect ? getFooterMiniDisplayRect(baseRect) : baseRect;
-
+  
+    const footerFallbackRect: VideoFrameRect = {
+      x: SCREEN.width - FOOTER_MINI_WIDTH - 24,
+      y: SCREEN.height - FOOTER_MINI_HEIGHT - 24,
+      width: FOOTER_MINI_WIDTH,
+      height: FOOTER_MINI_HEIGHT,
+    };
+  
     if (isFullscreen) {
       return {
         position: 'absolute' as const,
@@ -275,40 +279,37 @@ export function SharedVideoPlayer() {
         width: SCREEN.width,
         height: SCREEN.height,
         borderRadius: 0,
-        transform: [],
+        overflow: 'hidden' as const,
+        backgroundColor: '#000000',
+        zIndex: 999,
       };
     }
-
-    const scaleX = rect.width / SCREEN.width;
-    const scaleY = rect.height / SCREEN.height;
-
-    const screenCenterX = SCREEN.width / 2;
-    const screenCenterY = SCREEN.height / 2;
-
-    const targetCenterX = rect.x + rect.width / 2;
-    const targetCenterY = rect.y + rect.height / 2;
-
+  
+    const rect =
+      mode === 'footerMini'
+        ? footerMiniRect
+          ? getFooterMiniDisplayRect(footerMiniRect)
+          : footerFallbackRect
+        : homeMiniRect ?? homeFallbackRect;
+  
     return {
       position: 'absolute' as const,
-      left: 0,
-      top: 0,
-      width: SCREEN.width,
-      height: SCREEN.height,
-      borderRadius: 10,
-      transform: [
-        { translateX: targetCenterX - screenCenterX },
-        { translateY: targetCenterY - screenCenterY },
-        { scaleX },
-        { scaleY },
-      ],
+      left: rect.x,
+      top: rect.y,
+      width: rect.width,
+      height: rect.height,
+      borderRadius: mode === 'footerMini' ? 8 : 10,
+      overflow: 'hidden' as const,
+      backgroundColor: '#000000',
+      zIndex: mode === 'footerMini' ? 50 : 20,
     };
-  }, [activeMiniRect, isFullscreen, mode, stableMiniRect]);
+  }, [footerMiniRect, homeMiniRect, isFullscreen, mode]);
 
   // 💡 【優化】動態控制影片組件的透明度，當遮罩顯示時（換歌/未就緒），直接讓 Video 透明，露出下方的純黑底 View，物理隔絕硬體綠屏
   // const videoComponentStyle = useMemo(() => {
   //   return [styles.video, { opacity: isVideoTransitionMaskVisible ? 0 : 1 }];
   // }, [isVideoTransitionMaskVisible]);
-  const videoComponentStyle = styles.video;
+  // const videoComponentStyle = styles.video;
 
   useEffect(() => {
     let isMounted = true;
@@ -367,7 +368,7 @@ export function SharedVideoPlayer() {
     const timer = setTimeout(() => {
       isFullscreenTransitioningRef.current = false;
       setIsVideoTransitionMaskVisible(false);
-    }, 500); // 220ms 安全時間，給解碼器平滑緩衝
+    }, MODE_SWITCH_MASK_MS); // 安全時間，給解碼器平滑緩衝
 
     return () => {
       clearTimeout(timer);
@@ -610,11 +611,11 @@ export function SharedVideoPlayer() {
   const shouldHideVideoPlayer =
     backgroundMode !== 'home' && mode !== 'footerMini' && mode !== 'fullscreen';
 
-  const isHomeMini = mode === 'homeMini';
-  const isFooterMini = mode === 'footerMini';
-  const shouldShowRealVideo = mode !== 'footerMini';
+  // const isHomeMini = mode === 'homeMini';
+  // const isFooterMini = mode === 'footerMini';
+  // const shouldShowRealVideo = mode !== 'footerMini';
 
-  const shouldShowLiveVideo = isFullscreen;
+  // const shouldShowLiveVideo = isFullscreen;
 
   //   return (
   //     <View
@@ -657,44 +658,43 @@ export function SharedVideoPlayer() {
   //   );
 
   // 1. 修改 layoutStyle，確保它只控制外層容器
-  const containerStyle = useMemo(() => {
-    if (mode === 'fullscreen') {
-      return {
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        width: SCREEN.width,
-        height: SCREEN.height,
-        zIndex: 999,
-        overflow: 'hidden', // 💡 靠外層剪裁，內層 Video 核心就不動
-      };
-    }
+  // const containerStyle = useMemo(() => {
+  //   if (mode === 'fullscreen') {
+  //     return {
+  //       position: 'absolute',
+  //       left: 0,
+  //       top: 0,
+  //       width: SCREEN.width,
+  //       height: SCREEN.height,
+  //       zIndex: 999,
+  //       overflow: 'hidden', // 💡 靠外層剪裁，內層 Video 核心就不動
+  //     };
+  //   }
 
-    // mini 或 footerMini 狀態
-    const rect = mode === 'footerMini' ? footerMiniRect : homeMiniRect;
-    return {
-      position: 'absolute',
-      left: rect?.x ?? 0,
-      top: rect?.y ?? 0,
-      width: rect?.width ?? 120,
-      height: rect?.height ?? 68,
-      zIndex: 50,
-      overflow: 'hidden', // 💡 靠外層剪裁
-    };
-  }, [mode, homeMiniRect, footerMiniRect]);
+  //   // mini 或 footerMini 狀態
+  //   const rect = mode === 'footerMini' ? footerMiniRect : homeMiniRect;
+  //   return {
+  //     position: 'absolute',
+  //     left: rect?.x ?? 0,
+  //     top: rect?.y ?? 0,
+  //     width: rect?.width ?? 120,
+  //     height: rect?.height ?? 68,
+  //     zIndex: 50,
+  //     overflow: 'hidden', // 💡 靠外層剪裁
+  //   };
+  // }, [mode, homeMiniRect, footerMiniRect]);
 
   return (
     <View
       pointerEvents={shouldHideVideoPlayer ? 'none' : 'box-none'}
       style={[styles.layer, mode === 'footerMini' && styles.footerMiniLayer]}
     >
-      {/* 💡 這裡可以使用 Animated.View，這個 View 本身雖然是全螢幕佈局，但被 GPU 縮小壓在 Mini 視窗的位置 */}
       <View style={videoFrameStyle}>
         <View style={styles.videoBlackBackground} />
-
+  
         {videoSource ? (
           <Video
-            key="global-shared-video-player" // 固定 Key，確保換歌換狀態絕不 Unmount
+            key="global-shared-video-player"
             ref={videoRef}
             source={videoSource}
             style={styles.video}
@@ -707,19 +707,17 @@ export function SharedVideoPlayer() {
             onLoad={handleVideoLoad}
             onReadyForDisplay={handleVideoReadyForDisplay}
             onProgress={handleVideoProgress}
-            progressUpdateInterval={isFullscreen ? 1000 : 2500}
+            progressUpdateInterval={isFullscreen ? 1000 : 3000}
             onEnd={handleVideoEnd}
             onError={handleVideoError}
             useTextureView={true}
           />
         ) : null}
-
-        {/* 當換歌或切換尺寸未就緒時，這層遮罩會擋在最上面 */}
+  
         {isVideoTransitionMaskVisible && (
           <View pointerEvents="none" style={styles.videoTransitionMask} />
         )}
-
-        {/* 點擊熱區 */}
+  
         <Pressable style={styles.videoPressOverlay} onPress={handleToggleFullscreen} />
       </View>
     </View>

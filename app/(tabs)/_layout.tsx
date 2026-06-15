@@ -1,5 +1,5 @@
 import { Slot } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,7 +8,7 @@ import { MainHeader } from '@/src/features/main/components/main-header';
 import { useMainBackgroundStore } from '@/src/features/main/store/main-background.store';
 import { usePlaybackQueueActions } from '@/src/features/player/hook/use-playback-queue-actions';
 
-import { useSocketConnection } from '@/src/services/socket/use-socket-connection';
+// import { useSocketConnection } from '@/src/services/socket/use-socket-connection';
 
 // import { FullscreenVideoBackground } from '@/src/features/main/components/fullscreen-video-background';
 import { SharedVideoPlayer } from '@/src/features/main/components/shared-video-player';
@@ -20,6 +20,7 @@ import { QueuedSongsPanel } from '@/src/features/main/components/queued-songs-pa
 import { SongRequestQrPanel } from '@/src/features/main/components/song-request-qr-panel';
 
 import { usePlayerSocketControls } from '@/src/features/player/hook/use-player-socket-controls';
+
 
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -124,6 +125,21 @@ export default function TabsLayout() {
 
   const shouldShowChrome = !isVideoFullscreen || isFullscreenChromeVisible;
 
+
+  const backgroundSource = useMemo(() => {
+    if (isRankingBackground) return RANKING_BACKGROUND;
+    if (isNewSongsBackground) return NEW_SONGS_BACKGROUND;
+    if (isCategoryBackground) return CATEGORY_BACKGROUND;
+    if (isSingreBackground) return SINGER_BACKGROUND;
+  
+    return HOME_BACKGROUND;
+  }, [
+    isRankingBackground,
+    isNewSongsBackground,
+    isCategoryBackground,
+    isSingreBackground,
+  ]);
+
   return (
     <View
       style={styles.root}
@@ -144,7 +160,7 @@ export default function TabsLayout() {
         return false;
       }}
     >
-      <ImageBackground
+      {/* <ImageBackground
         style={[styles.backgroundLayer, !isHomeBackground && styles.hiddenBackground]}
         source={HOME_BACKGROUND}
         resizeMode="cover"
@@ -175,6 +191,13 @@ export default function TabsLayout() {
       <ImageBackground
         style={[styles.backgroundLayer, !isSingreBackground && styles.hiddenBackground]}
         source={SINGER_BACKGROUND}
+        resizeMode="cover"
+        fadeDuration={0}
+      /> */}
+
+      <ImageBackground
+        style={styles.backgroundLayer}
+        source={backgroundSource}
         resizeMode="cover"
         fadeDuration={0}
       />
@@ -232,9 +255,9 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
 
-  hiddenBackground: {
-    opacity: 0,
-  },
+  // hiddenBackground: {
+  //   opacity: 0,
+  // },
 
   page: {
     flex: 1,
