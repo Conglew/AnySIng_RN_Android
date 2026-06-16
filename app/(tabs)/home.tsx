@@ -19,7 +19,7 @@ import { getAccessToken } from '@/src/services/auth/auth-token-store';
 import { useSongListPreloadStore } from '@/src/features/song/store/song-list-preload.store';
 
 import { songClient } from '@/src/services/song/song-client';
-// import { pingHealth } from '@/src/services/health/health-client';
+import { pingHealth } from '@/src/services/health/health-client';
 // import { useDebugLogStore } from '@/src/shared/debug/debug-log.store';
 
 import { HOME_COPY } from '@/src/features/main/i18n/home-copy';
@@ -188,7 +188,8 @@ export default function HomeScreen() {
 
   const appStateRef = useRef(AppState.currentState);
 
-  const NORMAL_POLLING_INTERVAL = 1000 * 60 * 4.5;
+  const NORMAL_POLLING_INTERVAL = 1000 * 60 * 1;
+  const HEALTH_TIMEOUT_MS = 8000;
 
   useEffect(() => {
     setVideoBlockedByPanel(shouldHideHomeContent);
@@ -215,15 +216,19 @@ export default function HomeScreen() {
     };
 
     const getRetryDelayMs = () => {
-      if (failureCount <= 1) {
-        return 1000 * 15;
+      if (failureCount === 1) {
+        return 1000 * 10;
       }
 
       if (failureCount === 2) {
-        return 1000 * 30;
+        return 1000 * 6;
       }
 
-      return 1000 * 60;
+      if (failureCount <= 5) {
+        return 1000 * 3;
+      }
+
+      return 1000 * 15;
     };
 
     async function warmUpHealth(reason: 'initial' | 'interval' | 'foreground' | 'retry') {
@@ -271,9 +276,9 @@ export default function HomeScreen() {
         //   'info',
         // );
 
-        // const result = await pingHealth({
-        //   timeoutMs: 15000,
-        // });
+        const result = await pingHealth({
+          timeoutMs: HEALTH_TIMEOUT_MS,
+        });
 
         if (isCancelled) {
           return;

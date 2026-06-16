@@ -153,6 +153,8 @@ export const useFullscreenVideoStore = create<FullscreenVideoStore>((set, get) =
     playbackProgress: 0,
 
     openFullscreen: () => {
+      console.log('[FullscreenVideoStore] openFullscreen -> fullscreen');
+
       set({
         mode: 'fullscreen',
         isFullscreenChromeVisible: true,
@@ -164,14 +166,12 @@ export const useFullscreenVideoStore = create<FullscreenVideoStore>((set, get) =
     closeFullscreen: () => {
       clearFullscreenChromeAutoHideTimer();
 
-      set((state) => ({
-        mode: state.isBlockedByPanel ? 'footerMini' : 'homeMini',
-        isFullscreenChromeVisible: true,
-      }));
-    },
+      // set((state) => ({
+      //   mode: state.isBlockedByPanel ? 'footerMini' : 'homeMini',
+      //   isFullscreenChromeVisible: true,
+      // }));
 
-    showHomeMini: () => {
-      clearFullscreenChromeAutoHideTimer();
+      console.log('[FullscreenVideoStore] closeFullscreen -> homeMini');
 
       set({
         mode: 'homeMini',
@@ -179,11 +179,31 @@ export const useFullscreenVideoStore = create<FullscreenVideoStore>((set, get) =
       });
     },
 
+    showHomeMini: () => {
+      clearFullscreenChromeAutoHideTimer();
+
+      console.log('[FullscreenVideoStore] showHomeMini -> homeMini');
+
+      set({
+        mode: 'homeMini',
+        isBlockedByPanel: false,
+        isFullscreenChromeVisible: true,
+      });
+    },
+
     showFooterMini: () => {
       clearFullscreenChromeAutoHideTimer();
 
+      // set({
+      //   mode: 'footerMini',
+      //   isFullscreenChromeVisible: true,
+      // });
+
+      console.log('[FullscreenVideoStore] showFooterMini called, but redirected -> homeMini');
+
       set({
-        mode: 'footerMini',
+        mode: 'homeMini',
+        isBlockedByPanel: true,
         isFullscreenChromeVisible: true,
       });
     },
@@ -214,15 +234,26 @@ export const useFullscreenVideoStore = create<FullscreenVideoStore>((set, get) =
 
     setBlockedByPanel: (isBlocked) => {
       set((state) => {
+        console.log('[FullscreenVideoStore] setBlockedByPanel:', {
+          isBlocked,
+          currentMode: state.mode,
+          nextMode: state.mode === 'fullscreen' ? state.mode : 'homeMini',
+        });
+
         if (state.mode === 'fullscreen') {
           return {
             isBlockedByPanel: isBlocked,
           };
         }
 
+        // return {
+        //   isBlockedByPanel: isBlocked,
+        //   mode: isBlocked ? 'footerMini' : 'homeMini',
+        // };
+
         return {
           isBlockedByPanel: isBlocked,
-          mode: isBlocked ? 'footerMini' : 'homeMini',
+          mode: 'homeMini',
         };
       });
     },

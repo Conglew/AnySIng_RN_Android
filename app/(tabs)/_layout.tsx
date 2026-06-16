@@ -21,7 +21,6 @@ import { SongRequestQrPanel } from '@/src/features/main/components/song-request-
 
 import { usePlayerSocketControls } from '@/src/features/player/hook/use-player-socket-controls';
 
-
 const HOME_BACKGROUND = require('@/assets/images/home-background.png');
 const RANKING_BACKGROUND = require('@/assets/images/home-panel-background.png');
 const NEW_SONGS_BACKGROUND = require('@/assets/images/home-panel-background.png');
@@ -125,20 +124,14 @@ export default function TabsLayout() {
 
   const shouldShowChrome = !isVideoFullscreen || isFullscreenChromeVisible;
 
-
   const backgroundSource = useMemo(() => {
     if (isRankingBackground) return RANKING_BACKGROUND;
     if (isNewSongsBackground) return NEW_SONGS_BACKGROUND;
     if (isCategoryBackground) return CATEGORY_BACKGROUND;
     if (isSingreBackground) return SINGER_BACKGROUND;
-  
+
     return HOME_BACKGROUND;
-  }, [
-    isRankingBackground,
-    isNewSongsBackground,
-    isCategoryBackground,
-    isSingreBackground,
-  ]);
+  }, [isRankingBackground, isNewSongsBackground, isCategoryBackground, isSingreBackground]);
 
   return (
     <View

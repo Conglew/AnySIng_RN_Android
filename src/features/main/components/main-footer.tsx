@@ -207,8 +207,12 @@ export function MainFooter() {
   const router = useRouter();
 
   const closeHomePanel = useHomePanelStore((state) => state.closePanel);
+  const activeHomePanel = useHomePanelStore((state) => state.activePanel);
+
   const resetMainBackgroundMode = useMainBackgroundStore((state) => state.resetMode);
   const closeFullscreen = useFullscreenVideoStore((state) => state.closeFullscreen);
+  const showHomeMini = useFullscreenVideoStore((state) => state.showHomeMini);
+  const setBlockedByPanel = useFullscreenVideoStore((state) => state.setBlockedByPanel);
 
   const videoMode = useFullscreenVideoStore((state) => state.mode);
   const setFooterMiniRect = useFullscreenVideoStore((state) => state.setFooterMiniRect);
@@ -398,13 +402,31 @@ export function MainFooter() {
         const isAudioTrackItem = item.action === 'toggleAudioTrack';
 
         const isRecordItem = item.labelKey === 'record';
-        const shouldHideRecordItem = isRecordItem && videoMode === 'footerMini';
+        const hasOpenedHomePanel = activeHomePanel !== null;
+        const isBackItem = isRecordItem && (videoMode === 'fullscreen' || hasOpenedHomePanel);
+        // const shouldHideRecordItem = isRecordItem && videoMode === 'footerMini';
+        const shouldHideRecordItem = false;
 
         const shouldHideFooterItemContent =
           videoMode === 'fullscreen' && !isFullscreenChromeVisible;
 
+        // const displayLabel = (() => {
+        //   if (isRecordItem && videoMode === 'fullscreen') {
+        //     return '返回';
+        //   }
+
+        //   if (isPauseItem) {
+        //     return isPaused ? copy.resume : copy.pause;
+        //   }
+
+        //   if (isAudioTrackItem) {
+        //     return audioTrackMode === 'vocal' ? copy.accompaniment : copy.vocal;
+        //   }
+
+        //   return copy[item.labelKey];
+        // })();
         const displayLabel = (() => {
-          if (isRecordItem && videoMode === 'fullscreen') {
+          if (isBackItem) {
             return '返回';
           }
 
@@ -455,9 +477,9 @@ export function MainFooter() {
               isItemDisabled && styles.footerItemDisabled,
             ]}
             onLayout={() => {
-              if (isRecordItem) {
-                measureRecordSlot();
-              }
+              // if (isRecordItem) {
+              //   measureRecordSlot();
+              // }
             }}
             onPress={async () => {
               console.log('[MainFooter] pressed item:', item.labelKey);
@@ -482,8 +504,36 @@ export function MainFooter() {
                 return;
               }
 
-              if (item.labelKey === 'record' && videoMode === 'fullscreen') {
-                closeFullscreen();
+              // if (item.labelKey === 'record' && videoMode === 'fullscreen') {
+              //   closeFullscreen();
+              //   return;
+              // }
+              if (isBackItem) {
+                console.log('[MainFooter] action: back', {
+                  pathname,
+                  videoMode,
+                  activeHomePanel,
+                });
+
+                if (videoMode === 'fullscreen') {
+                  closeFullscreen();
+                  return;
+                }
+
+                if (activeHomePanel) {
+                  closeHomePanel();
+                  resetMainBackgroundMode();
+
+                  /**
+                   * 因為你目前先停用 footerMini，
+                   * 所以關閉 HomePanel 後要強制回 homeMini。
+                   */
+                  setBlockedByPanel(false);
+                  showHomeMini();
+
+                  return;
+                }
+
                 return;
               }
 
