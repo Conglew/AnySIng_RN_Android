@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { useNowPlayingQuery } from '@/src/features/playlist/hook/use-now-playing-query';
 import { useNowPlayingSocket } from '@/src/features/playlist/hook/use-now-playing-socket';
 import { formatDisplaySongTitle } from '@/src/features/song/utils/song-title-format';
+
+import { usePlaybackQueueStore } from '@/src/features/player/stores/playback-queue.store';
+
+const MARQUEE_START_X = -1200;
+const MARQUEE_END_X = 1000;
+const MARQUEE_DURATION_MS = 25000;
+const MARQUEE_PAUSE_MS = 3000;
 
 function formatSongTitle(title?: string) {
   if (!title || title.trim().length === 0) {
@@ -13,55 +20,66 @@ function formatSongTitle(title?: string) {
   return formatDisplaySongTitle(title);
 }
 
-export function NowPlayingMarquee() {
+export const NowPlayingMarquee = memo(function NowPlayingMarquee() {
   const translateX = useRef(new Animated.Value(0)).current;
 
   useNowPlayingSocket();
 
   const { data } = useNowPlayingQuery();
 
-  useEffect(() => {
-    console.log('[NowPlayingMarquee] data:', {
-      current: data?.current?.title,
-      next: data?.next?.title,
-      index: data?.index,
-      raw: data,
-    });
-  }, [data]);
+  const currentPlaybackItem = usePlaybackQueueStore((state) => state.currentItem);
+  const nextPlaybackItem = usePlaybackQueueStore((state) => state.queue[0] ?? null);
+
+  // const displayText = useMemo(() => {
+  //   const currentTitle = formatSongTitle(data?.current?.title);
+  //   const nextTitle = formatSongTitle(data?.next?.title);
+
+  //   const currentText = currentTitle ? `目前：${currentTitle}` : '目前未播放歌曲';
+  //   const nextText = nextTitle ? `下一首：${nextTitle}` : '下一首：尚未點歌';
+
+  //   return `${currentText}     ${nextText}`;
+  // }, [data?.current?.title, data?.next?.title]);
 
   const displayText = useMemo(() => {
-    const currentTitle = formatSongTitle(data?.current?.title);
-    const nextTitle = formatSongTitle(data?.next?.title);
-
+    /**
+     * 優先讀本機播放佇列。
+     * API now-playing 只當 fallback。
+     */
+    const currentTitle = formatSongTitle(
+      currentPlaybackItem?.title || data?.current?.title,
+    );
+  
+    const nextTitle = formatSongTitle(
+      nextPlaybackItem?.title || data?.next?.title,
+    );
+  
     const currentText = currentTitle ? `目前：${currentTitle}` : '目前未播放歌曲';
     const nextText = nextTitle ? `下一首：${nextTitle}` : '下一首：尚未點歌';
-
+  
     return `${currentText}     ${nextText}`;
-  }, [data?.current?.title, data?.next?.title]);
+  }, [
+    currentPlaybackItem?.title,
+    nextPlaybackItem?.title,
+    data?.current?.title,
+    data?.next?.title,
+  ]);
+  
 
   useEffect(() => {
     let isMounted = true;
     let pauseTimer: ReturnType<typeof setTimeout> | null = null;
     let currentAnimation: Animated.CompositeAnimation | null = null;
 
-    const startX = -1200;
-    const endX = 1000;
-    const duration = 25000;
-    const pauseDuration = 3000;
-
     const runMarquee = () => {
       if (!isMounted) {
         return;
       }
 
-      /**
-       * 每一輪開始前，先把文字放回右側。
-       */
-      translateX.setValue(startX);
+      translateX.setValue(MARQUEE_START_X);
 
       currentAnimation = Animated.timing(translateX, {
-        toValue: endX,
-        duration,
+        toValue: MARQUEE_END_X,
+        duration: MARQUEE_DURATION_MS,
         easing: Easing.linear,
         useNativeDriver: true,
       });
@@ -73,7 +91,7 @@ export function NowPlayingMarquee() {
 
         pauseTimer = setTimeout(() => {
           runMarquee();
-        }, pauseDuration);
+        }, MARQUEE_PAUSE_MS);
       });
     };
 
@@ -91,16 +109,12 @@ export function NowPlayingMarquee() {
   }, [displayText, translateX]);
 
   return (
-    <View style={styles.marqueeContainer}>
+    <View pointerEvents="none" style={styles.marqueeContainer}>
       <Animated.View
         style={[
           styles.marqueeContent,
           {
-            transform: [
-              {
-                translateX,
-              },
-            ],
+            transform: [{ translateX }],
           },
         ]}
       >
@@ -110,7 +124,7 @@ export function NowPlayingMarquee() {
       </Animated.View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   marqueeContainer: {

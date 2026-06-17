@@ -33,8 +33,13 @@ function truncateText(text: string, maxLength: number) {
   return `${text.slice(0, maxLength)}...`;
 }
 
-const QUEUED_SONG_ROW_LAYOUT_HEIGHT = 78;
-const DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT = 78;
+const QUEUED_SONG_ROW_LAYOUT_HEIGHT = 68;
+const DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT = 68;
+
+const LIST_SEPARATOR_HEIGHT = 10;
+const QUEUED_SONG_ITEM_LAYOUT_HEIGHT = QUEUED_SONG_ROW_LAYOUT_HEIGHT + LIST_SEPARATOR_HEIGHT;
+const DOWNLOADING_SONG_ITEM_LAYOUT_HEIGHT =
+  DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT + LIST_SEPARATOR_HEIGHT;
 
 type QueuedSongRowProps = {
   queueId: string;
@@ -125,22 +130,56 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
 }: DownloadingSongRowProps) {
   const status = useSongDownloadStatusStore((state) => state.statusMap[songId]);
 
+  const song = status?.song;
+  const phase = status?.phase;
+  const rawProgress = status?.progress ?? 0;
+
+  // const songTitle = useMemo(() => {
+  //   if (!status) {
+  //     return '';
+  //   }
+
+  //   return truncateText(formatDisplaySongTitle(status.song.title), 14);
+  // }, [status]);
+
   const songTitle = useMemo(() => {
-    if (!status) {
+    if (!song) {
       return '';
     }
 
-    return truncateText(formatDisplaySongTitle(status.song.title), 14);
-  }, [status]);
+    return truncateText(formatDisplaySongTitle(song.title), 14);
+  }, [song?.title]);
+
+  // const artistText = useMemo(() => {
+  //   if (!status) {
+  //     return '';
+  //   }
+
+  //   return truncateText(
+  //     Array.isArray(status.song.artists)
+  //       ? status.song.artists
+  //           .map((artist) => {
+  //             if (typeof artist === 'string') {
+  //               return artist;
+  //             }
+
+  //             return artist?.name;
+  //           })
+  //           .filter(Boolean)
+  //           .join(' / ')
+  //       : copy.unknownArtist,
+  //     17,
+  //   );
+  // }, [copy.unknownArtist, status]);
 
   const artistText = useMemo(() => {
-    if (!status) {
+    if (!song) {
       return '';
     }
 
     return truncateText(
-      Array.isArray(status.song.artists)
-        ? status.song.artists
+      Array.isArray(song.artists)
+        ? song.artists
             .map((artist) => {
               if (typeof artist === 'string') {
                 return artist;
@@ -153,23 +192,35 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
         : copy.unknownArtist,
       17,
     );
-  }, [copy.unknownArtist, status]);
+  }, [copy.unknownArtist, song?.artists]);
+
+  // const progress = useMemo(() => {
+  //   if (!status) {
+  //     return 0;
+  //   }
+
+  //   return Math.max(0, Math.min(status.progress, 100));
+  // }, [status]);
 
   const progress = useMemo(() => {
-    if (!status) {
-      return 0;
-    }
+    return Math.max(0, Math.min(rawProgress, 100));
+  }, [rawProgress]);
 
-    return Math.max(0, Math.min(status.progress, 100));
-  }, [status]);
+  // const statusText = useMemo(() => {
+  //   if (!status) {
+  //     return '';
+  //   }
+
+  //   return status.phase === 'preparing' ? copy.preparingDownload : copy.downloading(progress);
+  // }, [copy, progress, status]);
 
   const statusText = useMemo(() => {
-    if (!status) {
+    if (!phase) {
       return '';
     }
 
-    return status.phase === 'preparing' ? copy.preparingDownload : copy.downloading(progress);
-  }, [copy, progress, status]);
+    return phase === 'preparing' ? copy.preparingDownload : copy.downloading(progress);
+  }, [copy, phase, progress]);
 
   const speedText = status?.speedText ?? '-- MB/s';
 
@@ -207,6 +258,10 @@ const DownloadingSongRow = memo(function DownloadingSongRow({
       </Pressable>
     </View>
   );
+});
+
+const ListSeparator = memo(function ListSeparator() {
+  return <View style={styles.listSeparator} />;
 });
 
 export function QueuedSongsPanel() {
@@ -320,11 +375,33 @@ export function QueuedSongsPanel() {
     return songId;
   }, []);
 
+  // const getQueuedItemLayout = useCallback(
+  //   (_data: ArrayLike<unknown> | null | undefined, index: number) => {
+  //     return {
+  //       length: QUEUED_SONG_ROW_LAYOUT_HEIGHT,
+  //       offset: QUEUED_SONG_ROW_LAYOUT_HEIGHT * index,
+  //       index,
+  //     };
+  //   },
+  //   [],
+  // );
+
+  // const getDownloadingItemLayout = useCallback(
+  //   (_data: ArrayLike<string> | null | undefined, index: number) => {
+  //     return {
+  //       length: DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT,
+  //       offset: DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT * index,
+  //       index,
+  //     };
+  //   },
+  //   [],
+  // );
+
   const getQueuedItemLayout = useCallback(
     (_data: ArrayLike<unknown> | null | undefined, index: number) => {
       return {
-        length: QUEUED_SONG_ROW_LAYOUT_HEIGHT,
-        offset: QUEUED_SONG_ROW_LAYOUT_HEIGHT * index,
+        length: QUEUED_SONG_ITEM_LAYOUT_HEIGHT,
+        offset: QUEUED_SONG_ITEM_LAYOUT_HEIGHT * index,
         index,
       };
     },
@@ -334,8 +411,8 @@ export function QueuedSongsPanel() {
   const getDownloadingItemLayout = useCallback(
     (_data: ArrayLike<string> | null | undefined, index: number) => {
       return {
-        length: DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT,
-        offset: DOWNLOADING_SONG_ROW_LAYOUT_HEIGHT * index,
+        length: DOWNLOADING_SONG_ITEM_LAYOUT_HEIGHT,
+        offset: DOWNLOADING_SONG_ITEM_LAYOUT_HEIGHT * index,
         index,
       };
     },
@@ -441,10 +518,10 @@ export function QueuedSongsPanel() {
             getItemLayout={getQueuedItemLayout}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            initialNumToRender={8}
-            maxToRenderPerBatch={6}
-            updateCellsBatchingPeriod={50}
-            windowSize={5}
+            initialNumToRender={6}
+            maxToRenderPerBatch={4}
+            updateCellsBatchingPeriod={80}
+            windowSize={3}
             removeClippedSubviews
             ListEmptyComponent={
               <View style={styles.emptyBox}>
@@ -452,6 +529,7 @@ export function QueuedSongsPanel() {
               </View>
             }
             renderItem={renderQueuedSongItem}
+            ItemSeparatorComponent={ListSeparator}
           />
         ) : (
           // <FlatList
@@ -483,10 +561,10 @@ export function QueuedSongsPanel() {
             getItemLayout={getDownloadingItemLayout}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            initialNumToRender={8}
-            maxToRenderPerBatch={6}
-            updateCellsBatchingPeriod={50}
-            windowSize={5}
+            initialNumToRender={6}
+            maxToRenderPerBatch={4}
+            updateCellsBatchingPeriod={80}
+            windowSize={3}
             removeClippedSubviews
             ListEmptyComponent={
               <View style={styles.emptyBox}>
@@ -494,6 +572,7 @@ export function QueuedSongsPanel() {
               </View>
             }
             renderItem={renderDownloadingSongItem}
+            ItemSeparatorComponent={ListSeparator}
           />
         )}
       </View>
@@ -582,7 +661,7 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingBottom: 28,
-    gap: 10,
+    // gap: 10,
   },
 
   title: {
@@ -798,5 +877,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     transform: [{ translateY: -1 }],
+  },
+
+  listSeparator: {
+    height: 10,
   },
 });

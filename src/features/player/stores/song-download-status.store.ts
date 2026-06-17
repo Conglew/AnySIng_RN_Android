@@ -32,7 +32,7 @@ type SongDownloadStatusStore = {
   clearAllStatus: () => void;
 };
 
-const MIN_PROGRESS_UPDATE_STEP = 10;
+const MIN_PROGRESS_UPDATE_STEP = 8;
 
 function appendDownloadIdIfNeeded(downloadIds: string[], songId: string) {
   if (downloadIds.includes(songId)) {
@@ -130,14 +130,22 @@ export const useSongDownloadStatusStore = create<SongDownloadStatusStore>((set) 
         return state;
       }
 
-      const shouldThrottleProgress =
+      // const shouldThrottleProgress =
+      //   previousStatus?.phase === 'downloading' &&
+      //   nextProgress !== 100 &&
+      //   nextProgress > previousProgress &&
+      //   nextProgress - previousProgress < MIN_PROGRESS_UPDATE_STEP &&
+      //   previousSpeedText === speedText;
+
+      // if (shouldThrottleProgress) {
+      //   return state;
+      // }
+      const shouldThrottleDownloadingUpdate =
         previousStatus?.phase === 'downloading' &&
         nextProgress !== 100 &&
-        nextProgress > previousProgress &&
-        nextProgress - previousProgress < MIN_PROGRESS_UPDATE_STEP &&
-        previousSpeedText === speedText;
+        Math.abs(nextProgress - previousProgress) < MIN_PROGRESS_UPDATE_STEP;
 
-      if (shouldThrottleProgress) {
+      if (shouldThrottleDownloadingUpdate) {
         return state;
       }
 

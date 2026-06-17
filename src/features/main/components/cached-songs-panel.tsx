@@ -194,7 +194,7 @@ const CachedSongRow = memo(function CachedSongRow({
     // });
 
     onEnqueueSongAfterDownload(song);
-  }, [isEditing, onEnqueueSongAfterDownload, song]);
+  }, [isEditing, isSongActionLoading, item.songId, onEnqueueSongAfterDownload, song]);
 
   const isFavoriteActionLoading = useSongFavoriteStatusStore((state) =>
     Boolean(state.actionStatusMap[item.songId]),
